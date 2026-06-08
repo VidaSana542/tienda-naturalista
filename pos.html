@@ -1,0 +1,785 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>POS - Sistema de Ventas</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabaseClient.js"></script>
+<script src="js/api.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/pos.css">
+</head>
+<body>
+
+<!-- Login Screen -->
+<div class="login-screen" id="loginScreen">
+    <div class="login-card">
+        <div class="login-logo">
+            <img src="LOGO.jpeg" alt="TIENDA NATURALISTA" style="height:80px;border-radius:14px;">
+            <h2>TIENDA <span>NATURALISTA</span></h2>
+            <p>Punto de Venta</p>
+        </div>
+        <form id="loginForm" onsubmit="return handleLogin(event)">
+            <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" id="loginUser" placeholder="Ingresa tu usuario" required autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Contrasena</label>
+                <input type="password" id="loginPass" placeholder="Ingresa tu contrasena" required>
+            </div>
+            <div id="loginError" style="display:none;color:var(--danger);font-size:13px;margin-bottom:10px;text-align:center;"></div>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:14px;">
+                <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:#fff;"><path d="M11 7L9.59 8.41 12.17 11H4v2h8.17l-2.58 2.59L11 17l5-5z"/></svg>
+                Ingresar
+            </button>
+        </form>
+        <div class="login-hint">
+            <div><strong>Admin:</strong> admin / admin123</div>
+            <div><strong>Empleado:</strong> empleado / emp123</div>
+        </div>
+    </div>
+</div>
+
+<!-- POS App (hidden until login) -->
+<div id="posApp" style="display:none;">
+
+<div class="sidebar">
+    <div class="sidebar-brand">
+        <a href="#">
+            <img src="LOGO.jpeg" alt="TIENDA NATURALISTA" style="height:56px;border-radius:10px;">
+            <span style="font-size:16px;">POS</span>
+            <small>Punto de Venta</small>
+        </a>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Menu</div>
+        <a class="nav-item active" data-panel="dashboard" onclick="switchPanel('dashboard')" data-role="admin">
+            <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+            <span>Dashboard</span>
+        </a>
+        <a class="nav-item" data-panel="tpv" onclick="switchPanel('tpv')">
+            <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12z"/></svg>
+            <span>TPV / Venta</span>
+            <span class="badge" id="cartBadge">0</span>
+        </a>
+        <a class="nav-item" data-panel="products" onclick="switchPanel('products')" data-role="admin">
+            <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16zM6 10h12v2H6v-2zm0 4h12v2H6v-2zm0-8h12v2H6V6z"/></svg>
+            <span>Productos</span>
+        </a>
+        <a class="nav-item" data-panel="inventory" onclick="switchPanel('inventory')" data-role="admin">
+            <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16zM6 10h12v2H6v-2zm0 4h12v2H6v-2zm0-8h12v2H6V6z"/></svg>
+            <span>Inventario</span>
+        </a>
+        <a class="nav-item" data-panel="customers" onclick="switchPanel('customers')">
+            <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+            <span>Clientes</span>
+        </a>
+        <a class="nav-item" data-panel="suppliers" onclick="switchPanel('suppliers')" data-role="admin">
+            <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h12v2H6v-2zm0 4h8v2H6v-2z"/></svg>
+            <span>Proveedores</span>
+        </a>
+        <a class="nav-item" data-panel="categories" onclick="switchPanel('categories')" data-role="admin">
+            <svg viewBox="0 0 24 24"><path d="M12 2l-5.5 9h11L12 2zm0 3.84L13.93 9h-3.87L12 5.84zM17.5 13c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zm0 7c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5zM3 21.5h8v-8H3v8zm2-6h4v4H5v-4z"/></svg>
+            <span>Categorias</span>
+        </a>
+        <a class="nav-item" data-panel="sales" onclick="switchPanel('sales')">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            <span>Ventas</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a class="nav-item logout" onclick="logout()">
+            <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+            <span>Cerrar Sesion</span>
+        </a>
+    </div>
+</div>
+
+<div class="main">
+    <div class="topbar">
+        <div class="topbar-left">
+            <h2 id="panelTitle">Dashboard</h2>
+            <span class="date" id="currentDate"></span>
+        </div>
+        <div class="topbar-right">
+            <div class="user-info">
+                <div class="user-name">Administrador</div>
+                <div class="user-role">POS</div>
+            </div>
+            <div class="avatar">A</div>
+        </div>
+    </div>
+
+    <div class="content">
+
+        <!-- Dashboard -->
+        <div class="panel active" id="panel-dashboard">
+            <div class="stats-grid" id="dashStats"></div>
+            <div class="card">
+                <div class="card-header">
+                    <h3>Ventas Recientes</h3>
+                </div>
+                <div class="card-body">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Cliente</th>
+                                    <th>Prod.</th>
+                                    <th>Total</th>
+                                    <th>Excedente</th>
+                                    <th>Metodo</th>
+                                    <th>Fecha</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashRecentSales"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TPV -->
+        <div class="panel" id="panel-tpv">
+            <div class="tpv-layout">
+                <div class="tpv-products">
+                    <div class="tpv-search-row">
+                        <div class="tpv-search search-field">
+                            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                            <input type="text" id="tpvSearch" placeholder="Buscar producto..." oninput="filterTpvProducts()">
+                        </div>
+                        <div class="tpv-search search-field">
+                            <svg viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.57 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 1 1 9.5 3zm0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
+                            <input type="text" id="tpvBarcode" placeholder="Codigo de barras (lector)" autocomplete="off" autofocus>
+                        </div>
+                    </div>
+                    <div class="tpv-filters">
+                        <select id="tpvCatFilter" onchange="updateTpvSubcats(); filterTpvProducts()">
+                            <option value="">Todas las categorias</option>
+                        </select>
+                        <select id="tpvSubcatFilter" onchange="filterTpvProducts()">
+                            <option value="">Todas las subcategorias</option>
+                        </select>
+                    </div>
+                    <div class="tpv-grid" id="tpvGrid"></div>
+                </div>
+                <div class="tpv-cart">
+                    <div class="tpv-cart-header">
+                        <h3><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg> Carrito <span id="tpvCartCount">0</span></h3>
+                        <button class="btn btn-sm btn-outline" onclick="clearCart()">Vaciar</button>
+                    </div>
+                    <div class="tpv-cart-items" id="tpvCartItems"></div>
+                    <div class="tpv-cart-footer">
+                        <div class="tpv-subtotals">
+                            <div><span>Subtotal</span><span id="tpvSubtotal">$0</span></div>
+                            <div class="tpv-excedente">
+                                <label onclick="toggleExcedente()"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg> Excedente</label>
+                                <input type="number" id="tpvExcedente" value="0" min="0" oninput="calcTotalExcedente()">
+                            </div>
+                        </div>
+                        <div class="tpv-total"><span>TOTAL</span><span id="tpvTotal">$0</span></div>
+                        <button class="tpv-checkout-btn" id="tpvCheckoutBtn" onclick="openCheckoutModal()" disabled>
+                            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Cobrar $0
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products -->
+        <div class="panel" id="panel-products">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Productos</h3>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <div class="search-field">
+                            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                            <input type="text" id="prodSearch" placeholder="Buscar por nombre o marca..." oninput="renderProductTable()">
+                        </div>
+                        <select id="prodCatFilter" onchange="renderProductTable()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);">
+                            <option value="all">Todas las categorias</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="openProductModal()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Nuevo Producto
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre / Marca</th>
+                                    <th>Categoria</th>
+                                    <th>Subcategoria</th>
+                                    <th>Precio</th>
+                                    <th>Stock</th>
+                                    <th>Estado</th>
+                                    <th>Proveedor</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prodTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory -->
+        <div class="panel" id="panel-inventory">
+            <div class="stats-grid" id="invStats"></div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="inv-tabs" style="display:flex;gap:4px;">
+                        <button class="inv-tab active" data-invtab="stock" onclick="switchInvTab('stock')">Inventario</button>
+                        <button class="inv-tab" data-invtab="log" onclick="switchInvTab('log')">Historial <span id="invLogCount" style="font-weight:400;font-size:11px;opacity:0.7;"></span></button>
+                    </div>
+                    <div id="invActions" style="display:flex;gap:8px;align-items:center;">
+                        <button class="btn btn-success btn-sm" onclick="openInvMovModal('entrada')">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Entrada
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="openInvMovModal('salida')">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><path d="M19 13H5v-2h14v2z"/></svg> Salida
+                        </button>
+                        <button class="btn btn-sm" onclick="clearInvLog()" style="background:#666;color:#fff;padding:6px 12px;font-size:12px;border-radius:8px;border:none;cursor:pointer;">
+                            Limpiar historial
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="invStockSection">
+                        <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+                            <div class="search-field">
+                                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                                <input type="text" id="invStockSearch" placeholder="Buscar producto..." oninput="renderInventory()">
+                            </div>
+                            <select id="invStockCatFilter" onchange="renderInventory()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);">
+                                <option value="all">Todas las categorias</option>
+                            </select>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Producto</th>
+                                        <th>Categoria</th>
+                                        <th>Stock</th>
+                                        <th>Estado</th>
+                                        <th>Ultima Venta</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="invTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="invLogSection" style="display:none;">
+                        <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+                            <div class="search-field">
+                                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                                <input type="text" id="invLogSearch" placeholder="Buscar en historial..." oninput="renderInvLog()">
+                            </div>
+                            <select id="invLogCatFilter" onchange="renderInvLog()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);">
+                                <option value="all">Todas las categorias</option>
+                            </select>
+                            <select id="invLogTypeFilter" onchange="renderInvLog()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);">
+                                <option value="all">Todos los tipos</option>
+                                <option value="entrada">Entrada</option>
+                                <option value="salida">Salida</option>
+                            </select>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Producto</th>
+                                        <th>Categoria</th>
+                                        <th>Tipo</th>
+                                        <th>Cant.</th>
+                                        <th>Stock Antes</th>
+                                        <th>Stock Despues</th>
+                                        <th>Razon</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="invLogBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customers -->
+        <div class="panel" id="panel-customers">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Clientes</h3>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <div class="search-field">
+                            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                            <input type="text" id="custSearch" placeholder="Buscar cliente..." oninput="renderCustomerTable()">
+                        </div>
+                        <select id="custFilter" onchange="renderCustomerTable()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);">
+                            <option value="todo">Todos</option>
+                            <option value="aldia">Al dia</option>
+                            <option value="pendiente">Con deuda</option>
+                        </select>
+                        <button class="btn btn-primary" id="btnNewCustomer" onclick="openCustomerModal()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> Nuevo Cliente
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>Telefono</th>
+                                    <th>Email</th>
+                                    <th>Compras</th>
+                                    <th>Total Gastado</th>
+                                    <th>Pendiente</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="custTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Suppliers -->
+        <div class="panel" id="panel-suppliers">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Proveedores</h3>
+                    <div style="display:flex;gap:10px;align-items:center;">
+                        <div class="search-field">
+                            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                            <input type="text" id="suppSearch" placeholder="Buscar proveedor..." oninput="renderSupplierTable()">
+                        </div>
+                        <button class="btn btn-primary" onclick="openSupplierModal()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Nuevo Proveedor
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>NIT</th>
+                                    <th>Contacto</th>
+                                    <th>Telefono</th>
+                                    <th>Email</th>
+                                    <th>Productos</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="suppTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories -->
+        <div class="panel" id="panel-categories">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Gestion de Categorias</h3>
+                    <button class="btn btn-primary" id="catNewBtn" onclick="openCategoryModal()">+ Nueva Categoria</button>
+                </div>
+                <div class="card-body">
+                    <div class="inv-tabs" style="margin-bottom:14px;">
+                        <button class="inv-tab active" data-cattab="cats" onclick="switchCatTab('cats')">Categorias</button>
+                        <button class="inv-tab" data-cattab="subs" onclick="switchCatTab('subs')">Subcategorias</button>
+                    </div>
+                    <div id="catCatsSection">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Categoria</th>
+                                        <th>Productos</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="catTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="catSubsSection" style="display:none;">
+                        <div style="padding:0 0 12px;display:flex;align-items:center;gap:10px;">
+                            <label style="font-size:13px;color:var(--text-muted);">Filtrar por categoria:</label>
+                            <select id="catSubFilter" onchange="renderSubcategoriesTable()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+                                <option value="">Todas</option>
+                            </select>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Subcategoria</th>
+                                        <th>Categoria padre</th>
+                                        <th>Productos</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="catSubsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales -->
+        <div class="panel" id="panel-sales">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Historial de Ventas</h3>
+                    <div class="search-field">
+                        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        <input type="text" id="salesSearch" placeholder="Buscar por # o cliente..." oninput="renderSalesTable()">
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Fecha</th>
+                                    <th>Cliente</th>
+                                    <th>Prod.</th>
+                                    <th>Total</th>
+                                    <th>Excedente</th>
+                                    <th>Metodo</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="salesTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Product Modal -->
+<div class="modal-overlay" id="productModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeProductModal()">&times;</button>
+        <h3><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h12v2H6v-2zm0 4h8v2H6v-2z"/></svg> <span id="prodModalTitle">Nuevo Producto</span></h3>
+        <input type="hidden" id="prodEditId">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="prodName" placeholder="Nombre del producto">
+            </div>
+            <div class="form-group">
+                <label>Codigo de Barras</label>
+                <input type="text" id="prodBarcode" placeholder="Opcional">
+            </div>
+            <div class="form-group">
+                <label>Marca</label>
+                <input type="text" id="prodBrand" placeholder="Marca">
+            </div>
+            <div class="form-group">
+                <label>Categoria</label>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <select id="prodCategory" style="flex:1;"></select>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="openCategoryModal()" style="padding:6px 10px;font-size:16px;" title="Nueva categoria">+</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Precio Venta</label>
+                <input type="number" id="prodPrice" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label>Costo</label>
+                <input type="number" id="prodCost" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label>Stock</label>
+                <input type="number" id="prodStock" placeholder="0">
+            </div>
+            <div class="form-group" id="prodSubcatGroup">
+                <label>Subcategoria</label>
+                <select id="prodSubcategory">
+                    <option value="">Ninguna</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Proveedor</label>
+                <select id="prodSupplier"></select>
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+                <label>Imagen principal</label>
+                <div class="form-upload">
+                    <label class="form-upload-btn" id="prodMainUploadLabel">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg> Subir desde PC
+                        <input type="file" accept="image/*" onchange="uploadMainImage(this)">
+                    </label>
+                    <span class="form-upload-status" id="prodMainUploadStatus"></span>
+                </div>
+                <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+                    <input type="text" id="prodImg" placeholder="O pega una URL aqui..." style="flex:1;">
+                    <span id="prodMainPreview" style="display:none;width:40px;height:40px;border-radius:6px;overflow:hidden;flex-shrink:0;border:1px solid var(--border);">
+                        <img id="prodMainPreviewImg" style="width:100%;height:100%;object-fit:cover;">
+                    </span>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">La imagen de PC tiene prioridad sobre la URL</div>
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+                <label>Imagenes adicionales</label>
+                <div class="form-upload">
+                    <label class="form-upload-btn">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg> Subir mas imagenes
+                        <input type="file" multiple accept="image/*" onchange="uploadProdImages(this.files)">
+                    </label>
+                    <span class="form-upload-status" id="prodUploadStatus"></span>
+                </div>
+                <div class="form-images-preview" id="prodImagesPreview"></div>
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+                <label>Descripcion</label>
+                <textarea id="prodDesc" placeholder="Descripcion del producto"></textarea>
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+                <label class="form-checkbox">
+                    <input type="checkbox" id="prodFeatured">
+                    <span class="ck-box"></span>
+                    Producto destacado
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeProductModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveProduct()">Guardar Producto</button>
+        </div>
+    </div>
+</div>
+
+<!-- Supplier Modal -->
+<div class="modal-overlay" id="supplierModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeSupplierModal()">&times;</button>
+        <h3><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h12v2H6v-2zm0 4h8v2H6v-2z"/></svg> <span id="suppModalTitle">Nuevo Proveedor</span></h3>
+        <input type="hidden" id="suppEditId">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="suppName" placeholder="Nombre del proveedor">
+            </div>
+            <div class="form-group">
+                <label>NIT</label>
+                <input type="text" id="suppNit" placeholder="NIT">
+            </div>
+            <div class="form-group">
+                <label>Contacto</label>
+                <input type="text" id="suppContact" placeholder="Persona de contacto">
+            </div>
+            <div class="form-group">
+                <label>Telefono</label>
+                <input type="text" id="suppPhone" placeholder="Telefono">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="suppEmail" placeholder="Email">
+            </div>
+            <div class="form-group">
+                <label>Direccion</label>
+                <input type="text" id="suppAddress" placeholder="Direccion">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeSupplierModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveSupplier()">Guardar Proveedor</button>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Modal -->
+<div class="modal-overlay" id="customerModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeCustomerModal()">&times;</button>
+        <h3><svg viewBox="0 0 24 24"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> <span id="custModalTitle">Nuevo Cliente</span></h3>
+        <input type="hidden" id="custEditId">
+        <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" id="custName" placeholder="Nombre del cliente">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Telefono</label>
+                <input type="text" id="custPhone" placeholder="Telefono">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="custEmail" placeholder="Email">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Direccion</label>
+            <input type="text" id="custAddress" placeholder="Direccion">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeCustomerModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveCustomer()">Guardar Cliente</button>
+        </div>
+    </div>
+</div>
+
+<!-- Customer History Modal -->
+<div class="modal-overlay" id="custHistoryModal">
+    <div class="modal" style="max-width:620px;">
+        <button class="modal-close" onclick="closeCustHistory()">&times;</button>
+        <h3><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg> <span id="custHistoryTitle">Cuenta de Cobro</span></h3>
+        <div id="custHistoryContent"></div>
+    </div>
+</div>
+
+<!-- Inventory Movement Modal -->
+<div class="modal-overlay" id="invMovModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeInvMovModal()">&times;</button>
+        <h3><svg viewBox="0 0 24 24"><path id="invMovTitleIcon" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" fill="var(--success)"/></svg> <span id="invMovTitleText">Registrar Movimiento</span></h3>
+        <input type="hidden" id="invMovType">
+        <div class="form-group">
+            <label>Producto</label>
+            <select id="invMovProduct"></select>
+        </div>
+        <div class="form-group">
+            <label>Cantidad</label>
+            <input type="number" id="invMovQty" value="1" min="1">
+        </div>
+        <div class="form-group">
+            <label>Razon</label>
+            <select id="invMovReason"></select>
+        </div>
+        <div class="form-group">
+            <label>Nota adicional</label>
+            <input type="text" id="invMovNote" placeholder="Opcional">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeInvMovModal()">Cancelar</button>
+            <button class="btn btn-primary" id="invMovConfirmBtn" onclick="confirmInvMov()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Checkout Modal -->
+<div class="modal-overlay checkout-modal" id="checkoutModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeCheckoutModal()">&times;</button>
+        <h3><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Registrar Pago</h3>
+        <div class="checkout-layout">
+            <div class="checkout-section">
+                <div class="checkout-section-title"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg> Cliente</div>
+                <div class="checkout-customer-search">
+                    <input type="text" id="chkCustomerInput" placeholder="Buscar cliente..." oninput="renderCheckoutCustomers()">
+                    <input type="hidden" id="chkCustomerId">
+                </div>
+                <div class="checkout-customer-list" id="chkCustomerList"></div>
+            </div>
+            <div class="checkout-section">
+                <div class="checkout-section-title"><svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg> Metodo de Pago</div>
+                <div class="checkout-pay-grid" id="chkPayGrid"></div>
+                <div class="checkout-credit-config" id="chkCreditConfig">
+                    <div class="checkout-credit-tabs">
+                        <button class="credit-tab active" data-ctype="fijo" onclick="switchCreditType('fijo')">Cuotas Fijas</button>
+                        <button class="credit-tab" data-ctype="abono" onclick="switchCreditType('abono')">Abono libre</button>
+                    </div>
+                    <div class="checkout-credit-body" id="chkCreditBody"></div>
+                </div>
+            </div>
+        </div>
+        <div class="checkout-resumen">
+            <div class="checkout-resumen-items" id="chkResumenItems"></div>
+            <div class="checkout-credit-summary" id="chkCreditSummary"></div>
+            <div class="checkout-resumen-total"><span>TOTAL</span><span id="chkTotalDisplay">$0</span></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeCheckoutModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="confirmCheckout()">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Confirmar Pago
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Receipt Modal -->
+<div class="modal-overlay receipt-modal" id="receiptModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeReceipt()">&times;</button>
+        <h3><svg viewBox="0 0 24 24"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg> Recibo de Venta</h3>
+        <div id="receiptContent"></div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeReceipt()">Cerrar</button>
+            <button class="btn btn-primary" onclick="printReceipt()">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg> Imprimir
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div class="modal-overlay" id="paymentModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closePaymentModal()">&times;</button>
+        <h3><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Registrar Pago</h3>
+        <div id="paymentModalContent"></div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closePaymentModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="confirmPayment()">Confirmar Pago</button>
+        </div>
+    </div>
+</div>
+
+<!-- Category Modal -->
+<div class="modal-overlay" id="categoryModal">
+    <div class="modal" style="max-width:440px;">
+        <button class="modal-close" onclick="closeCategoryModal()">&times;</button>
+        <h3><svg viewBox="0 0 24 24"><path d="M12 2l-5.5 9h11L12 2zm0 3.84L13.93 9h-3.87L12 5.84zM17.5 13c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zm0 7c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5zM3 21.5h8v-8H3v8zm2-6h4v4H5v-4z"/></svg> <span id="catModalTitle">Nueva Categoria</span></h3>
+        <input type="hidden" id="catEditKey">
+        <div class="form-group">
+            <label id="catNameLabel">Nombre</label>
+            <input type="text" id="catNameInput" placeholder="Ej: Vitaminas, Superfoods, ..." autofocus>
+        </div>
+        <div class="form-group" id="catParentGroup">
+            <label id="catParentLabel">Categoria padre</label>
+            <select id="catParentSelect">
+                <option value="">Selecciona una categoria</option>
+            </select>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeCategoryModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveCategoryModal()">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg> Guardar
+            </button>
+        </div>
+    </div>
+</div>
+</div>
+
+</div> <!-- /posApp -->
+
+<script src="js/pos.js"></script>
+</body>
+</html>

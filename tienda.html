@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tienda - TIENDA NATURALISTA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tienda.css">
+</head>
+<body>
+
+<div class="top-bar">Envios a domicilio en <strong>Santa Marta</strong> | Consulta nuestras politicas de envio</div>
+
+<header class="header">
+    <div class="header-inner">
+        <a href="index.html" class="logo">
+            <img src="LOGO.jpeg" alt="TIENDA NATURALISTA" style="height:76px;border-radius:10px;">
+            <div>TIENDA<span> NATURALISTA</span><small>Santa Marta</small></div>
+        </a>
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Buscar por producto, marca o categoria..." oninput="handleSearch()">
+            <button class="sbtn" onclick="handleSearch()">
+                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            </button>
+        </div>
+        <div class="header-actions">
+            <button class="cart-btn" onclick="openCart()">
+                <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                Carrito <span class="cart-count" id="cartCount">0</span>
+            </button>
+        </div>
+    </div>
+</header>
+
+<section class="page-top">
+    <div class="container">
+        <h1>Nuestra Tienda</h1>
+        <p>Productos naturales, suplementos y cosmeticos para tu bienestar</p>
+    </div>
+</section>
+
+<div class="categories-section" id="categoriesSection">
+    <div class="container">
+        <div class="cat-bar-flex">
+            <div class="cat-cards-scroll" id="categoryCards"></div>
+            <div class="cat-bar-actions">
+                <span class="result-count" id="resultCount">0 productos</span>
+                <select class="sort-select" id="sortSelect" onchange="renderProducts()">
+                    <option value="default">Ordenar</option>
+                    <option value="price-asc">Menor precio</option>
+                    <option value="price-desc">Mayor precio</option>
+                    <option value="name-asc">A - Z</option>
+                    <option value="name-desc">Z - A</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="subcategories-section" id="subcategorySection" style="display:none;">
+    <div class="container">
+        <div class="subcat-chips" id="subcategoryCards"></div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="prod-grid" id="productGrid"></div>
+</div>
+
+<div class="cart-overlay" id="cartOverlay" onclick="closeCart()"></div>
+<div class="cart-panel" id="cartPanel">
+    <div class="cart-header">
+        <h2>
+            <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+            Tu Carrito
+        </h2>
+        <button class="cart-close" onclick="closeCart()">x</button>
+    </div>
+    <div class="cart-items" id="cartItems"></div>
+    <div class="cart-footer" id="cartFooter">
+        <div class="cart-subtotals" id="cartSubtotals"></div>
+        <div class="cart-total">
+            <span>Total</span>
+            <span id="cartTotal">$0</span>
+        </div>
+        <button class="checkout-btn" onclick="openCheckout()">
+            <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            Proceder al Pago
+        </button>
+    </div>
+</div>
+
+<div class="toast" id="toast">
+    <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+    <span id="toastMsg"></span>
+</div>
+<button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+    <svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
+</button>
+
+<div class="modal-overlay" id="productModal" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal()">x</button>
+        <div class="modal-img"><img id="modalImg" src="" alt=""></div>
+        <div class="modal-brand" id="modalBrand"></div>
+        <h2 id="modalName"></h2>
+        <p class="modal-desc" id="modalDesc"></p>
+        <div class="modal-actions">
+            <a class="modal-btn-wa" id="modalWaBtn" target="_blank">
+                <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                WhatsApp
+            </a>
+            <button class="modal-btn-cart" id="modalAddBtn">
+                <svg viewBox="0 0 24 24"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                Carrito
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay checkout-modal" id="checkoutModal" onclick="if(event.target===this)closeCheckout()">
+    <div class="modal">
+        <button class="modal-close" onclick="closeCheckout()">x</button>
+        <h2>
+            <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+            Datos del Pedido
+        </h2>
+        <div class="order-summary" id="orderSummary"></div>
+        <div class="form-group">
+            <label>Nombre completo *</label>
+            <input type="text" id="checkName" placeholder="Tu nombre">
+        </div>
+        <div class="form-group">
+            <label>Telefono *</label>
+            <input type="tel" id="checkPhone" placeholder="300 123 4567">
+        </div>
+        <div class="delivery-options">
+            <label class="delivery-opt" onclick="selectDelivery('domicilio')">
+                <input type="radio" name="delivery" value="domicilio" checked>
+                <div class="delivery-box">
+                    <svg viewBox="0 0 24 24"><path d="M18 18.5c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5-1.5.67-1.5 1.5.67 1.5 1.5 1.5zM19.5 9.5l1.9 5.1H17V9.5h2.5m0-2H17c-1.1 0-2 .9-2 2v7h2c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-3.5l-2.5-6.5zM6 18.5c.83 0 1.5-.67 1.5-1.5s-.67-1.5-1.5-1.5-1.5.67-1.5 1.5.67 1.5 1.5 1.5zM18 9.5V7H4v7.5l2.5-.5V19c0 1.1.9 2 2 2h7c1.1 0 2-.9 2-2v-5l2.5.5V9.5H18z"/></svg>
+                    <div>
+                        <strong>Domicilio</strong>
+                        <small>Te lo llevamos</small>
+                    </div>
+                </div>
+            </label>
+            <label class="delivery-opt" onclick="selectDelivery('recoger')">
+                <input type="radio" name="delivery" value="recoger">
+                <div class="delivery-box">
+                    <svg viewBox="0 0 24 24"><path d="M20 4H4v2h16V4zm1 10v-2l-1-5H4l-1 5v2h1v6h10v-6h4v6h2v-6h1zm-9 4H6v-4h6v4z"/></svg>
+                    <div>
+                        <strong>Recoger en tienda</strong>
+                        <small>Av. siempreviva 123</small>
+                    </div>
+                </div>
+            </label>
+        </div>
+        <div class="form-group" id="checkAddressGroup">
+            <label>Direccion de envio *</label>
+            <textarea id="checkAddress" placeholder="Direccion completa en Santa Marta"></textarea>
+        </div>
+        <button class="submit-order" onclick="submitOrder()">
+            <svg viewBox="0 0 24 24"><path d="M16.76 6.28a1 1 0 0 0-1.05-.04l-5 3.57a1 1 0 1 0 1.1 1.66l5-3.57a1 1 0 0 0-.05-1.62zM4 4.05v7.9c0 .28.11.53.3.71l.7.71V18c0 1.1.9 2 2 2h9.59l.71.71c.18.18.43.29.71.29h.01c.28 0 .53-.11.71-.29l2.59-2.59c.18-.18.29-.43.29-.71V4c0-1.1-.9-2-2-2H4.83c-.28 0-.53.11-.71.29L3.42 2.71A.996.996 0 0 0 3 3.41V4H4z"/></svg>
+            Enviar Pedido por WhatsApp
+        </button>
+    </div>
+</div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabaseClient.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/tienda.js"></script>
+</body>
+</html>

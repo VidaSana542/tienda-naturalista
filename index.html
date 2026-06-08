@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TIENDA NATURALISTA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabaseClient.js"></script>
+    <script src="js/api.js"></script>
+    <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+
+<div class="top-bar">Envios a domicilio en <strong>Santa Marta</strong> y todo Colombia | Consulta nuestras politicas</div>
+
+<header class="header" id="header">
+    <div class="header-inner">
+        <a href="#" class="logo">
+            <img src="LOGO.jpeg" alt="TIENDA NATURALISTA" style="height:80px;border-radius:12px;">
+            <div class="logo-text">TIENDA<span> NATURALISTA</span><small>Santa Marta</small></div>
+        </a>
+        <div class="nav">
+            <a href="#" class="active">Inicio</a>
+            <a href="#">Nosotros</a>
+            <a href="tienda.html" class="nav-cta">Ir a la Tienda</a>
+            <a id="cartNavBtn" href="#" onclick="openCart();return false;" style="position:relative;display:inline-flex;align-items:center;gap:4px;font-family:'Outfit',sans-serif;color:#444;text-decoration:none;font-size:14px;font-weight:500;padding:4px 0;">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="#444"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                <span id="cartCount" style="background:#6abf4b;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;position:absolute;top:-6px;right:-10px;">0</span>
+            </a>
+        </div>
+    </div>
+</header>
+
+<section class="hero">
+    <div class="hero-bg-shape"></div>
+    <div class="hero-bg-shape-2"></div>
+    <div class="hero-content">
+        <div class="hero-text">
+            <div class="hero-tag"><span></span> Bienestar Natural</div>
+            <h1>Tu Salud en <span>Estado Puro</span></h1>
+            <p>Descubre la mejor seleccion de productos naturales, suplementos y cosmeticos de alta calidad para cuidar de ti y los tuyos.</p>
+            <div class="hero-actions">
+                <a href="tienda.html" class="hero-btn">
+                    Explorar Tienda
+                    <svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+                </a>
+                <a href="#" class="hero-btn-outline">Conocenos</a>
+            </div>
+        </div>
+        <div class="hero-image">
+            <div class="carousel-wrap">
+                <div class="carousel-track">
+                    <div class="carousel-slide"><img src="img/Carrusel1.jpeg" alt="Carrusel 1" loading="lazy"></div>
+                    <div class="carousel-slide"><img src="img/Carrusel2.jpeg" alt="Carrusel 2" loading="lazy"></div>
+                </div>
+                <div class="carousel-dots">
+                    <button class="carousel-dot active" data-index="0" aria-label="Foto 1"></button>
+                    <button class="carousel-dot" data-index="1" aria-label="Foto 2"></button>
+                </div>
+            </div>
+            <div class="hero-badge-float">
+                <div class="hbf-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                </div>
+                <div class="hbf-text">
+                    <strong>Productos 100% Naturales</strong>
+                    <span>Calidad garantizada</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+
+<section class="categories">
+    <div class="container">
+        <div class="section-title">
+            <div class="section-tag">Categorias</div>
+            <h2>Todo lo que necesitas para tu <span>bienestar natural</span></h2>
+            <p>Explora nuestra amplia variedad de productos organizados por categorias</p>
+        </div>
+        <div class="cat-grid" id="indexCatGrid"></div>
+    </div>
+</section>
+
+<section class="featured">
+    <div class="container">
+        <div class="section-title">
+            <div class="section-tag">Destacados</div>
+            <h2>Productos <span>mas vendidos</span></h2>
+            <p>Los favoritos de nuestros clientes</p>
+        </div>
+        <div class="prod-grid" id="featuredGrid"></div>
+    </div>
+</section>
+
+<section class="about">
+    <div class="container">
+        <div class="about-grid">
+            <div class="about-img">
+                <img src="img/NOSOTROS.jpeg" alt="Bienestar natural" loading="lazy">
+            </div>
+            <div class="about-text">
+                <div class="section-tag">Nosotros</div>
+                <h2>Comprometidos con tu <span>salud natural</span></h2>
+                <p>Somos una tienda naturista con mas de 3 anos de experiencia en Santa Marta, dedicada a ofrecer productos naturales de la mas alta calidad para el bienestar de nuestra comunidad.</p>
+                <p>Trabajamos con los mejores laboratorios y marcas reconocidas, asegurando que cada producto cumpla con los mas altos estandares de calidad y eficacia.</p>
+                <div class="about-features">
+                    <div class="about-feat">
+                        <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        Productos 100% naturales
+                    </div>
+                    <div class="about-feat">
+                        <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        Envio a domicilio
+                    </div>
+                    <div class="about-feat">
+                        <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        Marcas certificadas
+                    </div>
+                    <div class="about-feat">
+                        <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        Atencion personalizada
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+
+
+
+<section class="contact-map">
+    <div class="container">
+        <div class="contact-grid">
+            <div class="contact-info">
+                <div class="section-tag" style="background:rgba(255,255,255,0.2);color:#fff;">Contacto</div>
+                <h2>Visitanos en <span style="color:#6abf4b;">Santa Marta</span></h2>
+                <p>Estamos ubicados en el corazon de la ciudad. Ven a conocer nuestros productos naturales.</p>
+                <div class="contact-details">
+                    <div class="contact-item">
+                        <div class="contact-icon">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                        </div>
+                        <div>
+                            <strong>Direccion</strong>
+                            <span>Santa Marta, Colombia</span>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon">
+                            <svg viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+                        </div>
+                        <div>
+                            <strong>Telefono</strong>
+                            <span>321 917 4696</span>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="contact-icon">
+                            <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                        </div>
+                        <div>
+                            <strong>Horario</strong>
+                            <span>Lun - Sab: 8:00 AM - 7:00 PM</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="contact-map-wrap">
+                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3916.1234567890123!2d-74.2!3d11.2!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTDCsDEyJzAwLjAiTiA3NMKwMTInMDAuMCJX!5e0!3m2!1ses!2sco!4v1234567890" width="100%" height="100%" style="border:0;border-radius:20px;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer class="footer">
+    <div class="container">
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <a href="#" class="logo">
+                    <img src="LOGO.jpeg" alt="TIENDA NATURALISTA" style="height:72px;border-radius:10px;">
+                    <div class="logo-text" style="color:#fff;">TIENDA<span> NATURALISTA</span></div>
+                </a>
+                <p>Tu tienda naturalista de confianza en Santa Marta. Productos naturales, suplementos y cosmeticos para tu bienestar integral.</p>
+                <div class="social-links">
+                    <a href="#" aria-label="Facebook">f</a>
+                    <a href="#" aria-label="Instagram">in</a>
+                    <a href="#" aria-label="Twitter">x</a>
+                </div>
+            </div>
+            <div>
+                <h3>Enlaces</h3>
+                <a href="index.html">Inicio</a>
+                <a href="#">Nosotros</a>
+                <a href="#">Contacto</a>
+            </div>
+            <div>
+                <h3>Categorias</h3>
+                <div id="indexFooterCats"></div>
+            </div>
+            <div>
+                <h3>Contacto</h3>
+                <p>Santa Marta, Colombia</p>
+                <p>Tel: 321 917 4696</p>
+                <p>Email: info@tiendanaturalista.com</p>
+                <p style="margin-top:12px;font-size:12px;color:rgba(255,255,255,0.4);">Lun - Sab: 8:00 AM - 7:00 PM</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 TIENDA NATURALISTA. Todos los derechos reservados.</p>
+            <p>Hecho con amor para Santa Marta 🌿</p>
+        </div>
+    </div>
+</footer>
+
+<a href="#" class="whatsapp-float" aria-label="WhatsApp">
+    <div class="whatsapp-pulse"></div>
+    <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+</a>
+
+<script src="js/index.js"></script>
+<div id="toast" style="position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:#0b513b;color:#fff;padding:12px 28px;border-radius:30px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:500;box-shadow:0 8px 30px rgba(0,0,0,0.2);z-index:9999;opacity:0;transition:all 0.4s;pointer-events:none;"> </div>
+</body>
+</html>
