@@ -1,0 +1,25 @@
+{
+  "name": "TIENDA NATURALISTA - Punto de Venta",
+  "short_name": "POS Naturalista",
+  "description": "Sistema de punto de venta para Tienda Naturalista",
+  "start_url": "/pos",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f0e8",
+  "theme_color": "#0b513b",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
