@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>POS - Sistema de Ventas</title>
 <meta name="theme-color" content="#0b513b">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="POS Naturalista">
@@ -132,7 +133,7 @@
                     <h3 style="margin:0;font-weight:700;">Resumen de Negocio</h3>
                     <p style="margin:2px 0 0;font-size:13px;color:var(--text-muted);" id="dashPeriodLabel"></p>
                 </div>
-                <div style="display:flex;gap:6px;">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
                     <button class="btn btn-sm dash-period-btn active" data-period="today" onclick="setDashPeriod('today')">Hoy</button>
                     <button class="btn btn-sm dash-period-btn" data-period="week" onclick="setDashPeriod('week')">Semana</button>
                     <button class="btn btn-sm dash-period-btn" data-period="month" onclick="setDashPeriod('month')">Mes</button>
@@ -291,12 +292,12 @@
             <div class="card">
                 <div class="card-header">
                     <h3>Productos</h3>
-                    <div style="display:flex;gap:10px;align-items:center;">
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                         <div class="search-field">
                             <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                             <input type="text" id="prodSearch" placeholder="Buscar por nombre o marca..." oninput="renderProductTable()">
                         </div>
-                        <select id="prodCatFilter" onchange="renderProductTable()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);">
+                        <select id="prodCatFilter" onchange="renderProductTable()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);min-width:0;max-width:100%;">
                             <option value="all">Todas las categorias</option>
                         </select>
                         <button class="btn btn-primary" onclick="openProductModal()">
@@ -416,12 +417,12 @@
             <div class="card">
                 <div class="card-header">
                     <h3>Clientes</h3>
-                    <div style="display:flex;gap:10px;align-items:center;">
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                         <div class="search-field">
                             <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                             <input type="text" id="custSearch" placeholder="Buscar cliente..." oninput="renderCustomerTable()">
                         </div>
-                        <select id="custFilter" onchange="renderCustomerTable()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);">
+                        <select id="custFilter" onchange="renderCustomerTable()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);min-width:0;max-width:100%;">
                             <option value="todo">Todos</option>
                             <option value="aldia">Al dia</option>
                             <option value="pendiente">Con deuda</option>
@@ -458,7 +459,7 @@
             <div class="card">
                 <div class="card-header">
                     <h3>Proveedores</h3>
-                    <div style="display:flex;gap:10px;align-items:center;">
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                         <div class="search-field">
                             <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                             <input type="text" id="suppSearch" placeholder="Buscar proveedor..." oninput="renderSupplierTable()">
@@ -517,9 +518,9 @@
                         </div>
                     </div>
                     <div id="catSubsSection" style="display:none;">
-                        <div style="padding:0 0 12px;display:flex;align-items:center;gap:10px;">
+                        <div style="padding:0 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                             <label style="font-size:13px;color:var(--text-muted);">Filtrar por categoria:</label>
-                            <select id="catSubFilter" onchange="renderSubcategoriesTable()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;">
+                            <select id="catSubFilter" onchange="renderSubcategoriesTable()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:0;max-width:100%;">
                                 <option value="">Todas</option>
                             </select>
                         </div>
@@ -598,7 +599,7 @@
             <div class="form-group">
                 <label>Categoria</label>
                 <div style="display:flex;gap:6px;align-items:center;">
-                    <select id="prodCategory" style="flex:1;"></select>
+                    <select id="prodCategory" style="flex:1;min-width:0;max-width:100%;"></select>
                     <button type="button" class="btn btn-sm btn-outline" onclick="openCategoryModal()" style="padding:6px 10px;font-size:16px;" title="Nueva categoria">+</button>
                 </div>
             </div>
