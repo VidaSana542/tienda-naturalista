@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Supabase - Datos + Imagenes</title>
+<style>
+  body { font-family: monospace; background: #0f172a; color: #e2e8f0; padding: 20px; }
+  h1 { color: #38bdf8; }
+  h2 { color: #38bdf8; margin: 20px 0 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; }
+  th { background: #1e293b; padding: 8px; text-align: left; border-bottom: 2px solid #334155; }
+  td { padding: 6px 8px; border-bottom: 1px solid #1e293b; word-break: break-all; }
+  .ok { color: #22c55e; }
+  .warn { color: #f59e0b; }
+  .err { color: #ef4444; }
+  button { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin: 4px; font-family: inherit; }
+  button:hover { background: #1d4ed8; }
+  button:disabled { background: #475569; cursor: not-allowed; }
+  #log { background: #1e293b; padding: 12px; border-radius: 8px; margin-top: 12px; max-height: 300px; overflow-y: auto; font-size: 11px; white-space: pre-wrap; }
+  .section { background: #1e293b; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<h1>Supabase - Datos + Reparar Imagenes</h1>
+
+<div class="section">
+  <h2>1. Ver datos</h2>
+  <button onclick="loadData()">Cargar datos</button>
+  <div id="output">Haz click en "Cargar datos"</div>
+</div>
+
+<div class="section">
+  <h2>2. Reparar imagenes rotas</h2>
+  <p style="color:#94a3b8;font-size:12px;">
+    Los productos con img tipo <code>/uploads/products/...</code> tienen imagenes rotas.<br>
+    Sube las imagenes desde tu PC: selecciona los archivos y mapealos a los productos.
+  </p>
+  <button onclick="testUpload()">Test upload</button>
+  <button onclick="document.getElementById('fileInput').click()">Seleccionar imagenes</button>
+  <input type="file" id="fileInput" multiple accept="image/*" style="display:none" onchange="onFilesSelected(this)">
+  <div id="fileList" style="margin:8px 0;font-size:12px;"></div>
+  <button id="btnUpload" disabled onclick="uploadAll()">Subir y actualizar productos</button>
+  <div id="log"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const db = window.supabase.createClient(
+  'https://jcksqhqopqhswwxskhls.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja3NxaHFvcHFoc3d3eHNraGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTIzNjksImV4cCI6MjA5NjQ4ODM2OX0.1hnEgbk9--eedO1Tw9L0p6NKtHkz9h9NENEFiFJjbj0'
+);
+
+let allProducts = [];
+let selectedFiles = [];
+
+function log(msg, cls) {
+  const el = document.getElementById('log');
+  el.innerHTML += '<span class="' + (cls||'') + '">' + msg + '</span>\n';
+  el.scrollTop = el.scrollHeight;
+}
+
+async function loadData() {
+  document.getElementById('output').innerHTML = 'Cargando...';
+
+  const {data: cats} = await db.from('categories').select('*').order('key');
+  let html = '<h2>Categorias (' + (cats||[]).length + ')</h2>';
+  html += '<table><tr><th>key</th><th>label</th><th>parent_key</th></tr>';
+  (cats||[]).forEach(c => {
+    html += '<tr><td>' + c.key + '</td><td>' + c.label + '</td><td>' + (c.parent_key||'') + '</td></tr>';
+  });
+  html += '</table>';
+
+  const {data: prods} = await db.from('products').select('id,name,category,subcategory,price,stock,img,active').eq('active',true).order('name');
+  allProducts = prods || [];
+  const broken = allProducts.filter(p => p.img && p.img.startsWith('/uploads/'));
+  const ok = allProducts.filter(p => p.img && !p.img.startsWith('/uploads/'));
+  const empty = allProducts.filter(p => !p.img);
+
+  html += '<h2>Productos: ' + allProducts.length + ' total | <span class="ok">' + ok.length + ' OK</span> | <span class="warn">' + broken.length + ' rotos</span> | <span class="err">' + empty.length + ' sin img</span></h2>';
+  html += '<table><tr><th>name</th><th>category</th><th>img (primeros 60 chars)</th><th>status</th></tr>';
+  allProducts.forEach(p => {
+    const cls = !p.img ? 'err' : p.img.startsWith('/uploads/') ? 'warn' : 'ok';
+    const label = !p.img ? 'SIN IMG' : p.img.startsWith('/uploads/') ? 'ROTO' : 'OK';
+    html += '<tr class="' + cls + '"><td>' + p.name + '</td><td>' + p.category + '</td><td>' + (p.img||'').substring(0,60) + '</td><td>' + label + '</td></tr>';
+  });
+  html += '</table>';
+
+  document.getElementById('output').innerHTML = html;
+
+  if (broken.length > 0) {
+    document.getElementById('btnUpload').disabled = false;
+    log('Encontrados ' + broken.length + ' productos con imagenes rotas. Sube las imagenes para repararlos.', 'warn');
+  }
+}
+
+function onFilesSelected(input) {
+  selectedFiles = Array.from(input.files);
+  const el = document.getElementById('fileList');
+  el.innerHTML = selectedFiles.length + ' archivos seleccionados:';
+  selectedFiles.forEach(f => {
+    el.innerHTML += '<br>- ' + f.name + ' (' + Math.round(f.size/1024) + ' KB)';
+  });
+}
+
+// Test upload first
+async function testUpload() {
+  log('Test: verificando conexion...', '');
+  const { data: buckets, error: bErr } = await db.storage.listBuckets();
+  if (bErr) { log('Error listando buckets: ' + bErr.message, 'err'); return; }
+  log('Buckets: ' + buckets.map(b => b.name + '(' + (b.public ? 'public' : 'private') + ')').join(', '), 'ok');
+
+  // Try uploading a tiny test file
+  const testBlob = new Blob(['test'], { type: 'text/plain' });
+  const { error: upErr } = await db.storage.from('product-images').upload('test_upload.txt', testBlob);
+  if (upErr) { log('Test upload ERROR: ' + upErr.message, 'err'); return; }
+  log('Test upload OK!', 'ok');
+  // Clean up
+  await db.storage.from('product-images').remove(['test_upload.txt']);
+  log('Test file removed.', 'ok');
+}
+
+async function uploadAll() {
+  const broken = allProducts.filter(p => p.img && p.img.startsWith('/uploads/'));
+  if (broken.length === 0) { log('No hay productos rotos', 'ok'); return; }
+
+  log('Iniciando subida de ' + broken.length + ' imagenes...', 'ok');
+
+  for (let i = 0; i < broken.length; i++) {
+    const p = broken[i];
+    log((i+1) + '/' + broken.length + ': ' + p.name + '...', '');
+
+    // Buscar archivo que coincida con el nombre del producto
+    const matchFile = selectedFiles.find(f => {
+      const fname = f.name.toLowerCase().replace(/\.[^.]+$/, '');
+      const pname = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      return fname.includes(pname) || pname.includes(fname);
+    });
+
+    if (!matchFile) {
+      log('  -> Sin archivo coincidente, saltando', 'warn');
+      continue;
+    }
+
+    try {
+      const ext = matchFile.name.split('.').pop();
+      const filename = 'products/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+      const { data: upData, error: upErr } = await db.storage.from('product-images').upload(filename, matchFile, {
+        cacheControl: '3600', upsert: false
+      });
+      if (upErr) { log('  -> Upload ERROR: ' + upErr.message, 'err'); continue; }
+
+      const { data } = db.storage.from('product-images').getPublicUrl(filename);
+      const newUrl = data.publicUrl;
+
+      // Actualizar producto en DB
+      const { error: updErr } = await db.from('products').update({ img: newUrl }).eq('id', p.id);
+      if (updErr) { log('  -> Update ERROR: ' + updErr.message, 'err'); continue; }
+
+      log('  -> OK: ' + newUrl.substring(0, 60) + '...', 'ok');
+    } catch(e) {
+      log('  -> EXCEPTION: ' + e.message, 'err');
+    }
+  }
+
+  log('Listo! Recarga la pagina para ver los cambios.', 'ok');
+}
+</script>
+</body>
+</html>

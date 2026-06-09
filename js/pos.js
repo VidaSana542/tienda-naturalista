@@ -223,11 +223,6 @@ function loadData() {
         posNextCustomerId = posCustomers.reduce((m, c) => Math.max(m, parseInt(c.id.replace('c',''))), 0) + 1;
     }
     if (posSales.length > 0) {
-        const minId = posSales.reduce((m, s) => Math.min(m, s.id), Infinity);
-        if (minId >= 1000) {
-            posSales.sort((a, b) => a.id - b.id).forEach((s, i) => s.id = i + 1);
-            saveSales();
-        }
         posNextSaleId = posSales.reduce((m, s) => Math.max(m, s.id), 0) + 1;
     }
     if (invLog.length > 0) {
@@ -302,6 +297,7 @@ async function syncFromApi() {
                 const ap = apiMap[lp.id];
                 if (ap) {
                     lp.subcategory = ap.subcategory || '';
+                    if (ap.img && ap.img !== lp.img) lp.img = ap.img;
                 }
             });
             apiProducts.forEach(ap => {
@@ -366,23 +362,41 @@ async function syncFromApi() {
             });
             localStorage.setItem('posCategories', JSON.stringify(POS_CATEGORIES));
         }
-        const apiSales = await API.get('/sales');
+        const apiSales = await API.getSales();
         if (apiSales && Array.isArray(apiSales)) {
-            posSales = apiSales.map(s => ({
-                id: s.id,
-                date: s.created_at,
-                items: (s.items || []).map(i => ({ id: i.product_id, name: i.product_name, qty: i.qty, price: parseFloat(i.price) })),
-                subtotal: parseFloat(s.total) - parseFloat(s.excedente || 0),
-                excedente: parseFloat(s.excedente || 0),
-                total: parseFloat(s.total),
-                method: s.method,
-                methodKey: s.method_key,
-                customer: s.customer_name,
-                customerId: s.customer_id ? 'c' + s.customer_id : '',
-                creditInfo: s.credit_info
-            }));
+            posSales = apiSales.map(s => {
+                const ci = s.credit_info || null;
+                // Merge payments: Supabase payments table is source of truth, but keep any local-only payments
+                if (ci) {
+                    const supabasePayments = (s.payments || [])
+                        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                        .map(p => ({ date: p.created_at, amount: p.amount }));
+                    const localPayments = ci.payments || [];
+                    // Find local payments not yet in Supabase (by checking amount + approximate time)
+                    const newLocal = localPayments.filter(lp => {
+                        return !supabasePayments.some(sp => sp.amount === lp.amount && Math.abs(new Date(sp.date) - new Date(lp.date)) < 60000);
+                    });
+                    ci.payments = [...supabasePayments, ...newLocal];
+                }
+                return {
+                    id: s.id,
+                    apiId: s.id,
+                    date: s.created_at,
+                    items: (s.items || []).map(i => ({ id: i.product_id, name: i.product_name, qty: i.qty, price: parseFloat(i.price) })),
+                    subtotal: parseFloat(s.total) - parseFloat(s.excedente || 0),
+                    excedente: parseFloat(s.excedente || 0),
+                    total: parseFloat(s.total),
+                    method: s.method,
+                    methodKey: s.method_key,
+                    customer: s.customer_name,
+                    customerId: s.customer_id ? 'c' + s.customer_id : '',
+                    creditInfo: ci
+                };
+            });
             localStorage.setItem('posSales', JSON.stringify(posSales));
-            posNextSaleId = posSales.length > 0 ? Math.max(...posSales.map(s => s.id)) + 1 : 1;
+            // Smart: use the highest Supabase sale ID, not local counter
+            const maxApiId = apiSales.reduce((m, s) => Math.max(m, s.id), 0);
+            posNextSaleId = Math.max(posNextSaleId, maxApiId + 1);
         }
     } catch (e) {
         console.log('API sync skipped, using local data');
@@ -449,44 +463,314 @@ function switchPanel(id) {
 }
 
 // ============ DASHBOARD ============
+let _dashPeriod = 'today';
+function setDashPeriod(p) {
+    _dashPeriod = p;
+    document.querySelectorAll('.dash-period-btn').forEach(b => b.classList.toggle('active', b.dataset.period === p));
+    renderDashboard();
+}
+
+function getPeriodSales() {
+    const now = new Date();
+    const todayStr = today();
+    if (_dashPeriod === 'today') {
+        return posSales.filter(s => s.date && s.date.slice(0,10) === todayStr);
+    }
+    if (_dashPeriod === 'week') {
+        const d = new Date(); d.setDate(d.getDate() - 7);
+        return posSales.filter(s => s.date && new Date(s.date) >= d);
+    }
+    return posSales;
+}
+
+function sumSales(list) {
+    return { total: list.reduce((s,v) => s + v.total, 0), count: list.length, items: list.reduce((s,v) => s + v.items.reduce((a,i) => a + i.qty, 0), 0), cash: list.filter(s => s.method === 'Efectivo').reduce((s,v) => s + v.total, 0), digital: list.filter(s => s.method !== 'Efectivo' && s.method !== 'Credito').reduce((s,v) => s + v.total, 0), credit: list.filter(s => s.method === 'Credito').reduce((s,v) => s + v.total, 0) };
+}
+
 function renderDashboard() {
-    const todaySales = posSales.filter(s => s.date.slice(0,10) === today());
-    const todayTotal = todaySales.reduce((sum, s) => sum + s.total, 0);
-    const todayExcedente = todaySales.reduce((sum, s) => sum + (s.excedente || 0), 0);
-    const todayCount = todaySales.length;
-    const totalProducts = posProducts.length;
-    const lowStock = posProducts.filter(p => p.stock > 0 && p.stock <= 5).length;
-    const totalCustomers = posCustomers.length;
+    const isMonthHistory = _dashPeriod === 'month';
+    const isAnnualHistory = _dashPeriod === 'year';
+    const isHistory = isMonthHistory || isAnnualHistory;
+    const periodSales = isHistory ? posSales : getPeriodSales();
+    const periodTotal = periodSales.reduce((sum, s) => sum + s.total, 0);
+    const periodCount = periodSales.length;
     const pendingCredit = posSales.reduce((sum, s) => {
         if (!s.creditInfo) return sum;
         if (s.creditInfo.tipo === 'abono') {
-            const pagado = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
+            const pagado = (s.creditInfo.payments || []).reduce((sp, p) => sp + p.amount, 0);
             return sum + (s.creditInfo.balance - pagado);
         }
         return sum + ((s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor);
     }, 0);
+
+    const labels = { today: 'Hoy', week: 'Ultimos 7 dias', month: 'Historial mensual', year: 'Historial anual' };
+    document.getElementById('dashPeriodLabel').textContent = labels[_dashPeriod] + (isHistory ? '' : ' \u2014 ' + periodCount + ' ventas \u2014 ' + formatPrice(periodTotal));
+
+    const totalProducts = posProducts.length;
+    const lowStockCount = posProducts.filter(p => p.stock > 0 && p.stock <= 5).length;
+    const outStockCount = posProducts.filter(p => p.stock <= 0).length;
+    const avgTicket = periodCount > 0 ? periodTotal / periodCount : 0;
+    const totalCustomers = posCustomers.length;
+    const custWithDebt = posCustomers.filter(c => {
+        const sales = posSales.filter(s => s.customerId === c.id);
+        return sales.some(s => s.creditInfo);
+    }).length;
+
     document.getElementById('dashStats').innerHTML = `
-        <div class="stat-card"><div class="stat-icon green"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div class="stat-info"><h3>${formatPrice(todayTotal)}</h3><p>Ventas Hoy (${todayCount})</p></div></div>
-        <div class="stat-card"><div class="stat-icon blue"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zM8 12H6v-2h2v2zm3 0H9v-2h2v2zm3 0h-2v-2h2v2z"/></svg></div><div class="stat-info"><h3>${totalProducts}</h3><p>Productos</p></div></div>
-        <div class="stat-card"><div class="stat-icon orange"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div class="stat-info"><h3>${formatPrice(todayExcedente)}</h3><p>Excedente Hoy</p></div></div>
-        <div class="stat-card"><div class="stat-icon purple"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></div><div class="stat-info"><h3>${formatPrice(pendingCredit)}</h3><p>Pendiente Credito</p></div></div>
-        <div class="stat-card"><div class="stat-icon" style="background:#f3e5f5;"><svg viewBox="0 0 24 24" style="fill:#7b1fa2;"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></div><div class="stat-info"><h3>${totalCustomers}</h3><p>Clientes</p></div></div>
+        <div class="stat-card"><div class="stat-icon green"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div class="stat-info"><h3>${formatPrice(periodTotal)}</h3><p>${periodCount} ventas</p></div></div>
+        <div class="stat-card"><div class="stat-icon blue"><svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg></div><div class="stat-info"><h3>${formatPrice(avgTicket)}</h3><p>Ticket promedio</p></div></div>
+        <div class="stat-card"><div class="stat-icon orange"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div class="stat-info"><h3>${formatPrice(pendingCredit)}</h3><p>Credito pendiente</p></div></div>
+        <div class="stat-card"><div class="stat-icon purple"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></div><div class="stat-info"><h3>${totalCustomers}</h3><p>${custWithDebt} con credito</p></div></div>
+        <div class="stat-card"><div class="stat-icon" style="background:#e0f2f1;"><svg viewBox="0 0 24 24" style="fill:#00796b;"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16zM6 10h12v2H6v-2zm0 4h12v2H6v-2zm0-8h12v2H6V6z"/></svg></div><div class="stat-info"><h3>${totalProducts}</h3><p>${lowStockCount} stock bajo, ${outStockCount} agotados</p></div></div>
     `;
-    const recent = posSales.slice(-5).reverse();
+
+    document.getElementById('dashMonthsCard').style.display = isMonthHistory ? '' : 'none';
+    document.getElementById('dashAnnualCard').style.display = isAnnualHistory ? '' : 'none';
+
+    if (isMonthHistory) renderDashMonthsHistory();
+    if (isAnnualHistory) renderDashAnnualHistory();
+
+    renderDashBarChart();
+    renderDashPayMethods();
+    renderDashTopProducts();
+    renderDashStockAlerts();
+    renderDashTopCustomers();
+    renderDashSummary();
+    renderDashRecent();
+}
+
+function renderDashBarChart() {
+    const el = document.getElementById('dashBarChart');
+    let days = [];
+    if (_dashPeriod === 'today' || _dashPeriod === 'week') {
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(); d.setDate(d.getDate() - i);
+            const ds = d.toISOString().slice(0,10);
+            const label = d.toLocaleDateString('es-CO', { weekday:'short', day:'numeric' });
+            const total = posSales.filter(s => s.date && s.date.slice(0,10) === ds).reduce((sum, s) => sum + s.total, 0);
+            days.push({ label, total });
+        }
+    } else if (_dashPeriod === 'month') {
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(); d.setMonth(d.getMonth() - i);
+            const label = d.toLocaleDateString('es-CO', { month:'short' });
+            const total = posSales.filter(s => {
+                if (!s.date) return false;
+                const sd = new Date(s.date);
+                return sd.getFullYear() === d.getFullYear() && sd.getMonth() === d.getMonth();
+            }).reduce((sum, s) => sum + s.total, 0);
+            days.push({ label, total });
+        }
+    } else if (_dashPeriod === 'year') {
+        const years = {};
+        posSales.forEach(s => {
+            if (!s.date) return;
+            const y = s.date.slice(0,4);
+            if (!years[y]) years[y] = 0;
+            years[y] += s.total;
+        });
+        const sorted = Object.entries(years).sort((a, b) => a[0] - b[0]);
+        sorted.forEach(([year, total]) => {
+            days.push({ label: year, total });
+        });
+    }
+    const maxVal = Math.max(...days.map(d => d.total), 1);
+    el.innerHTML = days.map(d => {
+        const pct = Math.round((d.total / maxVal) * 100);
+        return `<div class="bar-col">
+            <div class="bar-value">${d.total > 0 ? formatPrice(d.total) : ''}</div>
+            <div class="bar-track"><div class="bar-fill" style="height:${Math.max(pct, 2)}%"></div></div>
+            <div class="bar-label">${d.label}</div>
+        </div>`;
+    }).join('');
+}
+
+function renderDashMonthsHistory() {
+    const now = new Date();
+    const months = [];
+    for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year = d.getFullYear();
+        const month = d.getMonth();
+        const label = d.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+        const sales = posSales.filter(s => {
+            if (!s.date) return false;
+            const sd = new Date(s.date);
+            return sd.getFullYear() === year && sd.getMonth() === month;
+        });
+        months.push({ label, ...sumSales(sales) });
+    }
+    const tbody = document.getElementById('dashMonthsTable');
+    tbody.innerHTML = months.map(m => `<tr>
+        <td><strong>${m.label}</strong></td>
+        <td>${m.count}</td>
+        <td>${m.items}</td>
+        <td><strong>${formatPrice(m.total)}</strong></td>
+        <td>${formatPrice(m.cash)}</td>
+        <td>${formatPrice(m.digital)}</td>
+        <td>${formatPrice(m.credit)}</td>
+        <td>${m.count > 0 ? formatPrice(m.total / m.count) : '$0'}</td>
+    </tr>`).join('');
+}
+
+function renderDashAnnualHistory() {
+    const years = {};
+    posSales.forEach(s => {
+        if (!s.date) return;
+        const y = s.date.slice(0,4);
+        if (!years[y]) years[y] = [];
+        years[y].push(s);
+    });
+    const sorted = Object.entries(years).sort((a,b) => b[0] - a[0]);
+    const tbody = document.getElementById('dashAnnualTable');
+    tbody.innerHTML = sorted.map(([year, sales]) => {
+        const d = sumSales(sales);
+        return `<tr>
+            <td><strong>${year}</strong></td>
+            <td>${d.count}</td>
+            <td>${d.items}</td>
+            <td><strong>${formatPrice(d.total)}</strong></td>
+            <td>${formatPrice(d.cash)}</td>
+            <td>${formatPrice(d.digital)}</td>
+            <td>${formatPrice(d.credit)}</td>
+            <td>${d.count > 0 ? formatPrice(d.total / d.count) : '$0'}</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderDashPayMethods() {
+    const methods = {};
+    getPeriodSales().forEach(s => {
+        const m = s.method || 'Otro';
+        if (!methods[m]) methods[m] = { count: 0, total: 0 };
+        methods[m].count++;
+        methods[m].total += s.total;
+    });
+    const total = Object.values(methods).reduce((sum, m) => sum + m.total, 0);
+    const colors = { 'Efectivo': '#4caf50', 'Nequi': '#00c853', 'Daviplata': '#f44336', 'Tarjeta': '#2196f3', 'Transferencia': '#9c27b0', 'Credito': '#ff9800' };
+    const el = document.getElementById('dashPayMethods');
+    const entries = Object.entries(methods).sort((a,b) => b[1].total - a[1].total);
+    if (entries.length === 0) {
+        el.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px;">Sin ventas en este periodo</div>';
+        return;
+    }
+    el.innerHTML = entries.map(([name, data]) => {
+        const pct = total > 0 ? Math.round((data.total / total) * 100) : 0;
+        const color = colors[name] || '#607d8b';
+        return `<div class="pay-method-row">
+            <div class="pay-method-info">
+                <span class="pay-method-dot" style="background:${color}"></span>
+                <span class="pay-method-name">${name}</span>
+                <span class="pay-method-count">${data.count} venta${data.count > 1 ? 's' : ''}</span>
+            </div>
+            <div class="pay-method-bar-wrap">
+                <div class="pay-method-bar" style="width:${pct}%;background:${color}"></div>
+            </div>
+            <div class="pay-method-total">${formatPrice(data.total)}</div>
+        </div>`;
+    }).join('');
+}
+
+function renderDashTopProducts() {
+    const sold = {};
+    getPeriodSales().forEach(s => {
+        (s.items || []).forEach(item => {
+            if (!sold[item.name]) sold[item.name] = { qty: 0, total: 0 };
+            sold[item.name].qty += item.qty;
+            sold[item.name].total += item.price * item.qty;
+        });
+    });
+    const sorted = Object.entries(sold).sort((a,b) => b[1].total - a[1].total).slice(0, 8);
+    const tbody = document.getElementById('dashTopProducts');
+    if (sorted.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px;">Sin ventas</td></tr>';
+        return;
+    }
+    tbody.innerHTML = sorted.map(([name, data], i) => `<tr>
+        <td><span class="rank-badge">${i+1}</span></td>
+        <td>${name}</td>
+        <td><strong>${data.qty}</strong></td>
+        <td><strong>${formatPrice(data.total)}</strong></td>
+    </tr>`).join('');
+}
+
+function renderDashStockAlerts() {
+    const alerts = posProducts.filter(p => p.stock <= 5).sort((a,b) => a.stock - b.stock).slice(0, 8);
+    const tbody = document.getElementById('dashStockAlerts');
+    if (alerts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:20px;">Todos los productos tienen stock suficiente</td></tr>';
+        return;
+    }
+    tbody.innerHTML = alerts.map(p => {
+        const cls = p.stock <= 0 ? 'stock-out' : p.stock <= 2 ? 'stock-critical' : 'stock-low';
+        const label = p.stock <= 0 ? 'Agotado' : p.stock <= 2 ? 'Critico' : 'Bajo';
+        return `<tr>
+            <td>${p.name}</td>
+            <td><strong>${p.stock}</strong></td>
+            <td><span class="stock-tag ${cls}">${label}</span></td>
+        </tr>`;
+    }).join('');
+}
+
+function renderDashTopCustomers() {
+    const cust = {};
+    getPeriodSales().forEach(s => {
+        const name = s.customer || 'Cliente mostrador';
+        if (!cust[name]) cust[name] = { count: 0, total: 0 };
+        cust[name].count++;
+        cust[name].total += s.total;
+    });
+    const sorted = Object.entries(cust).sort((a,b) => b[1].total - a[1].total).slice(0, 8);
+    const tbody = document.getElementById('dashTopCustomers');
+    if (sorted.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px;">Sin ventas</td></tr>';
+        return;
+    }
+    tbody.innerHTML = sorted.map(([name, data], i) => `<tr>
+        <td><span class="rank-badge">${i+1}</span></td>
+        <td>${name}</td>
+        <td><strong>${data.count}</strong></td>
+        <td><strong>${formatPrice(data.total)}</strong></td>
+    </tr>`).join('');
+}
+
+function renderDashSummary() {
+    const ps = getPeriodSales();
+    const total = ps.reduce((s, v) => s + v.total, 0);
+    const items = ps.reduce((s, v) => s + v.items.reduce((a, i) => a + i.qty, 0), 0);
+    const cash = ps.filter(s => s.method === 'Efectivo').reduce((s, v) => s + v.total, 0);
+    const digital = ps.filter(s => s.method !== 'Efectivo' && s.method !== 'Credito').reduce((s, v) => s + v.total, 0);
+    const credit = ps.filter(s => s.method === 'Credito').reduce((s, v) => s + v.total, 0);
+    const excedente = ps.reduce((s, v) => s + (v.excedente || 0), 0);
+    document.getElementById('dashSummary').innerHTML = `
+        <div class="summary-rows">
+            <div class="summary-row"><span>Total facturado</span><strong>${formatPrice(total)}</strong></div>
+            <div class="summary-row"><span>Unidades vendidas</span><strong>${items}</strong></div>
+            <div class="summary-row"><span>Efectivo</span><strong>${formatPrice(cash)}</strong></div>
+            <div class="summary-row"><span>Digital (Nequi, Davi, Tarjeta, etc)</span><strong>${formatPrice(digital)}</strong></div>
+            <div class="summary-row"><span>Credito</span><strong>${formatPrice(credit)}</strong></div>
+            <div class="summary-row"><span>Excedente cobrado</span><strong>${formatPrice(excedente)}</strong></div>
+            <div class="summary-row"><span>Ticket promedio</span><strong>${ps.length > 0 ? formatPrice(total / ps.length) : '$0'}</strong></div>
+            <div class="summary-row"><span>Total transacciones</span><strong>${ps.length}</strong></div>
+        </div>
+    `;
+}
+
+function renderDashRecent() {
+    const recent = posSales.slice(-10).reverse();
     const tbody = document.getElementById('dashRecentSales');
     if (recent.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:30px;">No hay ventas registradas</td></tr>';
-    } else {
-        tbody.innerHTML = recent.map(s => `<tr>
-            <td><strong>#${s.id}</strong></td>
-            <td>${s.customer || 'Cliente mostrador'}</td>
-            <td>${s.items.reduce((sum, i) => sum + i.qty, 0)}</td>
-            <td><strong>${formatPrice(s.total)}</strong></td>
-            <td>${s.excedente ? '<span style="color:var(--warning);font-weight:600;">' + formatPrice(s.excedente) + '</span>' : '-'}</td>
-            <td><span class="tag tag-info">${s.method}</span></td>
-            <td>${formatDate(s.date)}</td>
-        </tr>`).join('');
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:30px;">No hay ventas registradas</td></tr>';
+        return;
     }
+    tbody.innerHTML = recent.map((s, idx) => `<tr>
+        <td><strong>#${posSales.length - idx}</strong></td>
+        <td>${formatDate(s.date)}</td>
+        <td>${s.customer || 'Cliente mostrador'}</td>
+        <td>${s.items.reduce((sum, i) => sum + i.qty, 0)}</td>
+        <td><strong>${formatPrice(s.total)}</strong></td>
+        <td><span class="tag tag-info">${s.method}</span></td>
+    </tr>`).join('');
 }
 
 function populateTpvFilters() {
@@ -903,7 +1187,14 @@ function confirmCheckout() {
             } : null,
             items: sale.items
         }).then(apiSale => {
-            if (apiSale && apiSale.id) sale.apiId = apiSale.id;
+            if (apiSale && apiSale.id) {
+                sale.apiId = apiSale.id;
+                // Update local ID to match Supabase so everything stays in sync
+                const oldId = sale.id;
+                sale.id = apiSale.id;
+                posNextSaleId = Math.max(posNextSaleId, apiSale.id + 1);
+                saveSales();
+            }
         }).catch(() => {});
     }
     clearCart();
@@ -933,12 +1224,12 @@ function renderProductTable() {
         tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:30px;">No hay productos</td></tr>';
         return;
     }
-    tbody.innerHTML = filtered.map(p => {
+    tbody.innerHTML = filtered.map((p, idx) => {
         const stockTag = p.stock <= 0 ? 'tag-danger' : p.stock <= 5 ? 'tag-warning' : 'tag-success';
         const stockText = p.stock <= 0 ? 'Agotado' : p.stock <= 5 ? 'Stock Bajo' : 'Disponible';
         const supp = p.supplier ? posSuppliers.find(s => s.id === p.supplier) : null;
         return `<tr>
-            <td><strong>${p.id}</strong></td>
+            <td><strong>#${idx + 1}</strong></td>
             <td><strong>${p.name}</strong><br><span style="font-size:11px;color:var(--text-muted);">${p.brand}</span></td>
             <td>${getCatLabel(p.category)}</td>
             <td style="font-size:12px;color:var(--text-muted);">${p.subcategory ? (POS_CATEGORIES.find(c => c.key === p.subcategory)?.label || p.subcategory) : '-'}</td>
@@ -982,6 +1273,7 @@ function openProductModal(id) {
             document.getElementById('prodDesc').value = p.desc || '';
             document.getElementById('prodSupplier').value = p.supplier || '';
             document.getElementById('prodFeatured').checked = p.featured || false;
+            updateSubcatSelect();
             document.getElementById('prodSubcategory').value = p.subcategory || '';
             renderProdImagesPreview(_prodImages);
         }
@@ -1199,10 +1491,10 @@ function renderSupplierTable() {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">No hay proveedores registrados</td></tr>';
         return;
     }
-    tbody.innerHTML = filtered.map(s => {
+    tbody.innerHTML = filtered.map((s, idx) => {
         const productCount = posProducts.filter(p => p.supplier === s.id).length;
         return '<tr>' +
-            '<td><strong>' + s.id + '</strong></td>' +
+            '<td><strong>#' + (idx + 1) + '</strong></td>' +
             '<td><strong>' + s.name + '</strong></td>' +
             '<td>' + (s.nit || '-') + '</td>' +
             '<td>' + (s.contact || '-') + '</td>' +
@@ -1512,14 +1804,14 @@ function renderCustomerTable() {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">No hay clientes registrados</td></tr>';
         return;
     }
-    tbody.innerHTML = filtered.map(c => {
+    tbody.innerHTML = filtered.map((c, idx) => {
         const sales = posSales.filter(s => s.customerId === c.id);
         const purchases = sales.length;
         const totalSpent = sales.reduce((sum, s) => sum + s.total, 0);
         const pendingTotal = getCustomerPending(c.id);
         const pendingHtml = pendingTotal > 0 ? '<span style="color:var(--warning);font-weight:600;">' + formatPrice(pendingTotal) + '</span>' : '<span style="color:var(--success);">Al dia</span>';
         return `<tr>
-            <td><strong>${c.id}</strong></td>
+            <td><strong>#${idx + 1}</strong></td>
             <td><strong style="cursor:pointer;" onclick="showCustomerHistory('${c.id}')">${c.name}</strong></td>
             <td>${c.phone || '-'}</td>
             <td>${c.email || '-'}</td>
@@ -1683,9 +1975,9 @@ function showCustomerHistory(custId) {
                 html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;">';
                 html += '<div><span style="font-size:12px;color:var(--text-muted);">' + label + '</span></div>';
                 if (!isPaid) {
-                    html += '<button class="btn btn-sm btn-success" onclick="openPaymentModalCust(' + s.id + ')">Registrar ' + (s.creditInfo.tipo === 'abono' ? 'Abono' : 'Pago') + '</button>';
+                    html += '<div style="display:flex;gap:6px;align-items:center;"><button class="btn btn-sm btn-primary" onclick="openPaymentModalCust(' + s.id + ')">Registrar ' + (s.creditInfo.tipo === 'abono' ? 'Abono' : 'Pago') + '</button><button class="btn btn-sm btn-outline" onclick="showFinalInvoice(' + s.id + ')">Ver Factura</button></div>';
                 } else {
-                    html += '<div style="display:flex;gap:6px;align-items:center;"><span style="font-size:12px;color:var(--success);font-weight:600;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:var(--success);vertical-align:middle;margin-right:2px;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Pagado</span><button class="btn btn-sm btn-primary" onclick="showFinalInvoice(' + s.id + ')">Factura Final</button></div>';
+                    html += '<div style="display:flex;gap:6px;align-items:center;"><span style="font-size:12px;color:var(--success);font-weight:600;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:var(--success);vertical-align:middle;margin-right:2px;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Pagado</span><button class="btn btn-sm btn-primary" onclick="showFinalInvoice(' + s.id + ')">Factura</button></div>';
                 }
                 html += '</div></div>';
             });
@@ -1720,49 +2012,190 @@ function refreshCustHistory() {
 function showFinalInvoice(saleId) {
     const sale = posSales.find(s => s.id === saleId);
     if (!sale) return;
-    const isFullyPaid = sale.creditInfo && (
-        sale.creditInfo.tipo === 'abono'
-            ? (sale.creditInfo.payments.reduce((s, p) => s + p.amount, 0) >= sale.creditInfo.balance)
-            : (sale.creditInfo.pagadas >= sale.creditInfo.totalCuotas)
-    );
-    let paymentsHtml = '';
-    if (sale.creditInfo && sale.creditInfo.payments && sale.creditInfo.payments.length > 0) {
-        paymentsHtml = '<div class="receipt-divider"></div>';
-        paymentsHtml += '<div style="font-size:11px;font-weight:600;margin-bottom:4px;">HISTORIAL DE PAGOS</div>';
-        sale.creditInfo.payments.forEach(p => {
-            paymentsHtml += '<div class="receipt-row"><span>' + shortDate(p.date) + '</span><span>' + formatPrice(p.amount) + '</span></div>';
-        });
-        const totalPagado = sale.creditInfo.payments.reduce((s, p) => s + p.amount, 0);
-        paymentsHtml += '<div class="receipt-row" style="font-weight:600;border-top:1px dashed var(--border);padding-top:4px;margin-top:2px;"><span>Total pagado</span><span>' + formatPrice(totalPagado) + '</span></div>';
-    }
-    const statusBadge = isFullyPaid
-        ? '<div style="text-align:center;margin:8px 0;padding:6px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:13px;font-weight:700;color:#166534;">CANCELADO</div>'
-        : '<div style="text-align:center;margin:8px 0;padding:6px;background:#fffbe6;border:1px solid #fde68a;border-radius:6px;font-size:13px;font-weight:700;color:#92400e;">PENDIENTE</div>';
+    const ci = sale.creditInfo;
+    if (!ci) return;
+    const pagado = ci.payments ? ci.payments.reduce((s, p) => s + p.amount, 0) : 0;
+    const pendiente = sale.total - pagado;
+    const isPaid = pendiente <= 0;
+
+    const paymentsHtml = ci.payments && ci.payments.length > 0
+        ? ci.payments.map((p, i) => `<tr><td>${i + 1}</td><td>${shortDate(p.date)}</td><td style="text-align:right;color:#166534;font-weight:600;">${formatPrice(p.amount)}</td></tr>`).join('')
+        : '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">Sin pagos registrados</td></tr>';
+
+    const progressPct = sale.total > 0 ? Math.min(Math.round((pagado / sale.total) * 100), 100) : 0;
+
     const content = document.getElementById('receiptContent');
-    const itemsHtml = sale.items.map(i => `<div class="receipt-row"><span>${i.name.substring(0,22)} x${i.qty}</span><span>${formatPrice(i.price * i.qty)}</span></div>`).join('');
     content.innerHTML = `
-        <div class="receipt">
-            <div class="receipt-header">
-                <h4>LOPEZTECH NATU</h4>
-                <p>Santa Marta, Colombia<br>NIT: 123.456.789-0</p>
-                <p style="font-size:11px;margin-top:2px;">${shortDate(sale.date)}</p>
+        <div class="invoice-print" id="invoicePrintArea">
+            <div class="inv-header">
+                <div class="inv-logo"><img src="LOGO.jpeg" alt="Logo"></div>
+                <div class="inv-business">
+                    <h3>TIENDA NATURALISTA</h3>
+                    <p>Santa Marta, Colombia<br>NIT: 123.456.789-0<br>Tel: 321 917 4696</p>
+                </div>
+                <div class="inv-doc-info">
+                    <div class="inv-doc-type">ESTADO DE CUENTA</div>
+                    <div class="inv-doc-num">Factura #${sale.id}</div>
+                    <div class="inv-doc-date">${new Date(sale.date).toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' })}</div>
+                </div>
             </div>
-            ${statusBadge}
-            <div class="receipt-divider"></div>
-            <div class="receipt-row"><span>Factura #${sale.id}</span><span>${sale.method}</span></div>
-            <div class="receipt-row"><span>Cliente: ${sale.customer || 'Mostrador'}</span></div>
-            ${sale.creditInfo ? '<div class="receipt-row"><span>Tipo: ' + (sale.creditInfo.tipo === 'abono' ? 'Cuenta de cobro' : 'Cuotas fijas') + '</span></div>' : ''}
-            <div class="receipt-divider"></div>
-            ${itemsHtml}
-            <div class="receipt-divider"></div>
-            <div class="receipt-row"><span>Subtotal</span><span>${formatPrice(sale.subtotal)}</span></div>
-            ${sale.excedente ? '<div class="receipt-row"><span>Excedente</span><span>' + formatPrice(sale.excedente) + '</span></div>' : ''}
-            ${paymentsHtml}
-            <div class="receipt-total"><span>TOTAL VENTA</span><span>${formatPrice(sale.total)}</span></div>
-            <div class="receipt-footer">Factura final generada el ${new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</div>
+
+            <div class="inv-status ${isPaid ? 'inv-status-paid' : 'inv-status-pending'}">
+                ${isPaid ? 'CUENTA CANCELADA' : 'CUENTA PENDIENTE'}
+            </div>
+
+            <div class="inv-section">
+                <div class="inv-section-title">DATOS DEL CLIENTE</div>
+                <div class="inv-customer-grid">
+                    <div><span>Nombre:</span> <strong>${sale.customer || 'Cliente mostrador'}</strong></div>
+                    <div><span>Metodo de pago:</span> <strong>${sale.method}</strong></div>
+                    <div><span>Tipo de credito:</span> <strong>${ci.tipo === 'abono' ? 'Abono libre' : 'Cuotas fijas (' + ci.totalCuotas + ' cuotas)'}</strong></div>
+                </div>
+            </div>
+
+            <div class="inv-section">
+                <div class="inv-section-title">PRODUCTOS COMPRADOS</div>
+                <table class="inv-table">
+                    <thead><tr><th>#</th><th>Producto</th><th>Cant.</th><th style="text-align:right">Precio Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
+                    <tbody>
+                        ${sale.items.map((item, i) => `<tr><td>${i + 1}</td><td>${item.name}</td><td>${item.qty}</td><td style="text-align:right">${formatPrice(item.price)}</td><td style="text-align:right;font-weight:600;">${formatPrice(item.price * item.qty)}</td></tr>`).join('')}
+                    </tbody>
+                    <tfoot>
+                        <tr class="inv-total-row"><td colspan="4">TOTAL VENTA</td><td style="text-align:right">${formatPrice(sale.total)}</td></tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="inv-section">
+                <div class="inv-section-title">RESUMEN DE PAGOS</div>
+                <div class="inv-summary-grid">
+                    <div class="inv-summary-box inv-total-box"><div class="inv-summary-label">Total de la compra</div><div class="inv-summary-val">${formatPrice(sale.total)}</div></div>
+                    <div class="inv-summary-box inv-paid-box"><div class="inv-summary-label">Total pagado</div><div class="inv-summary-val">${formatPrice(pagado)}</div></div>
+                    <div class="inv-summary-box inv-pending-box"><div class="inv-summary-label">Saldo pendiente</div><div class="inv-summary-val">${formatPrice(Math.max(0, pendiente))}</div></div>
+                </div>
+                <div class="inv-progress-wrap">
+                    <div class="inv-progress-bar"><div class="inv-progress-fill" style="width:${progressPct}%"></div></div>
+                    <div class="inv-progress-text">${progressPct}% pagado</div>
+                </div>
+            </div>
+
+            <div class="inv-section">
+                <div class="inv-section-title">HISTORIAL DE PAGOS</div>
+                <table class="inv-table inv-payments-table">
+                    <thead><tr><th>#</th><th>Fecha</th><th style="text-align:right">Monto</th></tr></thead>
+                    <tbody>${paymentsHtml}</tbody>
+                    <tfoot>
+                        <tr class="inv-paid-row"><td colspan="2">TOTAL ABONADO</td><td style="text-align:right">${formatPrice(pagado)}</td></tr>
+                        ${!isPaid ? '<tr class="inv-pending-foot-row"><td colspan="2">SALDO PENDIENTE</td><td style="text-align:right">' + formatPrice(pendiente) + '</td></tr>' : ''}
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="inv-footer">
+                <p>Documento generado el ${new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })}</p>
+                <p style="margin-top:4px;">Gracias por su compra — TIENDA NATURALISTA</p>
+            </div>
         </div>
     `;
     document.getElementById('receiptModal').classList.add('open');
+    document.getElementById('btnDownloadInv').style.display = '';
+}
+
+function printInvoice() {
+    const area = document.getElementById('invoicePrintArea');
+    if (!area) return;
+    const win = window.open('', '_blank', 'width=800,height=600');
+    win.document.write('<html><head><title>Factura</title><style>' +
+        'body{font-family:Arial,sans-serif;margin:20px;color:#333;font-size:13px;}' +
+        'h3{margin:0;font-size:18px;}' +
+        '.inv-header{display:flex;gap:20px;align-items:flex-start;border-bottom:3px solid #2e7d32;padding-bottom:16px;margin-bottom:16px;}' +
+        '.inv-logo img{height:60px;border-radius:8px;}' +
+        '.inv-business{flex:1;}' +
+        '.inv-business p{margin:4px 0 0;font-size:12px;color:#666;}' +
+        '.inv-doc-info{text-align:right;}' +
+        '.inv-doc-type{background:#2e7d32;color:#fff;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:1px;}' +
+        '.inv-doc-num{font-size:16px;font-weight:700;margin-top:6px;}' +
+        '.inv-doc-date{font-size:12px;color:#666;}' +
+        '.inv-status{text-align:center;padding:10px;border-radius:8px;font-weight:700;font-size:14px;margin-bottom:16px;}' +
+        '.inv-status-paid{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;}' +
+        '.inv-status-pending{background:#fffbe6;color:#92400e;border:1px solid #fde68a;}' +
+        '.inv-section{margin-bottom:16px;}' +
+        '.inv-section-title{font-size:11px;font-weight:700;color:#666;letter-spacing:0.5px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #e5e7eb;}' +
+        '.inv-customer-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:12px;}' +
+        '.inv-customer-grid span{color:#666;}' +
+        '.inv-table{width:100%;border-collapse:collapse;font-size:12px;}' +
+        '.inv-table th{background:#f9fafb;padding:8px;text-align:left;font-size:11px;color:#666;border-bottom:2px solid #e5e7eb;}' +
+        '.inv-table td{padding:7px 8px;border-bottom:1px solid #f3f4f6;}' +
+        '.inv-total-row td{font-weight:700;font-size:14px;border-top:2px solid #333;border-bottom:none;padding-top:10px;}' +
+        '.inv-summary-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;}' +
+        '.inv-summary-box{padding:12px;border-radius:8px;text-align:center;}' +
+        '.inv-summary-label{font-size:11px;color:#666;margin-bottom:4px;}' +
+        '.inv-summary-val{font-size:18px;font-weight:700;}' +
+        '.inv-total-box{background:#f3f4f6;}' +
+        '.inv-paid-box{background:#f0fdf4;}.inv-paid-box .inv-summary-val{color:#166534;}' +
+        '.inv-pending-box{background:#fffbe6;}.inv-pending-box .inv-summary-val{color:#92400e;}' +
+        '.inv-progress-wrap{margin-top:8px;text-align:center;}' +
+        '.inv-progress-bar{height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden;}' +
+        '.inv-progress-fill{height:100%;background:#2e7d32;border-radius:5px;transition:width 0.5s;}' +
+        '.inv-progress-text{font-size:12px;color:#666;margin-top:4px;}' +
+        '.inv-payments-table thead th{background:#f0fdf4;}' +
+        '.inv-paid-row td{font-weight:700;border-top:2px solid #2e7d32;color:#166534;}' +
+        '.inv-pending-foot-row td{font-weight:700;color:#92400e;}' +
+        '.inv-footer{text-align:center;margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:11px;color:#999;}' +
+        '</style></head><body>' + area.innerHTML + '</body></html>');
+    win.document.close();
+    setTimeout(() => { win.print(); }, 300);
+}
+
+function downloadInvoice() {
+    const area = document.getElementById('invoicePrintArea');
+    if (!area) return;
+    const saleId = area.querySelector('.inv-doc-num') ? area.querySelector('.inv-doc-num').textContent.replace(/\D/g,'') : 'doc';
+    const win = window.open('', '_blank', 'width=800,height=600');
+    win.document.write('<html><head><title>Factura #' + saleId + '</title><style>' +
+        '@page{size:letter;margin:15mm;}' +
+        'body{font-family:Arial,sans-serif;margin:0;padding:20px;color:#333;font-size:13px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+        'h3{margin:0;font-size:18px;}' +
+        '.inv-header{display:flex;gap:20px;align-items:flex-start;border-bottom:3px solid #2e7d32;padding-bottom:16px;margin-bottom:16px;}' +
+        '.inv-logo img{height:60px;border-radius:8px;}' +
+        '.inv-business{flex:1;}' +
+        '.inv-business p{margin:4px 0 0;font-size:12px;color:#666;}' +
+        '.inv-doc-info{text-align:right;}' +
+        '.inv-doc-type{background:#2e7d32;color:#fff;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:1px;}' +
+        '.inv-doc-num{font-size:16px;font-weight:700;margin-top:6px;}' +
+        '.inv-doc-date{font-size:12px;color:#666;}' +
+        '.inv-status{text-align:center;padding:10px;border-radius:8px;font-weight:700;font-size:14px;margin-bottom:16px;}' +
+        '.inv-status-paid{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;}' +
+        '.inv-status-pending{background:#fffbe6;color:#92400e;border:1px solid #fde68a;}' +
+        '.inv-section{margin-bottom:16px;}' +
+        '.inv-section-title{font-size:11px;font-weight:700;color:#666;letter-spacing:0.5px;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #e5e7eb;}' +
+        '.inv-customer-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:12px;}' +
+        '.inv-customer-grid span{color:#666;}' +
+        '.inv-table{width:100%;border-collapse:collapse;font-size:12px;}' +
+        '.inv-table th{background:#f9fafb;padding:8px;text-align:left;font-size:11px;color:#666;border-bottom:2px solid #e5e7eb;}' +
+        '.inv-table td{padding:7px 8px;border-bottom:1px solid #f3f4f6;}' +
+        '.inv-total-row td{font-weight:700;font-size:14px;border-top:2px solid #333;border-bottom:none;padding-top:10px;}' +
+        '.inv-summary-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;}' +
+        '.inv-summary-box{padding:12px;border-radius:8px;text-align:center;}' +
+        '.inv-summary-label{font-size:11px;color:#666;margin-bottom:4px;}' +
+        '.inv-summary-val{font-size:18px;font-weight:700;}' +
+        '.inv-total-box{background:#f3f4f6;}' +
+        '.inv-paid-box{background:#f0fdf4;}.inv-paid-box .inv-summary-val{color:#166534;}' +
+        '.inv-pending-box{background:#fffbe6;}.inv-pending-box .inv-summary-val{color:#92400e;}' +
+        '.inv-progress-wrap{margin-top:8px;text-align:center;}' +
+        '.inv-progress-bar{height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden;}' +
+        '.inv-progress-fill{height:100%;background:#2e7d32;border-radius:5px;}' +
+        '.inv-progress-text{font-size:12px;color:#666;margin-top:4px;}' +
+        '.inv-payments-table thead th{background:#f0fdf4;}' +
+        '.inv-paid-row td{font-weight:700;border-top:2px solid #2e7d32;color:#166534;}' +
+        '.inv-pending-foot-row td{font-weight:700;color:#92400e;}' +
+        '.inv-footer{text-align:center;margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:11px;color:#999;}' +
+        '</style></head><body>' + area.innerHTML + '</body></html>');
+    win.document.close();
+    setTimeout(() => {
+        win.print();
+        showToast('Selecciona "Guardar como PDF" en el dialogo de impresion');
+    }, 400);
 }
 
 function openPaymentModal(saleId) {
@@ -1860,13 +2293,13 @@ function toggleSaleItems(btn) {
 function renderSalesTable() {
     const q = document.getElementById('salesSearch').value.toLowerCase().trim();
     let filtered = [...posSales].reverse();
-    if (q) filtered = filtered.filter(s => s.id.toString().includes(q) || (s.customer && s.customer.toLowerCase().includes(q)));
+    if (q) filtered = filtered.filter((s, idx) => (idx + 1).toString().includes(q) || s.id.toString().includes(q) || (s.customer && s.customer.toLowerCase().includes(q)));
     const tbody = document.getElementById('salesTableBody');
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">No hay ventas registradas</td></tr>';
         return;
     }
-    tbody.innerHTML = filtered.map(s => {
+    tbody.innerHTML = filtered.map((s, idx) => {
         const qty = s.items.reduce((sum, i) => sum + i.qty, 0);
         let methodHtml = '<span class="tag tag-info">' + s.method + '</span>';
         if (s.creditInfo) {
@@ -1882,7 +2315,7 @@ function renderSalesTable() {
             }
         }
         return `<tr>
-            <td><strong>#${s.id}</strong></td>
+            <td><strong>#${idx + 1}</strong></td>
             <td>${formatDate(s.date)}</td>
             <td>${s.customer || 'Mostrador'}</td>
             <td>${qty}</td>
@@ -1928,6 +2361,7 @@ function showReceipt(sale) {
         </div>
     `;
     document.getElementById('receiptModal').classList.add('open');
+    document.getElementById('btnDownloadInv').style.display = 'none';
 }
 
 function closeReceipt() {
@@ -1936,6 +2370,10 @@ function closeReceipt() {
 
 function printReceipt() {
     const content = document.getElementById('receiptContent').innerHTML;
+    if (content.includes('invoice-print')) {
+        printInvoice();
+        return;
+    }
     const win = window.open('', '', 'width=380,height=600');
     win.document.write('<html><head><style>body{font-family:"Courier New",monospace;font-size:12px;padding:16px;line-height:1.6;}.receipt-header{text-align:center;margin-bottom:12px;}.receipt-header h4{font-size:16px;margin-bottom:2px;}.receipt-divider{border-top:1px dashed #999;margin:6px 0;}.receipt-row{display:flex;justify-content:space-between;font-size:11px;}.receipt-total{display:flex;justify-content:space-between;font-weight:700;font-size:14px;margin:8px 0;}.receipt-footer{text-align:center;font-size:10px;color:#888;margin-top:10px;}</style></head><body>' + content + '</body></html>');
     win.document.close();
@@ -1983,6 +2421,23 @@ function initPOS() {
         renderCategoriesTable();
         renderSalesTable();
     })();
+}
+
+function exportPosData() {
+    const data = {
+        posProducts: JSON.parse(localStorage.getItem('posProducts')) || [],
+        posCategories: JSON.parse(localStorage.getItem('posCategories')) || [],
+        posCustomers: JSON.parse(localStorage.getItem('posCustomers')) || [],
+        posSuppliers: JSON.parse(localStorage.getItem('posSuppliers')) || [],
+        posSales: JSON.parse(localStorage.getItem('posSales')) || [],
+        invLog: JSON.parse(localStorage.getItem('invLog')) || []
+    };
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'pos-data.json';
+    a.click();
+    showToast('Datos exportados: ' + data.posProducts.length + ' productos, ' + data.posCustomers.length + ' clientes');
 }
 
 checkSession();

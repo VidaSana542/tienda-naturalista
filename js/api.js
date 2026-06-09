@@ -1,19 +1,35 @@
 // ============================================
-// API CLIENT - Supabase Backend
+// SUPABASE CLIENT + API
 // ============================================
-// Mantiene la misma interfaz que el API anterior
-// para que tienda.js y pos.js no necesiten cambios.
+
+const _SUPABASE_URL = 'https://jcksqhqopqhswwxskhls.supabase.co';
+const _SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja3NxaHFvcHFoc3d3eHNraGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTIzNjksImV4cCI6MjA5NjQ4ODM2OX0.1hnEgbk9--eedO1Tw9L0p6NKtHkz9h9NENEFiFJjbj0';
+
+let _sb = null;
+try {
+    if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+        _sb = window.supabase.createClient(_SUPABASE_URL, _SUPABASE_KEY);
+        console.log('[API] Supabase conectado OK');
+    } else {
+        console.error('[API] window.supabase no existe. CDN no cargo.');
+    }
+} catch(e) {
+    console.error('[API] Error creando cliente Supabase:', e.message);
+}
 
 const API = {
   isAvailable: false,
 
   // ---- Health Check ----
   async check() {
+    if (!_sb) { this.isAvailable = false; return false; }
     try {
-      const { error } = await supabase.from('products').select('id').limit(1);
+      const { error } = await _sb.from('products').select('id').limit(1);
       this.isAvailable = !error;
+      if (error) console.error('[API] Check error:', error.message);
       return !error;
-    } catch {
+    } catch(e) {
+      console.error('[API] Check exception:', e.message);
       this.isAvailable = false;
       return false;
     }
@@ -21,7 +37,7 @@ const API = {
 
   // ---- Productos ----
   async getProducts(category, search) {
-    let query = supabase
+    let query = _sb
       .from('products')
       .select('*')
       .eq('active', true)
@@ -41,7 +57,7 @@ const API = {
 
   async saveProduct(product) {
     if (product.id) {
-      const { data, error } = await supabase
+      const { data, error } = await _sb
         .from('products')
         .update({
           name: product.name,
@@ -65,7 +81,7 @@ const API = {
       if (error) throw error;
       return data;
     } else {
-      const { data, error } = await supabase
+      const { data, error } = await _sb
         .from('products')
         .insert({
           name: product.name,
@@ -90,7 +106,7 @@ const API = {
   },
 
   async deleteProduct(id) {
-    const { error } = await supabase
+    const { error } = await _sb
       .from('products')
       .update({ active: false })
       .eq('id', id);
@@ -100,7 +116,7 @@ const API = {
 
   // ---- Clientes ----
   async getCustomers(search) {
-    let query = supabase
+    let query = _sb
       .from('customers')
       .select('*')
       .order('name');
@@ -116,7 +132,7 @@ const API = {
 
   async saveCustomer(customer) {
     if (customer.id) {
-      const { data, error } = await supabase
+      const { data, error } = await _sb
         .from('customers')
         .update({
           name: customer.name,
@@ -130,7 +146,7 @@ const API = {
       if (error) throw error;
       return data;
     } else {
-      const { data, error } = await supabase
+      const { data, error } = await _sb
         .from('customers')
         .insert({
           name: customer.name,
@@ -146,7 +162,7 @@ const API = {
   },
 
   async deleteCustomer(id) {
-    const { error } = await supabase
+    const { error } = await _sb
       .from('customers')
       .delete()
       .eq('id', id);
@@ -156,7 +172,7 @@ const API = {
 
   // ---- Proveedores ----
   async getSuppliers(search) {
-    let query = supabase
+    let query = _sb
       .from('suppliers')
       .select('*')
       .order('name');
@@ -172,7 +188,7 @@ const API = {
 
   async saveSupplier(supplier) {
     if (supplier.id) {
-      const { data, error } = await supabase
+      const { data, error } = await _sb
         .from('suppliers')
         .update({
           name: supplier.name,
@@ -188,7 +204,7 @@ const API = {
       if (error) throw error;
       return data;
     } else {
-      const { data, error } = await supabase
+      const { data, error } = await _sb
         .from('suppliers')
         .insert({
           name: supplier.name,
@@ -206,7 +222,7 @@ const API = {
   },
 
   async deleteSupplier(id) {
-    const { error } = await supabase
+    const { error } = await _sb
       .from('suppliers')
       .delete()
       .eq('id', id);
@@ -219,13 +235,13 @@ const API = {
     const ext = file.name.split('.').pop();
     const filename = 'products/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.' + ext;
 
-    const { error } = await supabase.storage
+    const { error } = await _sb.storage
       .from('product-images')
       .upload(filename, file, { cacheControl: '3600', upsert: false });
 
     if (error) throw error;
 
-    const { data } = supabase.storage
+    const { data } = _sb.storage
       .from('product-images')
       .getPublicUrl(filename);
 
@@ -242,7 +258,7 @@ const API = {
   },
 
   async deleteImage(filename) {
-    const { error } = await supabase.storage
+    const { error } = await _sb.storage
       .from('product-images')
       .remove([filename]);
     if (error) throw error;
@@ -251,11 +267,12 @@ const API = {
 
   // ---- Ventas ----
   async getSales(search, customerId) {
-    let query = supabase
+    let query = _sb
       .from('sales')
       .select(`
         *,
-        sale_items (*)
+        sale_items (*),
+        payments (*)
       `)
       .order('created_at', { ascending: false });
 
@@ -269,15 +286,16 @@ const API = {
     const { data, error } = await query;
     if (error) throw error;
 
-    // Mapear sale_items a items para compatibilidad
+    // Mapear sale_items a items y payments a creditInfo.payments para compatibilidad
     return (data || []).map(sale => ({
       ...sale,
-      items: sale.sale_items || []
+      items: sale.sale_items || [],
+      payments: sale.payments || []
     }));
   },
 
   async getSale(id) {
-    const { data, error } = await supabase
+    const { data, error } = await _sb
       .from('sales')
       .select(`
         *,
@@ -297,7 +315,7 @@ const API = {
 
   async saveSale(sale) {
     // Insertar venta
-    const { data: saleData, error: saleError } = await supabase
+    const { data: saleData, error: saleError } = await _sb
       .from('sales')
       .insert({
         customer_id: sale.customer_id || null,
@@ -324,7 +342,7 @@ const API = {
         price: item.price
       }));
 
-      const { error: itemsError } = await supabase
+      const { error: itemsError } = await _sb
         .from('sale_items')
         .insert(itemsToInsert);
 
@@ -335,7 +353,7 @@ const API = {
   },
 
   async addPayment(saleId, amount, note) {
-    const { data, error } = await supabase
+    const { data, error } = await _sb
       .from('payments')
       .insert({
         sale_id: saleId,
@@ -351,7 +369,7 @@ const API = {
 
   // ---- Inventario ----
   async getInventoryLog(limit) {
-    let query = supabase
+    let query = _sb
       .from('inventory_log')
       .select('*')
       .order('created_at', { ascending: false });
@@ -366,7 +384,7 @@ const API = {
   },
 
   async addInventoryLog(entry) {
-    const { data, error } = await supabase
+    const { data, error } = await _sb
       .from('inventory_log')
       .insert({
         product_id: String(entry.product_id),
@@ -386,7 +404,7 @@ const API = {
   },
 
   async getInventoryStats() {
-    const { data: products, error } = await supabase
+    const { data: products, error } = await _sb
       .from('products')
       .select('stock, active')
       .eq('active', true);
@@ -405,7 +423,7 @@ const API = {
 
   // ---- Categorias ----
   async getCategories() {
-    const { data, error } = await supabase
+    const { data, error } = await _sb
       .from('categories')
       .select('*')
       .order('label');
@@ -416,7 +434,7 @@ const API = {
 
   async saveCategory(cat) {
     if (cat.id) {
-      const { data, error } = await supabase
+      const { data, error } = await _sb
         .from('categories')
         .update({
           label: cat.label,
@@ -428,7 +446,7 @@ const API = {
       if (error) throw error;
       return data;
     } else {
-      const { data, error } = await supabase
+      const { data, error } = await _sb
         .from('categories')
         .insert({
           key: cat.key,
@@ -443,7 +461,7 @@ const API = {
   },
 
   async deleteCategory(id) {
-    const { error } = await supabase
+    const { error } = await _sb
       .from('categories')
       .delete()
       .eq('id', id);

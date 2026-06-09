@@ -4,8 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>POS - Sistema de Ventas</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabaseClient.js"></script>
+<script src="js/supabase.min.js"></script>
 <script src="js/api.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -118,26 +117,99 @@
 
         <!-- Dashboard -->
         <div class="panel active" id="panel-dashboard">
+            <div class="dash-top-bar">
+                <div>
+                    <h3 style="margin:0;font-weight:700;">Resumen de Negocio</h3>
+                    <p style="margin:2px 0 0;font-size:13px;color:var(--text-muted);" id="dashPeriodLabel"></p>
+                </div>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn btn-sm dash-period-btn active" data-period="today" onclick="setDashPeriod('today')">Hoy</button>
+                    <button class="btn btn-sm dash-period-btn" data-period="week" onclick="setDashPeriod('week')">Semana</button>
+                    <button class="btn btn-sm dash-period-btn" data-period="month" onclick="setDashPeriod('month')">Mes</button>
+                    <button class="btn btn-sm dash-period-btn" data-period="year" onclick="setDashPeriod('year')">A&ntilde;o</button>
+                    <button class="btn btn-sm btn-primary" onclick="exportPosData()" style="margin-left:8px;font-size:12px;padding:6px 14px;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff" style="vertical-align:middle;margin-right:2px;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Exportar
+                    </button>
+                </div>
+            </div>
+
             <div class="stats-grid" id="dashStats"></div>
+
+            <div class="dash-grid-2col">
+                <div class="card">
+                    <div class="card-header"><h3>Ventas por Dia (ultimos 7 dias)</h3></div>
+                    <div class="card-body"><div class="dash-chart" id="dashBarChart"></div></div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>Métodos de Pago</h3></div>
+                    <div class="card-body" id="dashPayMethods"></div>
+                </div>
+            </div>
+
+            <div class="dash-grid-2col">
+                <div class="card">
+                    <div class="card-header"><h3>Productos Más Vendidos</h3></div>
+                    <div class="card-body">
+                        <div class="table-wrap"><table><thead><tr><th>#</th><th>Producto</th><th>Vendidos</th><th>Facturado</th></tr></thead><tbody id="dashTopProducts"></tbody></table></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>Alertas de Stock</h3></div>
+                    <div class="card-body">
+                        <div class="table-wrap"><table><thead><tr><th>Producto</th><th>Stock</th><th>Estado</th></tr></thead><tbody id="dashStockAlerts"></tbody></table></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dash-grid-2col">
+                <div class="card">
+                    <div class="card-header"><h3>Clientes Más Frecuentes</h3></div>
+                    <div class="card-body">
+                        <div class="table-wrap"><table><thead><tr><th>#</th><th>Cliente</th><th>Compras</th><th>Total Gastado</th></tr></thead><tbody id="dashTopCustomers"></tbody></table></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h3>Resumen del Periodo</h3></div>
+                    <div class="card-body" id="dashSummary"></div>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header">
-                    <h3>Ventas Recientes</h3>
+                    <h3>Ultimas Ventas</h3>
+                    <button class="btn btn-sm btn-outline" onclick="switchPanel('sales')">Ver todas</button>
                 </div>
                 <div class="card-body">
                     <div class="table-wrap">
                         <table>
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Cliente</th>
-                                    <th>Prod.</th>
-                                    <th>Total</th>
-                                    <th>Excedente</th>
-                                    <th>Metodo</th>
-                                    <th>Fecha</th>
-                                </tr>
-                            </thead>
+                            <thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Prod.</th><th>Total</th><th>Metodo</th></tr></thead>
                             <tbody id="dashRecentSales"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historial Mensual -->
+            <div class="card" id="dashMonthsCard" style="display:none;">
+                <div class="card-header"><h3>Historial Mensual</h3></div>
+                <div class="card-body">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Mes</th><th>Ventas</th><th>Unidades</th><th>Total Facturado</th><th>Efectivo</th><th>Digital</th><th>Credito</th><th>Ticket Prom.</th></tr></thead>
+                            <tbody id="dashMonthsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Historial Anual -->
+            <div class="card" id="dashAnnualCard" style="display:none;">
+                <div class="card-header"><h3>Historial Anual</h3></div>
+                <div class="card-body">
+                    <div class="table-wrap">
+                        <table>
+                            <thead><tr><th>Ano</th><th>Ventas</th><th>Unidades</th><th>Total Facturado</th><th>Efectivo</th><th>Digital</th><th>Credito</th><th>Ticket Prom.</th></tr></thead>
+                            <tbody id="dashAnnualTable"></tbody>
                         </table>
                     </div>
                 </div>
@@ -732,6 +804,9 @@
         <div id="receiptContent"></div>
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeReceipt()">Cerrar</button>
+            <button class="btn btn-outline" onclick="downloadInvoice()" id="btnDownloadInv" style="display:none;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> Descargar
+            </button>
             <button class="btn btn-primary" onclick="printReceipt()">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg> Imprimir
             </button>

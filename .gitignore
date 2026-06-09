@@ -4,3 +4,7 @@ supabase-schema.sql
 .git/
 .vercel/
 .env
+pos-data.json
+migrar-img.js
+migrar-imagenes.html
+uploads/

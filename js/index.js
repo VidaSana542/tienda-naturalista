@@ -61,7 +61,7 @@ function showToast(msg) {
     clearTimeout(d._t); d._t = setTimeout(() => d.classList.remove('toast-show'), 2000);
 }
 
-function openCart() { window.location.href = 'tienda.html'; }
+function openCart() { window.location.href = 'tienda'; }
 
 let featuredProducts = [];
 
@@ -88,7 +88,7 @@ let indexCategories = [];
     const grid = document.getElementById('indexCatGrid');
     if (grid) {
         grid.innerHTML = indexCategories.map(c => `
-            <a href="tienda.html#${c.key}" class="cat-card">
+            <a href="tienda#${c.key}" class="cat-card">
                 <div class="cat-icon">${CAT_ICONS[c.key] || CAT_ICONS.suplementos}</div>
                 <h3>${c.label}</h3>
             </a>
@@ -98,7 +98,7 @@ let indexCategories = [];
     const footer = document.getElementById('indexFooterCats');
     if (footer) {
         footer.innerHTML = indexCategories.map(c =>
-            `<a href="tienda.html#${c.key}">${c.label}</a>`
+            `<a href="tienda#${c.key}">${c.label}</a>`
         ).join('');
     }
 })();

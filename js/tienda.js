@@ -474,14 +474,9 @@ function showToast(msg) {
                 badge: '',
                 desc: p.description || ''
             }));
-            console.log('Productos cargados de API:', products.length);
-        } else {
-            console.warn('API devolvió array vacío o null, usando fallback');
-            products = [...FALLBACK_PRODUCTS];
         }
     } catch (e) {
-        console.error('Error cargando productos de API:', e);
-        products = [...FALLBACK_PRODUCTS];
+        console.error('Error cargando productos:', e);
     }
     initCategoryCards();
     showProductsView();
