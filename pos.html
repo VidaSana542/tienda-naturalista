@@ -132,9 +132,12 @@
         <!-- Dashboard -->
         <div class="panel active" id="panel-dashboard">
             <div class="dash-top-bar">
-                <div>
-                    <h3 style="margin:0;font-weight:700;">Resumen de Negocio</h3>
-                    <p style="margin:2px 0 0;font-size:13px;color:var(--text-muted);" id="dashPeriodLabel"></p>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <img src="LOGO.jpeg" alt="Logo" style="height:48px;border-radius:8px;">
+                    <div>
+                        <h3 style="margin:0;font-weight:700;">Resumen de Negocio</h3>
+                        <p style="margin:2px 0 0;font-size:13px;color:var(--text-muted);" id="dashPeriodLabel"></p>
+                    </div>
                 </div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
                     <button class="btn btn-sm dash-period-btn active" data-period="today" onclick="setDashPeriod('today')">Hoy</button>
