@@ -424,10 +424,10 @@ function generateSampleCustomers() {
 }
 function saveCart() { localStorage.setItem('posCart', JSON.stringify(posCart)); }
 function saveInvLog() { localStorage.setItem('invLog', JSON.stringify(invLog)); }
-function addInvLog(productId, productName, type, quantity, previousStock, newStock, reason, saleId) {
+function addInvLog(productId, productName, type, quantity, previousStock, newStock, reason, saleId, ventaPorFuera) {
     const prod = posProducts.find(p => p.id === productId);
     const category = prod ? prod.category : '';
-    invLog.push({ id: invNextLogId++, date: now(), productId, productName, type, quantity, previousStock, newStock, reason, saleId: saleId || null, category });
+    invLog.push({ id: invNextLogId++, date: now(), productId, productName, type, quantity, previousStock, newStock, reason, saleId: saleId || null, category, ventaPorFuera: ventaPorFuera || false });
     saveInvLog();
 }
 
@@ -1202,7 +1202,7 @@ function confirmCheckout() {
         if (p) {
             const prev = p.stock;
             p.stock = Math.max(0, p.stock - ci.qty);
-            addInvLog(ci.id, p.name, 'salida', -ci.qty, prev, p.stock, 'Venta #' + sale.id, sale.id);
+            addInvLog(ci.id, p.name, 'salida', -ci.qty, prev, p.stock, 'Venta #' + sale.id + (sale.ventaPorFuera ? ' (Por fuera)' : ''), sale.id, sale.ventaPorFuera);
         }
     });
     saveSales();
@@ -1734,6 +1734,7 @@ function renderInvLog() {
     }
     tbody.innerHTML = filtered.slice().reverse().slice(0, 200).map(l => {
         const typeLabel = l.type === 'entrada' ? '<span style="color:var(--success);font-weight:600;">Entrada</span>' : l.type === 'salida' ? '<span style="color:var(--danger);font-weight:600;">Salida</span>' : '<span style="color:var(--warning);font-weight:600;">Ajuste</span>';
+        const vpfTag = l.ventaPorFuera ? ' <span class="tag tag-warning" style="font-size:10px;">Por fuera</span>' : '';
         return '<tr>' +
             '<td>' + shortDate(l.date) + '</td>' +
             '<td><strong>' + l.productName + '</strong></td>' +
@@ -1742,7 +1743,7 @@ function renderInvLog() {
             '<td style="font-weight:600;' + (l.quantity > 0 ? 'color:var(--success);' : 'color:var(--danger);') + '">' + (l.quantity > 0 ? '+' : '') + l.quantity + '</td>' +
             '<td>' + l.previousStock + '</td>' +
             '<td>' + l.newStock + '</td>' +
-            '<td style="font-size:12px;color:var(--text-muted);">' + (l.reason || '-') + '</td>' +
+            '<td style="font-size:12px;color:var(--text-muted);">' + (l.reason || '-') + vpfTag + '</td>' +
             '</tr>';
     }).join('');
     document.getElementById('invLogCount').textContent = '(' + invLog.length + ')';
