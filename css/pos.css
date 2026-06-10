@@ -102,6 +102,7 @@ body { font-family: 'Roboto', sans-serif; background: var(--bg); color: var(--te
 .stat-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .stat-icon svg { width: 24px; height: 24px; }
 .stat-info h3 { font-size: 24px; font-weight: 800; font-family: 'Outfit', sans-serif; line-height: 1; }
+.stat-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
 .stat-info p { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
 .stat-icon.green { background: #e8f5e9; }
 .stat-icon.green svg { fill: var(--green); }
