@@ -420,29 +420,29 @@ table .actions button.del:hover svg { fill: var(--danger); }
         display: flex;
         overflow-x: auto;
         overflow-y: hidden;
-        padding: 6px 4px;
-        gap: 2px;
+        padding: 8px 6px;
+        gap: 4px;
         -webkit-overflow-scrolling: touch;
     }
     .sidebar-nav .nav-section { display: none; }
     .nav-item {
         flex-direction: column;
-        gap: 2px;
-        padding: 6px 8px;
-        font-size: 9px;
+        gap: 3px;
+        padding: 8px 10px;
+        font-size: 10px;
         margin-bottom: 0;
-        min-width: 52px;
+        min-width: 58px;
         text-align: center;
-        border-radius: 8px;
+        border-radius: 10px;
     }
-    .nav-item span { font-size: 9px; white-space: nowrap; }
-    .nav-item svg { width: 18px; height: 18px; }
+    .nav-item span { font-size: 10px; white-space: nowrap; }
+    .nav-item svg { width: 22px; height: 22px; }
     .nav-item .badge { position: absolute; top: 2px; right: 4px; font-size: 9px; padding: 0 5px; }
     .nav-item { position: relative; }
     .sidebar-footer { display: none; }
 
     /* Main content */
-    .main { margin-bottom: 70px; overflow: auto; }
+    .main { margin-bottom: 78px; overflow: auto; }
     .topbar { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
     .topbar-left h2 { font-size: 15px; }
     .topbar-left .date { font-size: 11px; }
@@ -639,9 +639,9 @@ table .actions button.del:hover svg { fill: var(--danger); }
 
     .tpv-cart-header h3 { font-size: 13px; }
 
-    .nav-item { min-width: 46px; padding: 5px 4px; }
-    .nav-item svg { width: 16px; height: 16px; }
-    .nav-item span { font-size: 8px; }
+    .nav-item { min-width: 50px; padding: 7px 6px; }
+    .nav-item svg { width: 20px; height: 20px; }
+    .nav-item span { font-size: 9px; }
 
     .topbar { padding: 8px 10px; }
     .topbar-left h2 { font-size: 14px; }
