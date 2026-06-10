@@ -429,8 +429,8 @@ function addInvLog(productId, productName, type, quantity, previousStock, newSto
 }
 
 function formatPrice(n) { return '$' + Math.round(n).toLocaleString('es-CO'); }
-function today() { return new Date().toISOString().slice(0,10); }
-function now() { return new Date().toISOString(); }
+function today() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+function now() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + 'T' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0'); }
 function formatDate(d) { const dt = new Date(d); return dt.toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); }
 function shortDate(d) { const dt = new Date(d); return dt.toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric' }); }
 
@@ -545,7 +545,7 @@ function renderDashBarChart() {
     if (_dashPeriod === 'today' || _dashPeriod === 'week') {
         for (let i = 6; i >= 0; i--) {
             const d = new Date(); d.setDate(d.getDate() - i);
-            const ds = d.toISOString().slice(0,10);
+            const ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
             const label = d.toLocaleDateString('es-CO', { weekday:'short', day:'numeric' });
             const total = posSales.filter(s => s.date && s.date.slice(0,10) === ds).reduce((sum, s) => sum + s.total, 0);
             days.push({ label, total });
