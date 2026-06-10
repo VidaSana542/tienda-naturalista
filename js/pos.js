@@ -1034,6 +1034,15 @@ const PAY_OPTS = [
 ];
 let chkPayMethod = 'cash';
 let chkCreditType = 'fijo';
+let isVentaPorFuera = false;
+
+function toggleVentaPorFuera() {
+    isVentaPorFuera = !isVentaPorFuera;
+    const btn = document.getElementById('btnVentaPorFuera');
+    if (btn) {
+        btn.classList.toggle('active', isVentaPorFuera);
+    }
+}
 
 function openCheckoutModal() {
     if (posCart.length === 0) { showToast('Agrega productos al carrito'); return; }
@@ -1184,7 +1193,8 @@ function confirmCheckout() {
         methodKey: chkPayMethod,
         customer: customerName,
         customerId,
-        creditInfo
+        creditInfo,
+        ventaPorFuera: isVentaPorFuera
     };
     posSales.push(sale);
     posCart.forEach(ci => {
@@ -1226,6 +1236,9 @@ function confirmCheckout() {
         }).catch(() => {});
     }
     clearCart();
+    isVentaPorFuera = false;
+    const btnVPF = document.getElementById('btnVentaPorFuera');
+    if (btnVPF) btnVPF.classList.remove('active');
     closeCheckoutModal();
     renderDashboard();
     renderTpv();
@@ -2343,7 +2356,7 @@ function renderSalesTable() {
             }
         }
         return `<tr>
-            <td><strong>#${idx + 1}</strong></td>
+            <td><strong>#${idx + 1}</strong> ${s.ventaPorFuera ? '<span class="tag tag-warning" style="font-size:10px;margin-left:4px;">Fuera</span>' : ''}</td>
             <td>${formatDate(s.date)}</td>
             <td>${s.customer || 'Mostrador'}</td>
             <td>${qty}</td>
