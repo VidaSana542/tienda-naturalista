@@ -2419,16 +2419,16 @@ function printReceipt() {
     const win = window.open('', '', 'width=400,height=600');
     win.document.write(`<html><head><style>
         @page { size: 80mm auto; margin: 0; }
-        body { font-family: "Courier New", "Lucida Console", monospace; font-size: 12px; padding: 3mm 4mm; margin: 0; line-height: 1.3; width: 72mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        body { font-family: "Courier New", monospace; font-size: 14px; padding: 3mm 4mm; margin: 0; line-height: 1.5; width: 72mm; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .receipt-header { text-align: center; margin-bottom: 6px; }
-        .receipt-header h4 { font-size: 16px; letter-spacing: 2px; margin: 0 0 2px; text-transform: uppercase; }
-        .receipt-header p { margin: 1px 0; font-size: 10px; }
-        .receipt-divider { border-top: 1px dashed #000; margin: 5px 0; }
-        .receipt-row { display: flex; justify-content: space-between; font-size: 11px; margin: 2px 0; }
+        .receipt-header h4 { font-size: 18px; letter-spacing: 2px; margin: 0 0 2px; text-transform: uppercase; font-weight: bold; }
+        .receipt-header p { margin: 1px 0; font-size: 12px; font-weight: bold; }
+        .receipt-divider { border-top: 2px solid #000; margin: 6px 0; }
+        .receipt-row { display: flex; justify-content: space-between; font-size: 13px; margin: 3px 0; font-weight: bold; }
         .receipt-row span:first-child { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .receipt-row span:last-child { text-align: right; white-space: nowrap; margin-left: 8px; }
-        .receipt-total { display: flex; justify-content: space-between; font-weight: 700; font-size: 14px; margin: 6px 0; border-top: 2px solid #000; border-bottom: 1px solid #000; padding: 6px 0; }
-        .receipt-footer { text-align: center; font-size: 10px; color: #555; margin-top: 8px; border-top: 1px dashed #000; padding-top: 8px; }
+        .receipt-total { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin: 8px 0; border-top: 3px solid #000; border-bottom: 2px solid #000; padding: 8px 0; }
+        .receipt-footer { text-align: center; font-size: 12px; color: #000; margin-top: 10px; border-top: 2px solid #000; padding-top: 8px; font-weight: bold; }
     </style></head><body>${content}</body></html>`);
     win.document.close();
     setTimeout(() => { win.print(); win.close(); }, 500);
