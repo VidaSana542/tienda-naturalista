@@ -297,7 +297,7 @@
                             <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                             <input type="text" id="prodSearch" placeholder="Buscar por nombre o marca..." oninput="renderProductTable()">
                         </div>
-                        <select id="prodCatFilter" onchange="renderProductTable()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);min-width:0;max-width:100%;">
+                        <select id="prodCatFilter" onchange="renderProductTable()" class="filter-select">
                             <option value="all">Todas las categorias</option>
                         </select>
                         <button class="btn btn-primary" onclick="openProductModal()">
@@ -356,7 +356,7 @@
                                 <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                                 <input type="text" id="invStockSearch" placeholder="Buscar producto..." oninput="renderInventory()">
                             </div>
-                            <select id="invStockCatFilter" onchange="renderInventory()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);min-width:0;max-width:100%;flex-shrink:1;">
+                            <select id="invStockCatFilter" onchange="renderInventory()" class="filter-select" style="flex-shrink:1;">
                                 <option value="all">Todas las categorias</option>
                             </select>
                         </div>
@@ -381,10 +381,10 @@
                                 <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                                 <input type="text" id="invLogSearch" placeholder="Buscar en historial..." oninput="renderInvLog()">
                             </div>
-                            <select id="invLogCatFilter" onchange="renderInvLog()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);min-width:0;max-width:100%;">
+                            <select id="invLogCatFilter" onchange="renderInvLog()" class="filter-select">
                                 <option value="all">Todas las categorias</option>
                             </select>
-                            <select id="invLogTypeFilter" onchange="renderInvLog()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);min-width:0;max-width:100%;">
+                            <select id="invLogTypeFilter" onchange="renderInvLog()" class="filter-select">
                                 <option value="all">Todos los tipos</option>
                                 <option value="entrada">Entrada</option>
                                 <option value="salida">Salida</option>
@@ -422,7 +422,7 @@
                             <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                             <input type="text" id="custSearch" placeholder="Buscar cliente..." oninput="renderCustomerTable()">
                         </div>
-                        <select id="custFilter" onchange="renderCustomerTable()" style="padding:8px 14px;border:2px solid var(--border);border-radius:30px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;background:var(--bg);min-width:0;max-width:100%;">
+                        <select id="custFilter" onchange="renderCustomerTable()" class="filter-select">
                             <option value="todo">Todos</option>
                             <option value="aldia">Al dia</option>
                             <option value="pendiente">Con deuda</option>
@@ -520,7 +520,7 @@
                     <div id="catSubsSection" style="display:none;">
                         <div style="padding:0 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                             <label style="font-size:13px;color:var(--text-muted);">Filtrar por categoria:</label>
-                            <select id="catSubFilter" onchange="renderSubcategoriesTable()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:0;max-width:100%;">
+                            <select id="catSubFilter" onchange="renderSubcategoriesTable()" class="filter-select" style="padding:6px 10px;border-width:1px;border-radius:6px;font-size:13px;">
                                 <option value="">Todas</option>
                             </select>
                         </div>

@@ -226,6 +226,27 @@ table .actions button.del:hover svg { fill: var(--danger); }
 .search-field input::placeholder { color: #aaa; }
 .search-field svg { width: 18px; height: 18px; fill: #aaa; flex-shrink: 0; }
 
+.filter-select {
+    padding: 8px 32px 8px 14px;
+    border: 2px solid var(--border);
+    border-radius: 30px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    outline: none;
+    background: var(--bg);
+    min-width: 0;
+    max-width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z' fill='%23666'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+.filter-select:focus { border-color: var(--green); }
+.filter-select option { padding: 8px; }
+
 .tpv-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; height: calc(100vh - 110px); }
 .tpv-products { display: flex; flex-direction: column; min-height: 0; }
 .tpv-search { margin-bottom: 12px; flex-shrink: 0; }

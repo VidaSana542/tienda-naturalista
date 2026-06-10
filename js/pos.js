@@ -675,9 +675,10 @@ function renderDashTopProducts() {
     const sold = {};
     getPeriodSales().forEach(s => {
         (s.items || []).forEach(item => {
-            if (!sold[item.name]) sold[item.name] = { qty: 0, total: 0 };
-            sold[item.name].qty += item.qty;
-            sold[item.name].total += item.price * item.qty;
+            const name = item.name || 'Producto';
+            if (!sold[name]) sold[name] = { qty: 0, total: 0 };
+            sold[name].qty += item.qty;
+            sold[name].total += item.price * item.qty;
         });
     });
     const sorted = Object.entries(sold).sort((a,b) => b[1].total - a[1].total).slice(0, 8);
@@ -1108,7 +1109,11 @@ function renderCheckoutResumen() {
     const total = getCheckoutTotal();
     document.getElementById('chkTotalDisplay').textContent = formatPrice(total);
     const items = document.getElementById('chkResumenItems');
-    items.innerHTML = posCart.map(i => '<div class="checkout-resumen-item"><span>' + i.qty + 'x ' + i.name + '</span><span>' + formatPrice(i.price * i.qty) + '</span></div>').join('');
+    items.innerHTML = posCart.map(i => {
+        const p = posProducts.find(pr => pr.id === i.id);
+        const name = p ? p.name : 'Producto';
+        return '<div class="checkout-resumen-item"><span>' + i.qty + 'x ' + name + '</span><span>' + formatPrice(i.price * i.qty) + '</span></div>';
+    }).join('');
     const summary = document.getElementById('chkCreditSummary');
     if (chkPayMethod === 'credito') {
         let html = '';
@@ -1967,7 +1972,7 @@ function showCustomerHistory(custId) {
                 // Products
                 if (s.items && s.items.length > 0) {
                     html += '<details style="font-size:11px;"><summary style="cursor:pointer;padding:4px 14px;color:var(--text-muted);user-select:none;list-style:none;">▸ Productos</summary><div style="padding:0 14px 6px;color:var(--text-muted);">';
-                    html += s.items.map(i => i.name.substring(0, 20) + ' x' + i.qty).join(' · ');
+                    html += s.items.map(i => (i.name || 'Producto').substring(0, 20) + ' x' + i.qty).join(' · ');
                     html += '</div></details>';
                 }
                 // Payments table
@@ -2067,7 +2072,7 @@ function showFinalInvoice(saleId) {
                 <table class="inv-table">
                     <thead><tr><th>#</th><th>Producto</th><th>Cant.</th><th style="text-align:right">Precio Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>
                     <tbody>
-                        ${sale.items.map((item, i) => `<tr><td>${i + 1}</td><td>${item.name}</td><td>${item.qty}</td><td style="text-align:right">${formatPrice(item.price)}</td><td style="text-align:right;font-weight:600;">${formatPrice(item.price * item.qty)}</td></tr>`).join('')}
+                        ${sale.items.map((item, i) => `<tr><td>${i + 1}</td><td>${item.name || 'Producto'}</td><td>${item.qty}</td><td style="text-align:right">${formatPrice(item.price)}</td><td style="text-align:right;font-weight:600;">${formatPrice(item.price * item.qty)}</td></tr>`).join('')}
                     </tbody>
                     <tfoot>
                         <tr class="inv-total-row"><td colspan="4">TOTAL VENTA</td><td style="text-align:right">${formatPrice(sale.total)}</td></tr>
@@ -2233,7 +2238,7 @@ function openPaymentModal(saleId) {
     let html = '<div style="margin-bottom:14px;font-size:13px;">';
     html += '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Factura #' + saleId + '</span><span>' + formatPrice(sale.total) + '</span></div>';
     if (sale.items && sale.items.length > 0) {
-        html += '<details style="margin:6px 0;"><summary style="cursor:pointer;font-size:11px;color:var(--text-muted);user-select:none;list-style:none;">▸ Productos</summary><div style="padding:4px 0;font-size:12px;color:var(--text-muted);">' + sale.items.map(i => i.name.substring(0, 20) + ' x' + i.qty + ' — ' + formatPrice(i.price * i.qty)).join('<br>') + '</div></details>';
+        html += '<details style="margin:6px 0;"><summary style="cursor:pointer;font-size:11px;color:var(--text-muted);user-select:none;list-style:none;">▸ Productos</summary><div style="padding:4px 0;font-size:12px;color:var(--text-muted);">' + sale.items.map(i => (i.name || 'Producto').substring(0, 20) + ' x' + i.qty + ' — ' + formatPrice(i.price * i.qty)).join('<br>') + '</div></details>';
     }
     if (ci.tipo === 'abono') {
         const pagado = ci.payments.reduce((s, p) => s + p.amount, 0);
@@ -2337,7 +2342,7 @@ function renderSalesTable() {
                 <button onclick="showReceipt(${JSON.stringify(s).replace(/"/g, '&quot;')})" title="Ver recibo"><svg viewBox="0 0 24 24"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg></button>
             </td>
         </tr>
-        <tr class="sale-items-row" style="display:none;"><td colspan="8" style="padding:4px 12px 8px;background:var(--bg);font-size:12px;color:var(--text-muted);">${s.items ? s.items.map(i => '<span style="display:inline-block;margin:2px 4px;padding:2px 8px;background:#fff;border:1px solid var(--border);border-radius:6px;">' + i.name.substring(0, 22) + ' x' + i.qty + ' — ' + formatPrice(i.price * i.qty) + '</span>').join('') : ''}</td></tr>`;
+        <tr class="sale-items-row" style="display:none;"><td colspan="8" style="padding:4px 12px 8px;background:var(--bg);font-size:12px;color:var(--text-muted);">${s.items ? s.items.map(i => '<span style="display:inline-block;margin:2px 4px;padding:2px 8px;background:#fff;border:1px solid var(--border);border-radius:6px;">' + (i.name || 'Producto').substring(0, 22) + ' x' + i.qty + ' — ' + formatPrice(i.price * i.qty) + '</span>').join('') : ''}</td></tr>`;
     }).join('');
 }
 
@@ -2345,7 +2350,7 @@ function renderSalesTable() {
 function showReceipt(sale) {
     if (typeof sale === 'string') sale = JSON.parse(sale);
     const content = document.getElementById('receiptContent');
-    const itemsHtml = sale.items.map(i => `<div class="receipt-row"><span>${i.name.substring(0,22)} x${i.qty}</span><span>${formatPrice(i.price * i.qty)}</span></div>`).join('');
+    const itemsHtml = sale.items.map(i => `<div class="receipt-row"><span>${(i.name || 'Producto').substring(0,22)} x${i.qty}</span><span>${formatPrice(i.price * i.qty)}</span></div>`).join('');
     content.innerHTML = `
         <div class="receipt">
             <div class="receipt-header">
