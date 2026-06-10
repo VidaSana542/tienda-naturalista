@@ -36,7 +36,21 @@ body { font-family: 'Roboto', sans-serif; background: var(--bg); color: var(--te
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #c4c4c4; border-radius: 3px; }
 
-.sidebar { width: 240px; background: var(--sidebar); display: flex; flex-direction: column; flex-shrink: 0; z-index: 10; }
+.sidebar { width: 240px; background: var(--sidebar); display: flex; flex-direction: column; flex-shrink: 0; z-index: 10; transition: width 0.3s ease; overflow: hidden; }
+.sidebar.collapsed { width: 62px; }
+.sidebar.collapsed .sidebar-brand a span,
+.sidebar.collapsed .sidebar-brand a small,
+.sidebar.collapsed .nav-item span,
+.sidebar.collapsed .nav-section { display: none; }
+.sidebar.collapsed .nav-item { justify-content: center; padding: 11px 0; gap: 0; }
+.sidebar.collapsed .sidebar-brand a { justify-content: center; }
+.sidebar.collapsed .sidebar-brand { padding: 20px 4px; }
+.sidebar-toggle {
+    background: none; border: none; cursor: pointer; padding: 6px; color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: background 0.2s; flex-shrink: 0;
+}
+.sidebar-toggle:hover { background: var(--hover); }
+.sidebar.collapsed .sidebar-toggle svg { transform: rotate(180deg); }
 .sidebar-brand { padding: 20px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .sidebar-brand a { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 800; color: #fff; text-decoration: none; display: flex; align-items: center; gap: 10px; }
 .sidebar-brand a span { color: var(--accent); }
@@ -424,6 +438,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
     #posApp { flex-direction: column; overflow: auto; }
 
     /* Sidebar → bottom nav */
+    .sidebar-toggle { display: none !important; }
     .sidebar {
         width: 100%;
         height: auto;

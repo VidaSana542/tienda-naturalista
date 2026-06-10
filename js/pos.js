@@ -58,6 +58,9 @@ function checkSession() {
             document.getElementById('posApp').style.display = '';
             applyRole();
             initPOS();
+            if (localStorage.getItem('posSidebarCollapsed') === 'true') {
+                document.querySelector('.sidebar').classList.add('collapsed');
+            }
             return true;
         } catch(e) {}
     }
@@ -980,6 +983,13 @@ function editCartItemPrice(idx) {
     if (prod && parsed !== prod.price) {
         showToast('Precio ajustado: ' + formatPrice(parsed) + ' (original: ' + formatPrice(prod.price) + ')');
     }
+}
+
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return;
+    sidebar.classList.toggle('collapsed');
+    localStorage.setItem('posSidebarCollapsed', sidebar.classList.contains('collapsed'));
 }
 
 function toggleTpvCart() {
