@@ -1736,10 +1736,13 @@ function renderInvLog() {
     const q = document.getElementById('invLogSearch').value.toLowerCase().trim();
     const cat = catFilter.value;
     const type = document.getElementById('invLogTypeFilter').value;
+    const ventaFilter = document.getElementById('invLogVentaFilter').value;
     let filtered = invLog;
     if (q) filtered = filtered.filter(l => l.productName.toLowerCase().includes(q));
     if (cat !== 'all') filtered = filtered.filter(l => l.category === cat);
     if (type !== 'all') filtered = filtered.filter(l => l.type === type);
+    if (ventaFilter === 'local') filtered = filtered.filter(l => l.type === 'salida' && !l.ventaPorFuera);
+    else if (ventaFilter === 'fuera') filtered = filtered.filter(l => l.type === 'salida' && l.ventaPorFuera);
     const tbody = document.getElementById('invLogBody');
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">Sin movimientos registrados</td></tr>';
