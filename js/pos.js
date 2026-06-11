@@ -531,6 +531,22 @@ function renderDashboard() {
         <div class="stat-card"><div class="stat-icon" style="background:#fff3e0;"><svg viewBox="0 0 24 24" style="fill:#e65100;"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg></div><div class="stat-info"><span class="stat-label">Productos vendidos</span><h3>${salesData.items}</h3><p>Unidades en el periodo</p></div></div>
     `;
 
+    const localSales = periodSales.filter(s => !s.ventaPorFuera);
+    const fueraSales = periodSales.filter(s => s.ventaPorFuera);
+    const localData = sumSales(localSales);
+    const fueraData = sumSales(fueraSales);
+    const localTotal = localData.total;
+    const fueraTotal = fueraData.total;
+    const localCount = localSales.length;
+    const fueraCount = fueraSales.length;
+    const localAvg = localCount > 0 ? localTotal / localCount : 0;
+    const fueraAvg = fueraCount > 0 ? fueraTotal / fueraCount : 0;
+
+    document.getElementById('dashStatsBreakdown').innerHTML = `
+        <div class="stat-card" style="border-left:4px solid var(--green);"><div class="stat-icon" style="background:#e8f5e9;"><svg viewBox="0 0 24 24" style="fill:#2e7d32;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div><div class="stat-info"><span class="stat-label" style="color:#2e7d32;">Ventas locales</span><h3>${formatPrice(localTotal)}</h3><p>${localCount} ventas | Prom. ${formatPrice(localAvg)}</p></div></div>
+        <div class="stat-card" style="border-left:4px solid var(--warning);"><div class="stat-icon" style="background:#fff3e0;"><svg viewBox="0 0 24 24" style="fill:#e65100;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div><div class="stat-info"><span class="stat-label" style="color:#e65100;">Ventas por fuera</span><h3>${formatPrice(fueraTotal)}</h3><p>${fueraCount} ventas | Prom. ${formatPrice(fueraAvg)}</p></div></div>
+    `;
+
     document.getElementById('dashMonthsCard').style.display = isMonthHistory ? '' : 'none';
     document.getElementById('dashAnnualCard').style.display = isAnnualHistory ? '' : 'none';
 
@@ -1833,6 +1849,7 @@ function confirmInvMov() {
 function renderCustomerTable() {
     const q = document.getElementById('custSearch').value.toLowerCase().trim();
     const custFilter = document.getElementById('custFilter').value;
+    const custSalesType = document.getElementById('custSalesTypeFilter').value;
     let filtered = posCustomers;
     if (q) filtered = filtered.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q));
     if (custFilter !== 'todo') {
@@ -1841,14 +1858,24 @@ function renderCustomerTable() {
             return custFilter === 'aldia' ? p <= 0 : p > 0;
         });
     }
+    if (custSalesType !== 'all') {
+        filtered = filtered.filter(c => {
+            const sales = posSales.filter(s => s.customerId === c.id);
+            const hasLocal = sales.some(s => !s.ventaPorFuera);
+            const hasFuera = sales.some(s => s.ventaPorFuera);
+            return custSalesType === 'local' ? hasLocal : hasFuera;
+        });
+    }
     const tbody = document.getElementById('custTableBody');
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">No hay clientes registrados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:30px;">No hay clientes registrados</td></tr>';
         return;
     }
     tbody.innerHTML = filtered.map((c, idx) => {
         const sales = posSales.filter(s => s.customerId === c.id);
         const purchases = sales.length;
+        const localCount = sales.filter(s => !s.ventaPorFuera).length;
+        const fueraCount = sales.filter(s => s.ventaPorFuera).length;
         const totalSpent = sales.reduce((sum, s) => sum + s.total, 0);
         const pendingTotal = getCustomerPending(c.id);
         const pendingHtml = pendingTotal > 0 ? '<span style="color:var(--warning);font-weight:600;">' + formatPrice(pendingTotal) + '</span>' : '<span style="color:var(--success);">Al dia</span>';
@@ -1858,6 +1885,8 @@ function renderCustomerTable() {
             <td>${c.phone || '-'}</td>
             <td>${c.email || '-'}</td>
             <td>${purchases}</td>
+            <td><span style="color:var(--green);font-weight:600;">${localCount}</span></td>
+            <td><span style="color:var(--warning);font-weight:600;">${fueraCount}</span></td>
             <td><strong>${formatPrice(totalSpent)}</strong></td>
             <td>${pendingHtml}</td>
             <td class="actions">
@@ -2332,9 +2361,19 @@ function toggleSaleItems(btn) {
         btn.textContent = visible ? '▾' : '▴';
     }
 }
+let _salesTypeFilter = 'all';
+
+function setSalesTypeFilter(type) {
+    _salesTypeFilter = type;
+    document.querySelectorAll('.sales-type-filter').forEach(b => b.classList.toggle('active', b.dataset.stype === type));
+    renderSalesTable();
+}
+
 function renderSalesTable() {
     const q = document.getElementById('salesSearch').value.toLowerCase().trim();
     let filtered = [...posSales].reverse();
+    if (_salesTypeFilter === 'local') filtered = filtered.filter(s => !s.ventaPorFuera);
+    else if (_salesTypeFilter === 'fuera') filtered = filtered.filter(s => s.ventaPorFuera);
     if (q) filtered = filtered.filter((s, idx) => (idx + 1).toString().includes(q) || s.id.toString().includes(q) || (s.customer && s.customer.toLowerCase().includes(q)));
     const tbody = document.getElementById('salesTableBody');
     if (filtered.length === 0) {
