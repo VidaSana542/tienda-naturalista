@@ -141,6 +141,10 @@
                     <button class="btn btn-sm dash-period-btn" data-period="week" onclick="setDashPeriod('week')">Semana</button>
                     <button class="btn btn-sm dash-period-btn" data-period="month" onclick="setDashPeriod('month')">Mes</button>
                     <button class="btn btn-sm dash-period-btn" data-period="year" onclick="setDashPeriod('year')">A&ntilde;o</button>
+                    <span style="width:1px;height:24px;background:var(--border);margin:0 4px;"></span>
+                    <button class="btn btn-sm dash-type-btn active" data-dtype="all" onclick="setDashType('all')">Todas</button>
+                    <button class="btn btn-sm dash-type-btn" data-dtype="local" onclick="setDashType('local')">Local</button>
+                    <button class="btn btn-sm dash-type-btn" data-dtype="fuera" onclick="setDashType('fuera')">Fuera</button>
                     <button class="btn btn-sm btn-primary" onclick="exportPosData()" style="margin-left:8px;font-size:12px;padding:6px 14px;">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff" style="vertical-align:middle;margin-right:2px;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Exportar
                     </button>
@@ -148,7 +152,6 @@
             </div>
 
             <div class="stats-grid" id="dashStats"></div>
-            <div class="stats-grid" id="dashStatsBreakdown" style="margin-top:4px;"></div>
 
             <div class="dash-grid-2col">
                 <div class="card">

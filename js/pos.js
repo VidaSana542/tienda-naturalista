@@ -467,6 +467,14 @@ function switchPanel(id) {
 
 // ============ DASHBOARD ============
 let _dashPeriod = 'today';
+let _dashType = 'all';
+
+function setDashType(t) {
+    _dashType = t;
+    document.querySelectorAll('.dash-type-btn').forEach(b => b.classList.toggle('active', b.dataset.dtype === t));
+    renderDashboard();
+}
+
 function setDashPeriod(p) {
     _dashPeriod = p;
     document.querySelectorAll('.dash-period-btn').forEach(b => b.classList.toggle('active', b.dataset.period === p));
@@ -494,7 +502,9 @@ function renderDashboard() {
     const isMonthHistory = _dashPeriod === 'month';
     const isAnnualHistory = _dashPeriod === 'year';
     const isHistory = isMonthHistory || isAnnualHistory;
-    const periodSales = isHistory ? posSales : getPeriodSales();
+    let periodSales = isHistory ? posSales : getPeriodSales();
+    if (_dashType === 'local') periodSales = periodSales.filter(s => !s.ventaPorFuera);
+    else if (_dashType === 'fuera') periodSales = periodSales.filter(s => s.ventaPorFuera);
     const periodTotal = periodSales.reduce((sum, s) => sum + s.total, 0);
     const periodCount = periodSales.length;
     const pendingCredit = posSales.reduce((sum, s) => {
@@ -507,7 +517,8 @@ function renderDashboard() {
     }, 0);
 
     const labels = { today: 'Hoy', week: 'Ultimos 7 dias', month: 'Historial mensual', year: 'Historial anual' };
-    document.getElementById('dashPeriodLabel').textContent = labels[_dashPeriod] + (isHistory ? '' : ' \u2014 ' + periodCount + ' ventas \u2014 ' + formatPrice(periodTotal));
+    const typeLabels = { all: '', local: ' — Local', fuera: ' — Por fuera' };
+    document.getElementById('dashPeriodLabel').textContent = labels[_dashPeriod] + typeLabels[_dashType] + (isHistory ? '' : ' \u2014 ' + periodCount + ' ventas \u2014 ' + formatPrice(periodTotal));
 
     const totalProducts = posProducts.length;
     const lowStockCount = posProducts.filter(p => p.stock > 0 && p.stock <= 5).length;
@@ -529,22 +540,6 @@ function renderDashboard() {
         <div class="stat-card"><div class="stat-icon" style="background:#e8f5e9;"><svg viewBox="0 0 24 24" style="fill:#2e7d32;"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg></div><div class="stat-info"><span class="stat-label">Efectivo</span><h3>${formatPrice(salesData.cash)}</h3><p>${salesData.count > 0 ? Math.round(salesData.cash / periodTotal * 100) : 0}% del total</p></div></div>
         <div class="stat-card"><div class="stat-icon" style="background:#e3f2fd;"><svg viewBox="0 0 24 24" style="fill:#1565c0;"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg></div><div class="stat-info"><span class="stat-label">Digital</span><h3>${formatPrice(salesData.digital)}</h3><p>${salesData.count > 0 ? Math.round(salesData.digital / periodTotal * 100) : 0}% del total</p></div></div>
         <div class="stat-card"><div class="stat-icon" style="background:#fff3e0;"><svg viewBox="0 0 24 24" style="fill:#e65100;"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg></div><div class="stat-info"><span class="stat-label">Productos vendidos</span><h3>${salesData.items}</h3><p>Unidades en el periodo</p></div></div>
-    `;
-
-    const localSales = periodSales.filter(s => !s.ventaPorFuera);
-    const fueraSales = periodSales.filter(s => s.ventaPorFuera);
-    const localData = sumSales(localSales);
-    const fueraData = sumSales(fueraSales);
-    const localTotal = localData.total;
-    const fueraTotal = fueraData.total;
-    const localCount = localSales.length;
-    const fueraCount = fueraSales.length;
-    const localAvg = localCount > 0 ? localTotal / localCount : 0;
-    const fueraAvg = fueraCount > 0 ? fueraTotal / fueraCount : 0;
-
-    document.getElementById('dashStatsBreakdown').innerHTML = `
-        <div class="stat-card" style="border-left:4px solid var(--green);"><div class="stat-icon" style="background:#e8f5e9;"><svg viewBox="0 0 24 24" style="fill:#2e7d32;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div><div class="stat-info"><span class="stat-label" style="color:#2e7d32;">Ventas locales</span><h3>${formatPrice(localTotal)}</h3><p>${localCount} ventas | Prom. ${formatPrice(localAvg)}</p></div></div>
-        <div class="stat-card" style="border-left:4px solid var(--warning);"><div class="stat-icon" style="background:#fff3e0;"><svg viewBox="0 0 24 24" style="fill:#e65100;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div><div class="stat-info"><span class="stat-label" style="color:#e65100;">Ventas por fuera</span><h3>${formatPrice(fueraTotal)}</h3><p>${fueraCount} ventas | Prom. ${formatPrice(fueraAvg)}</p></div></div>
     `;
 
     document.getElementById('dashMonthsCard').style.display = isMonthHistory ? '' : 'none';

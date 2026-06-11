@@ -129,6 +129,9 @@ body { font-family: 'Roboto', sans-serif; background: var(--bg); color: var(--te
 .dash-period-btn { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 6px 14px; border-radius: 20px; font-size: 12px; font-family: 'Outfit', sans-serif; cursor: pointer; transition: all 0.2s; }
 .dash-period-btn:hover { border-color: var(--primary); color: var(--primary); }
 .dash-period-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.dash-type-btn { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 6px 14px; border-radius: 20px; font-size: 12px; font-family: 'Outfit', sans-serif; cursor: pointer; transition: all 0.2s; }
+.dash-type-btn:hover { border-color: var(--warning); color: var(--warning); }
+.dash-type-btn.active { background: var(--warning); color: #fff; border-color: var(--warning); }
 .sales-type-filter { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 4px 10px; border-radius: 14px; font-size: 11px; font-family: 'Outfit', sans-serif; cursor: pointer; transition: all 0.2s; }
 .sales-type-filter:hover { border-color: var(--primary); color: var(--primary); }
 .sales-type-filter.active { background: var(--primary); color: #fff; border-color: var(--primary); }
