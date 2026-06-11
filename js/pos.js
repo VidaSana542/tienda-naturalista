@@ -414,6 +414,40 @@ async function syncFromApi() {
             const maxApiId = apiSales.reduce((m, s) => Math.max(m, s.id), 0);
             posNextSaleId = Math.max(posNextSaleId, maxApiId + 1);
         }
+        // Sync inventory log from Supabase
+        try {
+            const apiInvLog = await API.getInventoryLog();
+            if (apiInvLog && apiInvLog.length > 0) {
+                const apiLogMap = {};
+                apiInvLog.forEach(l => { apiLogMap[l.id] = l; });
+                // Merge: keep local entries not in API, add API entries not in local
+                const localIds = new Set(invLog.map(l => l.id));
+                apiInvLog.forEach(al => {
+                    if (!localIds.has(al.id)) {
+                        invLog.push({
+                            id: al.id,
+                            date: al.created_at,
+                            productId: al.product_id,
+                            productName: al.product_name,
+                            type: al.type,
+                            quantity: al.quantity,
+                            previousStock: al.previous_stock,
+                            newStock: al.new_stock,
+                            reason: al.reason,
+                            saleId: al.sale_id,
+                            category: al.category || '',
+                            ventaPorFuera: al.venta_por_fuera || false,
+                            synced: true
+                        });
+                    }
+                });
+                // Mark all as synced
+                invLog.forEach(l => { l.synced = true; });
+                localStorage.setItem('invLog', JSON.stringify(invLog));
+            }
+            // Push local unsynced inventory entries
+            saveInvLog();
+        } catch(e) {}
         // Push local changes up to API so Supabase is always up to date
         saveProducts();
         saveCustomers();
@@ -439,11 +473,30 @@ function generateSampleCustomers() {
     });
 }
 function saveCart() { localStorage.setItem('posCart', JSON.stringify(posCart)); }
-function saveInvLog() { localStorage.setItem('invLog', JSON.stringify(invLog)); }
+function saveInvLog() { 
+    localStorage.setItem('invLog', JSON.stringify(invLog)); 
+    if (API.isAvailable) {
+        invLog.forEach(l => {
+            if (!l.synced) {
+                API.addInventoryLog({
+                    product_id: l.productId,
+                    product_name: l.productName,
+                    type: l.type,
+                    quantity: l.quantity,
+                    previous_stock: l.previousStock,
+                    new_stock: l.newStock,
+                    reason: l.reason || '',
+                    sale_id: l.saleId || null,
+                    venta_por_fuera: l.ventaPorFuera || false
+                }).then(() => { l.synced = true; }).catch(() => {});
+            }
+        });
+    }
+}
 function addInvLog(productId, productName, type, quantity, previousStock, newStock, reason, saleId, ventaPorFuera) {
     const prod = posProducts.find(p => p.id === productId);
     const category = prod ? prod.category : '';
-    invLog.push({ id: invNextLogId++, date: now(), productId, productName, type, quantity, previousStock, newStock, reason, saleId: saleId || null, category, ventaPorFuera: ventaPorFuera || false });
+    invLog.push({ id: invNextLogId++, date: now(), productId, productName, type, quantity, previousStock, newStock, reason, saleId: saleId || null, category, ventaPorFuera: ventaPorFuera || false, synced: false });
     saveInvLog();
 }
 
