@@ -42,6 +42,9 @@ function applyRole() {
     document.querySelectorAll('.nav-item[data-role]').forEach(el => {
         el.style.display = currentUser.role === 'admin' ? '' : 'none';
     });
+    document.querySelectorAll('#invActions [data-role]').forEach(el => {
+        el.style.display = currentUser.role === 'admin' ? '' : 'none';
+    });
     const btnNewCustomer = document.getElementById('btnNewCustomer');
     if (btnNewCustomer) btnNewCustomer.style.display = currentUser.role === 'admin' ? '' : 'none';
     if (currentUser.role === 'empleado') {
@@ -447,7 +450,7 @@ function switchInvTab(tab) {
     if (tab === 'log') renderInvLog();
 }
 function switchPanel(id) {
-    if (currentUser && currentUser.role === 'empleado' && ['dashboard','products','inventory','suppliers','categories'].includes(id)) {
+    if (currentUser && currentUser.role === 'empleado' && ['products','suppliers','categories'].includes(id)) {
         showToast('No tienes acceso a esta seccion');
         return;
     }
