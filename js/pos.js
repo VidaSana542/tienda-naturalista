@@ -303,6 +303,9 @@ async function syncFromApi() {
                 const ap = apiMap[lp.id];
                 if (ap) {
                     lp.subcategory = ap.subcategory || '';
+                    lp.name = ap.name;
+                    lp.price = parseFloat(ap.price) || lp.price;
+                    lp.stock = parseInt(ap.stock) ?? lp.stock;
                     if (ap.img && ap.img !== lp.img) lp.img = ap.img;
                 }
             });
@@ -371,6 +374,9 @@ async function syncFromApi() {
         }
         const apiSales = await API.getSales();
         if (apiSales && Array.isArray(apiSales)) {
+            const apiSalesMap = {};
+            apiSales.forEach(s => { apiSalesMap[s.id] = s; });
+            const localUnsynced = posSales.filter(ls => !apiSalesMap[ls.id] && ls.id < 100000);
             posSales = apiSales.map(s => {
                 const ci = s.credit_info || null;
                 // Merge payments: Supabase payments table is source of truth, but keep any local-only payments
@@ -401,11 +407,16 @@ async function syncFromApi() {
                     ventaPorFuera: s.venta_por_fuera || false
                 };
             });
+            // Add back local unsynced sales
+            posSales = [...posSales, ...localUnsynced];
             localStorage.setItem('posSales', JSON.stringify(posSales));
             // Smart: use the highest Supabase sale ID, not local counter
             const maxApiId = apiSales.reduce((m, s) => Math.max(m, s.id), 0);
             posNextSaleId = Math.max(posNextSaleId, maxApiId + 1);
         }
+        // Push local changes up to API so Supabase is always up to date
+        saveProducts();
+        saveCustomers();
     } catch (e) {
         console.log('API sync skipped, using local data');
     }
