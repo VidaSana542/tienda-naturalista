@@ -138,7 +138,8 @@ const API = {
           name: customer.name,
           phone: customer.phone || '',
           email: customer.email || '',
-          address: customer.address || ''
+          address: customer.address || '',
+          tipo: customer.tipo || 'local'
         })
         .eq('id', customer.id)
         .select()
@@ -152,7 +153,8 @@ const API = {
           name: customer.name,
           phone: customer.phone || '',
           email: customer.email || '',
-          address: customer.address || ''
+          address: customer.address || '',
+          tipo: customer.tipo || 'local'
         })
         .select()
         .single();

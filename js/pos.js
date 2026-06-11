@@ -277,7 +277,7 @@ function saveCustomers() {
     localStorage.setItem('posCustomers', JSON.stringify(posCustomers));
     if (API.isAvailable) {
         posCustomers.forEach(c => API.saveCustomer({
-            name: c.name, phone: c.phone || '', email: c.email || '', address: c.address || ''
+            name: c.name, phone: c.phone || '', email: c.email || '', address: c.address || '', tipo: c.tipo || 'local'
         }).catch(() => {}));
     }
 }
@@ -332,7 +332,8 @@ async function syncFromApi() {
                 name: c.name,
                 phone: c.phone || '',
                 email: c.email || '',
-                address: c.address || ''
+                address: c.address || '',
+                tipo: c.tipo || 'local'
             }));
             localStorage.setItem('posCustomers', JSON.stringify(posCustomers));
             posNextCustomerId = posCustomers.reduce((m, c) => Math.max(m, parseInt(c.id.replace('c',''))), 0) + 1;
@@ -420,7 +421,7 @@ function generateSampleCustomers() {
         const phone = prefijo + num;
         const email = name.toLowerCase().replace(/ /g,'.') + (i + 1) + '@' + domains[Math.floor(Math.random() * domains.length)];
         const dir = dirs[Math.floor(Math.random() * dirs.length)] + calles[Math.floor(Math.random() * calles.length)] + ' #' + Math.floor(Math.random() * 50 + 1) + '-' + Math.floor(Math.random() * 99 + 1) + ' ' + letras[Math.floor(Math.random() * letras.length)];
-        return { id, name, phone, email, address: dir + ', Santa Marta' };
+        return { id, name, phone, email, address: dir + ', Santa Marta', tipo: Math.random() > 0.3 ? 'local' : 'fuera' };
     });
 }
 function saveCart() { localStorage.setItem('posCart', JSON.stringify(posCart)); }
@@ -1850,6 +1851,7 @@ function renderCustomerTable() {
     const q = document.getElementById('custSearch').value.toLowerCase().trim();
     const custFilter = document.getElementById('custFilter').value;
     const custSalesType = document.getElementById('custSalesTypeFilter').value;
+    const custTipoFilter = document.getElementById('custTipoFilter').value;
     let filtered = posCustomers;
     if (q) filtered = filtered.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q));
     if (custFilter !== 'todo') {
@@ -1857,6 +1859,9 @@ function renderCustomerTable() {
             const p = getCustomerPending(c.id);
             return custFilter === 'aldia' ? p <= 0 : p > 0;
         });
+    }
+    if (custTipoFilter !== 'all') {
+        filtered = filtered.filter(c => (c.tipo || 'local') === custTipoFilter);
     }
     if (custSalesType !== 'all') {
         filtered = filtered.filter(c => {
@@ -1868,7 +1873,7 @@ function renderCustomerTable() {
     }
     const tbody = document.getElementById('custTableBody');
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:30px;">No hay clientes registrados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:30px;">No hay clientes registrados</td></tr>';
         return;
     }
     tbody.innerHTML = filtered.map((c, idx) => {
@@ -1879,11 +1884,13 @@ function renderCustomerTable() {
         const totalSpent = sales.reduce((sum, s) => sum + s.total, 0);
         const pendingTotal = getCustomerPending(c.id);
         const pendingHtml = pendingTotal > 0 ? '<span style="color:var(--warning);font-weight:600;">' + formatPrice(pendingTotal) + '</span>' : '<span style="color:var(--success);">Al dia</span>';
+        const tipoLabel = c.tipo === 'fuera' ? '<span class="tag tag-warning" style="font-size:10px;">Por fuera</span>' : '<span class="tag tag-success" style="font-size:10px;">Local</span>';
         return `<tr>
             <td><strong>#${idx + 1}</strong></td>
             <td><strong style="cursor:pointer;" onclick="showCustomerHistory('${c.id}')">${c.name}</strong></td>
             <td>${c.phone || '-'}</td>
             <td>${c.email || '-'}</td>
+            <td>${tipoLabel}</td>
             <td>${purchases}</td>
             <td><span style="color:var(--green);font-weight:600;">${localCount}</span></td>
             <td><span style="color:var(--warning);font-weight:600;">${fueraCount}</span></td>
@@ -1921,12 +1928,20 @@ function openCustomerModal(id) {
             document.getElementById('custPhone').value = c.phone || '';
             document.getElementById('custEmail').value = c.email || '';
             document.getElementById('custAddress').value = c.address || '';
+            const tipo = c.tipo || 'local';
+            document.getElementById('custTipo').value = tipo;
+            document.querySelectorAll('[name="custTipo"]').forEach(r => {
+                r.checked = r.value === tipo;
+                const label = r.closest('label');
+                if (label) label.style.borderColor = r.value === tipo ? (tipo === 'fuera' ? 'var(--warning)' : 'var(--green)') : 'var(--border)';
+            });
         }
     } else {
         document.getElementById('custName').value = '';
         document.getElementById('custPhone').value = '';
         document.getElementById('custEmail').value = '';
         document.getElementById('custAddress').value = '';
+        document.getElementById('custTipo').value = 'local';
     }
     modal.classList.add('open');
 }
@@ -1941,12 +1956,13 @@ function saveCustomer() {
     const phone = document.getElementById('custPhone').value.trim();
     const email = document.getElementById('custEmail').value.trim();
     const address = document.getElementById('custAddress').value.trim();
+    const tipo = document.getElementById('custTipo').value;
     if (!name) { showToast('Nombre requerido'); return; }
     if (id) {
         const c = posCustomers.find(cu => cu.id === id);
-        if (c) Object.assign(c, { name, phone, email, address });
+        if (c) Object.assign(c, { name, phone, email, address, tipo });
     } else {
-        posCustomers.push({ id: 'c' + posNextCustomerId++, name, phone, email, address });
+        posCustomers.push({ id: 'c' + posNextCustomerId++, name, phone, email, address, tipo });
     }
     saveCustomers();
     closeCustomerModal();
