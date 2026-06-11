@@ -325,6 +325,7 @@ const API = {
         method: sale.method || 'Efectivo',
         method_key: sale.method_key || 'cash',
         credit_info: sale.credit_info || null,
+        venta_por_fuera: sale.venta_por_fuera || false,
         status: 'completada'
       })
       .select()
@@ -394,7 +395,8 @@ const API = {
         previous_stock: entry.previous_stock,
         new_stock: entry.new_stock,
         reason: entry.reason || '',
-        sale_id: entry.sale_id || null
+        sale_id: entry.sale_id || null,
+        venta_por_fuera: entry.venta_por_fuera || false
       })
       .select()
       .single();

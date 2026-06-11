@@ -393,7 +393,8 @@ async function syncFromApi() {
                     methodKey: s.method_key,
                     customer: s.customer_name,
                     customerId: s.customer_id ? 'c' + s.customer_id : '',
-                    creditInfo: ci
+                    creditInfo: ci,
+                    ventaPorFuera: s.venta_por_fuera || false
                 };
             });
             localStorage.setItem('posSales', JSON.stringify(posSales));
@@ -1226,6 +1227,7 @@ function confirmCheckout() {
             excedente: sale.excedente,
             method: sale.method,
             method_key: sale.methodKey,
+            venta_por_fuera: sale.ventaPorFuera || false,
             credit_info: sale.creditInfo ? {
                 tipo: sale.creditInfo.tipo,
                 totalCuotas: sale.creditInfo.totalCuotas,
