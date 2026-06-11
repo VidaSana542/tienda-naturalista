@@ -350,6 +350,18 @@ const API = {
         .insert(itemsToInsert);
 
       if (itemsError) throw itemsError;
+
+      // Actualizar stock de cada producto en Supabase
+      for (const item of sale.items) {
+        const numericId = typeof item.id === 'string' ? parseInt(item.id.replace('p','')) : item.id;
+        if (!numericId) continue;
+        // Leer stock actual
+        const { data: prod } = await _sb.from('products').select('stock').eq('id', numericId).single();
+        if (prod) {
+          const newStock = Math.max(0, (prod.stock || 0) - item.qty);
+          await _sb.from('products').update({ stock: newStock, updated_at: new Date().toISOString() }).eq('id', numericId);
+        }
+      }
     }
 
     return saleData;
