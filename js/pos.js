@@ -874,7 +874,8 @@ function renderDashStockAlerts() {
 function renderDashTopCustomers(periodSales) {
     const cust = {};
     periodSales.forEach(s => {
-        const name = s.customer || 'Cliente mostrador';
+        const name = s.customer;
+        if (!name || name === 'Cliente mostrador' || name === 'Mostrador') return;
         if (!cust[name]) cust[name] = { count: 0, total: 0 };
         cust[name].count++;
         cust[name].total += s.total;
