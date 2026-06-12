@@ -279,18 +279,26 @@ function saveSales() {
 function saveCustomers() {
     localStorage.setItem('posCustomers', JSON.stringify(posCustomers));
     if (API.isAvailable) {
-        posCustomers.forEach(c => API.saveCustomer({
-            name: c.name, phone: c.phone || '', email: c.email || '', address: c.address || '', tipo: c.tipo || 'local'
-        }).catch(() => {}));
+        posCustomers.forEach(c => {
+            const apiId = c.id && c.id.startsWith('c') ? parseInt(c.id.replace('c','')) : null;
+            API.saveCustomer({
+                id: apiId,
+                name: c.name, phone: c.phone || '', email: c.email || '', address: c.address || '', tipo: c.tipo || 'local'
+            }).catch(() => {});
+        });
     }
 }
 function saveSuppliers() {
     localStorage.setItem('posSuppliers', JSON.stringify(posSuppliers));
     if (API.isAvailable) {
-        posSuppliers.forEach(s => API.saveSupplier({
-            name: s.name, nit: s.nit || '', contact: s.contact || '',
-            phone: s.phone || '', email: s.email || '', address: s.address || ''
-        }).catch(() => {}));
+        posSuppliers.forEach(s => {
+            const apiId = s.id && s.id.startsWith('s') ? parseInt(s.id.replace('s','')) : null;
+            API.saveSupplier({
+                id: apiId,
+                name: s.name, nit: s.nit || '', contact: s.contact || '',
+                phone: s.phone || '', email: s.email || '', address: s.address || ''
+            }).catch(() => {});
+        });
     }
 }
 async function syncFromApi() {
