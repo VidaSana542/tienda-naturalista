@@ -252,6 +252,7 @@ function migrateProductSubcats() {
 
 function saveProducts() {
     localStorage.setItem('posProducts', JSON.stringify(posProducts));
+    console.log('[POS] saveProducts: API.isAvailable =', API.isAvailable);
     if (API.isAvailable) {
         posProducts.forEach(p => {
             const apiId = p.id && p.id.startsWith('p') ? parseInt(p.id.replace('p','')) : null;
@@ -265,7 +266,9 @@ function saveProducts() {
             };
             if (p.subcategory) payload.subcategory = p.subcategory;
             if (p._synced === false) {
+                console.log('[POS] saveProducts: INSERTANDO producto nuevo:', p.name, p.id);
                 API.saveProduct(payload).then(res => {
+                    console.log('[POS] saveProducts INSERT respuesta:', res);
                     if (res && res.id) { p.id = 'p' + res.id; p._synced = true; localStorage.setItem('posProducts', JSON.stringify(posProducts)); }
                 }).catch(e => { console.error('[POS] saveProduct(insert) error:', e); });
             } else {
@@ -1556,6 +1559,7 @@ function saveProduct() {
             }
         }
     } else {
+        console.log('[POS] Creando producto NUEVO con _synced: false');
         posProducts.push({ id: 'p' + posNextProductId++, name, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, subcategory, _synced: false });
     }
     saveProducts();
