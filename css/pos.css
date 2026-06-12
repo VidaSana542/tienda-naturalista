@@ -457,6 +457,9 @@ table .actions button.del:hover svg { fill: var(--danger); }
         right: 0;
         z-index: 100;
         border-top: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 4px;
+        padding-bottom: env(safe-area-inset-bottom, 4px);
+        background: var(--sidebar);
     }
     .sidebar-brand { display: none; }
     .sidebar-nav {
@@ -486,7 +489,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
     .sidebar-footer { display: none; }
 
     /* Main content */
-    .main { margin-bottom: 78px; overflow: auto; }
+    .main { margin-bottom: 78px; margin-bottom: calc(78px + env(safe-area-inset-bottom, 0px)); overflow: auto; }
     .topbar { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
     .topbar-left h2 { font-size: 15px; }
     .topbar-left .date { font-size: 11px; }
