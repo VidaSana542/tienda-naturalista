@@ -252,12 +252,12 @@ function migrateProductSubcats() {
 
 function saveProducts() {
     localStorage.setItem('posProducts', JSON.stringify(posProducts));
-    console.log('[POS] saveProducts: API.isAvailable =', API.isAvailable);
     if (API.isAvailable) {
         posProducts.forEach(p => {
             const apiId = p.id && p.id.startsWith('p') ? parseInt(p.id.replace('p','')) : null;
             if (apiId === null) return;
             const payload = {
+                id: apiId,
                 name: p.name, barcode: p.barcode || '', brand: p.brand || '', category: p.category,
                 price: p.price, cost: p.cost || 0, stock: p.stock,
                 img: p.img || '', images: p.images || [],
@@ -265,22 +265,9 @@ function saveProducts() {
                 featured: p.featured || false
             };
             if (p.subcategory) payload.subcategory = p.subcategory;
-            if (p._synced === false) {
-                console.log('[POS] saveProducts: INSERTANDO producto nuevo:', p.name, p.id);
-                API.saveProduct(payload).then(res => {
-                    console.log('[POS] saveProducts INSERT respuesta:', res);
-                    if (res && res.id) { p.id = 'p' + res.id; p._synced = true; localStorage.setItem('posProducts', JSON.stringify(posProducts)); }
-                }).catch(e => {
-                    console.error('[POS] saveProduct(insert) error details:', e?.message || e?.code || e);
-                    if (e && (e.code === '23505' || (e.message && e.message.includes('duplicate')))) {
-                        p._synced = true;
-                        localStorage.setItem('posProducts', JSON.stringify(posProducts));
-                    }
-                });
-            } else {
-                payload.id = apiId;
-                API.saveProduct(payload).catch(e => { console.error('[POS] saveProduct(update) error:', e); });
-            }
+            API.saveProduct(payload).then(res => {
+                if (res && res.id) { p.id = 'p' + res.id; p._synced = true; localStorage.setItem('posProducts', JSON.stringify(posProducts)); }
+            }).catch(e => { console.error('[POS] saveProduct error:', e); });
         });
     }
 }
@@ -1565,7 +1552,6 @@ function saveProduct() {
             }
         }
     } else {
-        console.log('[POS] Creando producto NUEVO con _synced: false');
         posProducts.push({ id: 'p' + posNextProductId++, name, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, subcategory, _synced: false });
     }
     saveProducts();

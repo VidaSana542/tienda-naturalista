@@ -63,60 +63,35 @@ const API = {
   },
 
   async saveProduct(product) {
-    if (product.id) {
-      const { data, error } = await _sb
-        .from('products')
-        .update({
-          name: product.name,
-          barcode: product.barcode && product.barcode.trim() ? product.barcode.trim() : null,
-          brand: product.brand && product.brand.trim() ? product.brand.trim() : null,
-          category: product.category,
-          subcategory: product.subcategory || '',
-          price: product.price,
-          cost: product.cost || 0,
-          stock: product.stock,
-          img: product.img || '',
-          description: product.description || '',
-          images: product.images || [],
-          supplier_id: product.supplier_id || null,
-          featured: product.featured || false,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', product.id)
-        .select()
-        .single();
-      if (error) {
-        console.error('[API] saveProduct UPDATE error:', { message: error.message, code: error.code, details: error.details, hint: error.hint });
-        throw error;
-      }
-      return data;
-    } else {
-      const { data, error } = await _sb
-        .from('products')
-        .insert({
-          name: product.name,
-          barcode: product.barcode && product.barcode.trim() ? product.barcode.trim() : null,
-          brand: product.brand && product.brand.trim() ? product.brand.trim() : null,
-          category: product.category || 'suplementos',
-          subcategory: product.subcategory || '',
-          price: product.price,
-          cost: product.cost || 0,
-          stock: product.stock || 0,
-          img: product.img || '',
-          description: product.description || '',
-          images: product.images || [],
-          supplier_id: product.supplier_id || null,
-          featured: product.featured || false
-        })
-        .select()
-        .single();
+    const payload = {
+      name: product.name,
+      barcode: product.barcode && product.barcode.trim() ? product.barcode.trim() : null,
+      brand: product.brand && product.brand.trim() ? product.brand.trim() : null,
+      category: product.category || 'suplementos',
+      subcategory: product.subcategory || '',
+      price: product.price,
+      cost: product.cost || 0,
+      stock: product.stock || 0,
+      img: product.img || '',
+      description: product.description || '',
+      images: product.images || [],
+      supplier_id: product.supplier_id || null,
+      featured: product.featured || false,
+      updated_at: new Date().toISOString()
+    };
+    if (product.id) payload.id = product.id;
 
-      if (error) {
-        console.error('[API] saveProduct insert error:', { message: error.message, code: error.code, details: error.details, hint: error.hint });
-        throw error;
-      }
-      return data;
+    const { data, error } = await _sb
+      .from('products')
+      .upsert(payload, { onConflict: 'id' })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[API] saveProduct upsert error:', { message: error.message, code: error.code, details: error.details, hint: error.hint });
+      throw error;
     }
+    return data;
   },
 
   async deleteProduct(id) {
