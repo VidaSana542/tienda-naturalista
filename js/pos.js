@@ -615,7 +615,7 @@ function switchInvTab(tab) {
     if (tab === 'log') renderInvLog();
 }
 function switchPanel(id) {
-    if (currentUser && currentUser.role === 'empleado' && ['products','suppliers','categories','cash'].includes(id)) {
+    if (currentUser && currentUser.role === 'empleado' && ['products','suppliers','categories'].includes(id)) {
         showToast('No tienes acceso a esta seccion');
         return;
     }
@@ -662,6 +662,8 @@ function renderCashPanel() {
     document.getElementById('cashBaseDisplay').textContent = '$' + (parseFloat(cashBase) || 0).toLocaleString('es-CO');
     document.getElementById('cashExpensesDisplay').textContent = '$' + totalExpenses().toLocaleString('es-CO');
     document.getElementById('cashAvailableDisplay').textContent = '$' + availableCash().toLocaleString('es-CO');
+    const baseCard = document.querySelector('#panel-cash .card:nth-child(2)');
+    if (baseCard) baseCard.style.display = currentUser?.role === 'admin' ? '' : 'none';
     const tbody = document.getElementById('cashExpensesBody');
     if (!tbody) return;
     tbody.innerHTML = '';
@@ -678,6 +680,7 @@ function renderCashPanel() {
 }
 
 function setCashBase() {
+    if (currentUser && currentUser.role === 'empleado') { showToast('Solo el administrador puede establecer la base'); return; }
     const inp = document.getElementById('cashBaseInput');
     const val = parseFloat(inp.value);
     if (isNaN(val) || val < 0) { showToast('Ingrese un valor valido'); return; }
