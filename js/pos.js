@@ -642,9 +642,10 @@ async function syncCashFromApi() {
             const apiMap = {};
             apiExpenses.forEach(e => { apiMap[e.id] = e; });
             const localKeys = new Set(cashExpenses.map(e => e._apiId));
+            const localContentKeys = new Set(cashExpenses.map(e => e.description + '|' + e.amount + '|' + e.date));
             cashExpenses = cashExpenses.filter(e => !e._apiId || apiMap[e._apiId]);
             apiExpenses.forEach(e => {
-                if (!localKeys.has(e.id)) {
+                if (!localKeys.has(e.id) && !localContentKeys.has(e.description + '|' + parseFloat(e.amount) + '|' + e.date)) {
                     cashExpenses.push({
                         _apiId: e.id,
                         description: e.description,
@@ -719,16 +720,24 @@ function addExpense() {
     const cat = document.getElementById('expenseCat').value;
     if (!desc) { showToast('Ingrese una descripcion'); return; }
     if (isNaN(amount) || amount <= 0) { showToast('Ingrese un valor valido'); return; }
-    const exp = { description: desc, amount: amount, category: cat, date: cashDateStr() };
-    cashExpenses.push(exp);
-    saveCashLocal();
-    document.getElementById('expenseDesc').value = '';
-    document.getElementById('expenseAmount').value = '';
-    renderCashPanel();
-    showToast('Gasto registrado: $' + amount.toLocaleString('es-CO'));
     API.saveExpense({ date: cashDateStr(), description: desc, amount: amount, category: cat }).then(synced => {
-        if (synced && synced.id) { exp._apiId = synced.id; saveCashLocal(); }
-    }).catch(() => { showToast('Gasto guardado localmente (sync a nube fallo)'); });
+        const exp = { description: desc, amount: amount, category: cat, date: cashDateStr() };
+        if (synced && synced.id) exp._apiId = synced.id;
+        cashExpenses.push(exp);
+        saveCashLocal();
+        document.getElementById('expenseDesc').value = '';
+        document.getElementById('expenseAmount').value = '';
+        renderCashPanel();
+        showToast('Gasto registrado: $' + amount.toLocaleString('es-CO'));
+    }).catch(() => {
+        const exp = { description: desc, amount: amount, category: cat, date: cashDateStr() };
+        cashExpenses.push(exp);
+        saveCashLocal();
+        document.getElementById('expenseDesc').value = '';
+        document.getElementById('expenseAmount').value = '';
+        renderCashPanel();
+        showToast('Gasto guardado localmente (sync a nube fallo)');
+    });
 }
 
 function deleteExpense(idx) {
