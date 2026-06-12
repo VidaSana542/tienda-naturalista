@@ -221,11 +221,7 @@ function loadData() {
     } else {
         posNextProductId = posProducts.reduce((m, p) => Math.max(m, parseInt(p.id.replace('p',''))), 0) + 1;
     }
-    if (posCustomers.length < 100) {
-        posCustomers = generateSampleCustomers();
-        saveCustomers();
-        posNextCustomerId = 101;
-    } else {
+    if (posCustomers.length > 0) {
         posNextCustomerId = posCustomers.reduce((m, c) => Math.max(m, parseInt(c.id.replace('c',''))), 0) + 1;
     }
     if (posSales.length > 0) {
@@ -2589,11 +2585,14 @@ function initCatFilter() {
 }
 
 function initPOS() {
-    loadData();
-    initCatFilter();
     (async function() {
         const available = await API.check();
-        if (available) await syncFromApi();
+        if (available) {
+            await syncFromApi();
+        } else {
+            loadData();
+        }
+        initCatFilter();
         migrateProductSubcats();
         renderDashboard();
         renderTpv();
