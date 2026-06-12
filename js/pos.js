@@ -287,7 +287,7 @@ function saveSales() {
                     venta_por_fuera: s.ventaPorFuera || false,
                     credit_info: s.creditInfo || null,
                     items: s.items || []
-                }).then(res => { if (res && res.id) { s.apiSynced = true; s.id = res.id; } }).catch(e => { console.error('[POS] saveSale error:', e); });
+                }).then(res => { if (res && res.id) { s.apiSynced = true; s.id = res.id; posNextSaleId = Math.max(posNextSaleId, res.id + 1); localStorage.setItem('posSales', JSON.stringify(posSales)); } }).catch(e => { console.error('[POS] saveSale error:', e); });
             });
     }
 }
@@ -1319,38 +1319,6 @@ function confirmCheckout() {
     });
     saveSales();
     saveProducts();
-    console.log('[POS] processPayment: llamando API.saveSale directamente');
-    if (API.isAvailable) {
-        API.saveSale({
-            customer_id: sale.customerId ? parseInt(sale.customerId.replace('c','')) : null,
-            customer_name: sale.customer,
-            total: sale.total,
-            excedente: sale.excedente,
-            method: sale.method,
-            method_key: sale.methodKey,
-            venta_por_fuera: sale.ventaPorFuera || false,
-            credit_info: sale.creditInfo ? {
-                tipo: sale.creditInfo.tipo,
-                totalCuotas: sale.creditInfo.totalCuotas,
-                cuotaValor: sale.creditInfo.cuotaValor,
-                pagadas: sale.creditInfo.pagadas,
-                balance: sale.creditInfo.balance,
-                payments: sale.creditInfo.payments || []
-            } : null,
-            items: sale.items
-        }).then(apiSale => {
-            console.log('[POS] API.saveSale OK:', apiSale);
-            if (apiSale && apiSale.id) {
-                sale.apiId = apiSale.id;
-                sale.apiSynced = true;
-                // Update local ID to match Supabase so everything stays in sync
-                const oldId = sale.id;
-                sale.id = apiSale.id;
-                posNextSaleId = Math.max(posNextSaleId, apiSale.id + 1);
-                saveSales();
-            }
-        }).catch(e => { console.error('[POS] API.saveSale ERROR:', e); });
-    }
     clearCart();
     isVentaPorFuera = false;
     const btnVPF = document.getElementById('btnVentaPorFuera');
