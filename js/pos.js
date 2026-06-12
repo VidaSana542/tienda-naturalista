@@ -504,16 +504,17 @@ async function syncFromApi() {
             saveInvLog();
         } catch(e) {}
         // Sync cash base & expenses from Supabase
+        loadCashLocal();
         try {
             const apiCashBase = await API.getCashBase(cashDateStr());
-            if (apiCashBase) cashBase = parseFloat(apiCashBase.base_amount) || 0;
+            if (apiCashBase !== null && apiCashBase !== undefined) {
+                cashBase = parseFloat(apiCashBase.base_amount) || 0;
+            }
             const apiExpenses = await API.getExpenses(cashDateStr());
             if (apiExpenses && apiExpenses.length > 0) {
-                // Merge: keep local expenses not in API, add API expenses
                 const apiMap = {};
                 apiExpenses.forEach(e => { apiMap[e.id] = e; });
                 const localKeys = new Set(cashExpenses.map(e => e._apiId));
-                // Remove expenses that came from API but were deleted there
                 cashExpenses = cashExpenses.filter(e => !e._apiId || apiMap[e._apiId]);
                 apiExpenses.forEach(e => {
                     if (!localKeys.has(e.id)) {
@@ -528,7 +529,7 @@ async function syncFromApi() {
                 });
             }
         } catch(e) {
-            // Cash data may not have Supabase table yet — use local only
+            console.warn('[Caja] No se pudo sincronizar desde Supabase (tablas no creadas?)');
         }
         saveCashLocal();
         // Push local unsynced cash base/expenses
@@ -689,7 +690,7 @@ function setCashBase() {
     inp.value = '';
     renderCashPanel();
     showToast('Base de caja actualizada: $' + val.toLocaleString('es-CO'));
-    API.saveCashBase(cashDateStr(), cashBase).catch(() => {});
+    API.saveCashBase(cashDateStr(), cashBase).then(() => { showToast('Sincronizado con la nube'); }).catch(() => { showToast('No se pudo sincronizar a la nube - verifica que las tablas existan en Supabase'); });
 }
 
 function addExpense() {
@@ -707,7 +708,7 @@ function addExpense() {
     showToast('Gasto registrado: $' + amount.toLocaleString('es-CO'));
     API.saveExpense({ date: cashDateStr(), description: desc, amount: amount, category: cat }).then(synced => {
         if (synced && synced.id) { exp._apiId = synced.id; saveCashLocal(); }
-    }).catch(() => {});
+    }).catch(() => { showToast('Gasto guardado localmente (sync a nube fallo)'); });
 }
 
 function deleteExpense(idx) {
