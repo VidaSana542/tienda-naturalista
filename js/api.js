@@ -68,8 +68,8 @@ const API = {
         .from('products')
         .update({
           name: product.name,
-          barcode: product.barcode || '',
-          brand: product.brand || '',
+          barcode: product.barcode && product.barcode.trim() ? product.barcode.trim() : null,
+          brand: product.brand && product.brand.trim() ? product.brand.trim() : null,
           category: product.category,
           subcategory: product.subcategory || '',
           price: product.price,
@@ -95,8 +95,8 @@ const API = {
         .from('products')
         .insert({
           name: product.name,
-          barcode: product.barcode || '',
-          brand: product.brand || '',
+          barcode: product.barcode && product.barcode.trim() ? product.barcode.trim() : null,
+          brand: product.brand && product.brand.trim() ? product.brand.trim() : null,
           category: product.category || 'suplementos',
           subcategory: product.subcategory || '',
           price: product.price,
