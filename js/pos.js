@@ -2010,7 +2010,15 @@ function clearInvLog() {
     renderInventory();
     showToast('Historial de inventario limpiado');
 }
+function filterInvMovProduct() {
+    const q = document.getElementById('invMovProductSearch').value.toLowerCase();
+    const sel = document.getElementById('invMovProduct');
+    for (const opt of sel.options) {
+        opt.style.display = !q || opt.text.toLowerCase().includes(q) ? '' : 'none';
+    }
+}
 function openInvMovModal(type) {
+    document.getElementById('invMovProductSearch').value = '';
     const sel = document.getElementById('invMovProduct');
     sel.innerHTML = posProducts.map(p => '<option value="' + p.id + '">' + p.name + ' (Stock: ' + p.stock + ')</option>').join('');
     document.getElementById('invMovType').value = type;
@@ -2043,6 +2051,8 @@ function openInvMovModal(type) {
             '<option value="Robo / Perdida">Robo / Perdida</option>' +
             '<option value="Donacion">Donacion</option>' +
             '<option value="Transferencia saliente">Transferencia saliente</option>' +
+            '<option value="Movimiento a Bastidas">Movimiento a Bastidas</option>' +
+            '<option value="Movimiento a Curinca">Movimiento a Curinca</option>' +
             '<option value="Ajuste por inventario final">Ajuste por inventario final</option>' +
             '<option value="Otro">Otro</option>';
     }
