@@ -514,7 +514,7 @@ function saveInvLog() {
                     reason: l.reason || '',
                     sale_id: l.saleId || null,
                     venta_por_fuera: l.ventaPorFuera || false
-                }).then(() => { l.synced = true; }).catch(e => { console.error('[POS] addInventoryLog error:', e); });
+                }).then(() => { l.synced = true; }).catch(e => { console.error('[POS] addInventoryLog error:', e.message || e); });
             }
         });
     }

@@ -422,7 +422,10 @@ const API = {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[API] addInventoryLog:', error.message, 'code:', error.code, 'details:', error.details);
+      throw error;
+    }
     return data;
   },
 
