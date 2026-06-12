@@ -514,7 +514,7 @@ function saveInvLog() {
                     reason: l.reason || '',
                     sale_id: l.saleId || null,
                     venta_por_fuera: l.ventaPorFuera || false
-                }).then(() => { l.synced = true; }).catch(() => {});
+                }).then(() => { l.synced = true; }).catch(e => { console.error('[POS] addInventoryLog error:', e); });
             }
         });
     }
@@ -1313,6 +1313,7 @@ function confirmCheckout() {
     });
     saveSales();
     saveProducts();
+    console.log('[POS] processPayment: llamando API.saveSale directamente');
     if (API.isAvailable) {
         API.saveSale({
             customer_id: sale.customerId ? parseInt(sale.customerId.replace('c','')) : null,
@@ -1332,6 +1333,7 @@ function confirmCheckout() {
             } : null,
             items: sale.items
         }).then(apiSale => {
+            console.log('[POS] API.saveSale OK:', apiSale);
             if (apiSale && apiSale.id) {
                 sale.apiId = apiSale.id;
                 sale.apiSynced = true;
@@ -1341,7 +1343,7 @@ function confirmCheckout() {
                 posNextSaleId = Math.max(posNextSaleId, apiSale.id + 1);
                 saveSales();
             }
-        }).catch(() => {});
+        }).catch(e => { console.error('[POS] API.saveSale ERROR:', e); });
     }
     clearCart();
     isVentaPorFuera = false;
