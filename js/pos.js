@@ -84,7 +84,7 @@ function saveCategories() {
             const apiId = c.id || null;
             API.saveCategory({ id: apiId, key: c.key, label: c.label, parent_key: c.parent_key || null }).then(res => {
                 if (!c.id && res && res.id) c.id = res.id;
-            }).catch(() => {});
+            }).catch(e => { console.error('[POS] saveCategory error:', e); });
         });
     }
 }
@@ -252,13 +252,11 @@ function migrateProductSubcats() {
 
 function saveProducts() {
     localStorage.setItem('posProducts', JSON.stringify(posProducts));
-    console.log('[POS] saveProducts: API.isAvailable =', API.isAvailable);
     if (API.isAvailable) {
         posProducts.forEach(p => {
             const apiId = p.id && p.id.startsWith('p') ? parseInt(p.id.replace('p','')) : null;
             if (apiId === null) return;
             const payload = {
-                id: apiId,
                 name: p.name, barcode: p.barcode || '', brand: p.brand || '', category: p.category,
                 price: p.price, cost: p.cost || 0, stock: p.stock,
                 img: p.img || '', images: p.images || [],
@@ -266,7 +264,14 @@ function saveProducts() {
                 featured: p.featured || false
             };
             if (p.subcategory) payload.subcategory = p.subcategory;
-            API.saveProduct(payload).catch(e => { console.error('[POS] saveProduct error:', e); });
+            if (p._synced === false) {
+                API.saveProduct(payload).then(res => {
+                    if (res && res.id) { p.id = 'p' + res.id; p._synced = true; localStorage.setItem('posProducts', JSON.stringify(posProducts)); }
+                }).catch(e => { console.error('[POS] saveProduct(insert) error:', e); });
+            } else {
+                payload.id = apiId;
+                API.saveProduct(payload).catch(e => { console.error('[POS] saveProduct(update) error:', e); });
+            }
         });
     }
 }
@@ -293,14 +298,19 @@ function saveSales() {
 }
 function saveCustomers() {
     localStorage.setItem('posCustomers', JSON.stringify(posCustomers));
-    console.log('[POS] saveCustomers: API.isAvailable =', API.isAvailable);
     if (API.isAvailable) {
         posCustomers.forEach(c => {
             const apiId = c.id && c.id.startsWith('c') ? parseInt(c.id.replace('c','')) : null;
-            API.saveCustomer({
-                id: apiId,
-                name: c.name, phone: c.phone || '', email: c.email || '', address: c.address || '', tipo: c.tipo || 'local'
-            }).catch(e => { console.error('[POS] saveCustomer error:', e); });
+            if (apiId === null) return;
+            const payload = { name: c.name, phone: c.phone || '', email: c.email || '', address: c.address || '', tipo: c.tipo || 'local' };
+            if (c._synced === false) {
+                API.saveCustomer(payload).then(res => {
+                    if (res && res.id) { c.id = 'c' + res.id; c._synced = true; localStorage.setItem('posCustomers', JSON.stringify(posCustomers)); }
+                }).catch(e => { console.error('[POS] saveCustomer(insert) error:', e); });
+            } else {
+                payload.id = apiId;
+                API.saveCustomer(payload).catch(e => { console.error('[POS] saveCustomer(update) error:', e); });
+            }
         });
     }
 }
@@ -309,11 +319,16 @@ function saveSuppliers() {
     if (API.isAvailable) {
         posSuppliers.forEach(s => {
             const apiId = s.id && s.id.startsWith('s') ? parseInt(s.id.replace('s','')) : null;
-            API.saveSupplier({
-                id: apiId,
-                name: s.name, nit: s.nit || '', contact: s.contact || '',
-                phone: s.phone || '', email: s.email || '', address: s.address || ''
-            }).catch(() => {});
+            if (apiId === null) return;
+            const payload = { name: s.name, nit: s.nit || '', contact: s.contact || '', phone: s.phone || '', email: s.email || '', address: s.address || '' };
+            if (s._synced === false) {
+                API.saveSupplier(payload).then(res => {
+                    if (res && res.id) { s.id = 's' + res.id; s._synced = true; localStorage.setItem('posSuppliers', JSON.stringify(posSuppliers)); }
+                }).catch(e => { console.error('[POS] saveSupplier(insert) error:', e); });
+            } else {
+                payload.id = apiId;
+                API.saveSupplier(payload).catch(e => { console.error('[POS] saveSupplier(update) error:', e); });
+            }
         });
     }
 }
@@ -331,6 +346,7 @@ async function syncFromApi() {
                     lp.price = parseFloat(ap.price) || lp.price;
                     lp.stock = parseInt(ap.stock) ?? lp.stock;
                     if (ap.img && ap.img !== lp.img) lp.img = ap.img;
+                    lp._synced = true;
                 }
             });
             apiProducts.forEach(ap => {
@@ -348,8 +364,12 @@ async function syncFromApi() {
                         images: ap.images || [],
                         desc: ap.description || '',
                         featured: ap.featured || false,
-                        subcategory: ap.subcategory || ''
+                        subcategory: ap.subcategory || '',
+                        _synced: true
                     });
+                } else {
+                    const lp = posProducts.find(lp => lp.id === 'p' + ap.id);
+                    if (lp) lp._synced = true;
                 }
             });
             localStorage.setItem('posProducts', JSON.stringify(posProducts));
@@ -363,7 +383,8 @@ async function syncFromApi() {
                 phone: c.phone || '',
                 email: c.email || '',
                 address: c.address || '',
-                tipo: c.tipo || 'local'
+                tipo: c.tipo || 'local',
+                _synced: true
             }));
             localStorage.setItem('posCustomers', JSON.stringify(posCustomers));
             posNextCustomerId = posCustomers.reduce((m, c) => Math.max(m, parseInt(c.id.replace('c',''))), 0) + 1;
@@ -377,7 +398,8 @@ async function syncFromApi() {
                 contact: s.contact || '',
                 phone: s.phone || '',
                 email: s.email || '',
-                address: s.address || ''
+                address: s.address || '',
+                _synced: true
             }));
             localStorage.setItem('posSuppliers', JSON.stringify(posSuppliers));
             posNextSupplierId = posSuppliers.reduce((m, s) => Math.max(m, parseInt(s.id.replace('s',''))), 0) + 1;
@@ -1520,8 +1542,6 @@ function saveProduct() {
     const images = _prodImages.length > 0 ? _prodImages : undefined;
     const finalImg = _prodMainImg || img || (images && images.length > 0 ? images[0] : '');
 
-    const apiPayload = { name, barcode, brand, category, price, cost, stock, img: finalImg, images, description: desc, supplier_id: supplier ? parseInt(supplier.replace('s','')) : null, featured, subcategory };
-
     if (id) {
         const p = posProducts.find(pr => pr.id === id);
         if (p) {
@@ -1534,18 +1554,9 @@ function saveProduct() {
                 const diff = stock - prevStock;
                 addInvLog(p.id, p.name, diff > 0 ? 'entrada' : 'salida', diff, prevStock, stock, 'Ajuste manual desde productos');
             }
-            if (API.isAvailable) {
-                API.saveProduct({ id: parseInt(id.replace('p','')), ...apiPayload }).catch(() => {});
-            }
         }
     } else {
-        const newId = 'p' + posNextProductId++;
-        posProducts.push({ id: newId, name, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, subcategory });
-        if (API.isAvailable) {
-            API.saveProduct(apiPayload).then(r => {
-                if (r && r.id) { const p = posProducts.find(pr => pr.id === newId); if (p) p.id = 'p' + r.id; }
-            }).catch(() => {});
-        }
+        posProducts.push({ id: 'p' + posNextProductId++, name, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, subcategory, _synced: false });
     }
     saveProducts();
     closeProductModal();
@@ -1556,6 +1567,8 @@ function saveProduct() {
 
 function deleteProduct(id) {
     if (!confirm('Eliminar este producto?')) return;
+    const apiId = id && id.startsWith('p') ? parseInt(id.replace('p','')) : null;
+    if (apiId && API.isAvailable) API.deleteProduct(apiId).catch(e => { console.error('[POS] deleteProduct error:', e); });
     posProducts = posProducts.filter(p => p.id !== id);
     saveProducts();
     renderProductTable();
@@ -1677,7 +1690,7 @@ function saveSupplier() {
         const s = posSuppliers.find(su => su.id === id);
         if (s) Object.assign(s, { name, nit, contact, phone, email, address });
     } else {
-        posSuppliers.push({ id: 's' + posNextSupplierId++, name, nit, contact, phone, email, address });
+        posSuppliers.push({ id: 's' + posNextSupplierId++, name, nit, contact, phone, email, address, _synced: false });
     }
     saveSuppliers();
     closeSupplierModal();
@@ -1686,6 +1699,8 @@ function saveSupplier() {
 }
 function deleteSupplier(id) {
     if (!confirm('Eliminar este proveedor?')) return;
+    const apiId = id && id.startsWith('s') ? parseInt(id.replace('s','')) : null;
+    if (apiId && API.isAvailable) API.deleteSupplier(apiId).catch(e => { console.error('[POS] deleteSupplier error:', e); });
     posSuppliers = posSuppliers.filter(s => s.id !== id);
     saveSuppliers();
     renderSupplierTable();
@@ -2036,7 +2051,7 @@ function saveCustomer() {
         const c = posCustomers.find(cu => cu.id === id);
         if (c) Object.assign(c, { name, phone, email, address, tipo });
     } else {
-        posCustomers.push({ id: 'c' + posNextCustomerId++, name, phone, email, address, tipo });
+        posCustomers.push({ id: 'c' + posNextCustomerId++, name, phone, email, address, tipo, _synced: false });
     }
     saveCustomers();
     closeCustomerModal();
@@ -2046,6 +2061,8 @@ function saveCustomer() {
 
 function deleteCustomer(id) {
     if (!confirm('Eliminar este cliente?')) return;
+    const apiId = id && id.startsWith('c') ? parseInt(id.replace('c','')) : null;
+    if (apiId && API.isAvailable) API.deleteCustomer(apiId).catch(e => { console.error('[POS] deleteCustomer error:', e); });
     posCustomers = posCustomers.filter(c => c.id !== id);
     saveCustomers();
     renderCustomerTable();
