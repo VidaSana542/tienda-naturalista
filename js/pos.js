@@ -682,19 +682,19 @@ function renderDashboard() {
     document.getElementById('dashMonthsCard').style.display = isMonthHistory ? '' : 'none';
     document.getElementById('dashAnnualCard').style.display = isAnnualHistory ? '' : 'none';
 
-    if (isMonthHistory) renderDashMonthsHistory();
-    if (isAnnualHistory) renderDashAnnualHistory();
+    if (isMonthHistory) renderDashMonthsHistory(periodSales);
+    if (isAnnualHistory) renderDashAnnualHistory(periodSales);
 
-    renderDashBarChart();
-    renderDashPayMethods();
-    renderDashTopProducts();
+    renderDashBarChart(periodSales);
+    renderDashPayMethods(periodSales);
+    renderDashTopProducts(periodSales);
     renderDashStockAlerts();
-    renderDashTopCustomers();
-    renderDashSummary();
-    renderDashRecent();
+    renderDashTopCustomers(periodSales);
+    renderDashSummary(periodSales);
+    renderDashRecent(periodSales);
 }
 
-function renderDashBarChart() {
+function renderDashBarChart(periodSales) {
     const el = document.getElementById('dashBarChart');
     let days = [];
     if (_dashPeriod === 'today' || _dashPeriod === 'week') {
@@ -702,14 +702,14 @@ function renderDashBarChart() {
             const d = new Date(); d.setDate(d.getDate() - i);
             const ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
             const label = d.toLocaleDateString('es-CO', { weekday:'short', day:'numeric' });
-            const total = posSales.filter(s => s.date && s.date.slice(0,10) === ds).reduce((sum, s) => sum + s.total, 0);
+            const total = periodSales.filter(s => s.date && s.date.slice(0,10) === ds).reduce((sum, s) => sum + s.total, 0);
             days.push({ label, total });
         }
     } else if (_dashPeriod === 'month') {
         for (let i = 11; i >= 0; i--) {
             const d = new Date(); d.setMonth(d.getMonth() - i);
             const label = d.toLocaleDateString('es-CO', { month:'short' });
-            const total = posSales.filter(s => {
+            const total = periodSales.filter(s => {
                 if (!s.date) return false;
                 const sd = new Date(s.date);
                 return sd.getFullYear() === d.getFullYear() && sd.getMonth() === d.getMonth();
@@ -718,7 +718,7 @@ function renderDashBarChart() {
         }
     } else if (_dashPeriod === 'year') {
         const years = {};
-        posSales.forEach(s => {
+        periodSales.forEach(s => {
             if (!s.date) return;
             const y = s.date.slice(0,4);
             if (!years[y]) years[y] = 0;
@@ -740,7 +740,7 @@ function renderDashBarChart() {
     }).join('');
 }
 
-function renderDashMonthsHistory() {
+function renderDashMonthsHistory(periodSales) {
     const now = new Date();
     const months = [];
     for (let i = 11; i >= 0; i--) {
@@ -748,7 +748,7 @@ function renderDashMonthsHistory() {
         const year = d.getFullYear();
         const month = d.getMonth();
         const label = d.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
-        const sales = posSales.filter(s => {
+        const sales = periodSales.filter(s => {
             if (!s.date) return false;
             const sd = new Date(s.date);
             return sd.getFullYear() === year && sd.getMonth() === month;
@@ -768,9 +768,9 @@ function renderDashMonthsHistory() {
     </tr>`).join('');
 }
 
-function renderDashAnnualHistory() {
+function renderDashAnnualHistory(periodSales) {
     const years = {};
-    posSales.forEach(s => {
+    periodSales.forEach(s => {
         if (!s.date) return;
         const y = s.date.slice(0,4);
         if (!years[y]) years[y] = [];
@@ -793,9 +793,9 @@ function renderDashAnnualHistory() {
     }).join('');
 }
 
-function renderDashPayMethods() {
+function renderDashPayMethods(periodSales) {
     const methods = {};
-    getPeriodSales().forEach(s => {
+    periodSales.forEach(s => {
         const m = s.method || 'Otro';
         if (!methods[m]) methods[m] = { count: 0, total: 0 };
         methods[m].count++;
@@ -826,9 +826,9 @@ function renderDashPayMethods() {
     }).join('');
 }
 
-function renderDashTopProducts() {
+function renderDashTopProducts(periodSales) {
     const sold = {};
-    getPeriodSales().forEach(s => {
+    periodSales.forEach(s => {
         (s.items || []).forEach(item => {
             const name = item.name || 'Producto';
             if (!sold[name]) sold[name] = { qty: 0, total: 0 };
@@ -868,9 +868,9 @@ function renderDashStockAlerts() {
     }).join('');
 }
 
-function renderDashTopCustomers() {
+function renderDashTopCustomers(periodSales) {
     const cust = {};
-    getPeriodSales().forEach(s => {
+    periodSales.forEach(s => {
         const name = s.customer || 'Cliente mostrador';
         if (!cust[name]) cust[name] = { count: 0, total: 0 };
         cust[name].count++;
@@ -890,14 +890,13 @@ function renderDashTopCustomers() {
     </tr>`).join('');
 }
 
-function renderDashSummary() {
-    const ps = getPeriodSales();
-    const total = ps.reduce((s, v) => s + v.total, 0);
-    const items = ps.reduce((s, v) => s + v.items.reduce((a, i) => a + i.qty, 0), 0);
-    const cash = ps.filter(s => s.method === 'Efectivo').reduce((s, v) => s + v.total, 0);
-    const digital = ps.filter(s => s.method !== 'Efectivo' && s.method !== 'Credito').reduce((s, v) => s + v.total, 0);
-    const credit = ps.filter(s => s.method === 'Credito').reduce((s, v) => s + v.total, 0);
-    const excedente = ps.reduce((s, v) => s + (v.excedente || 0), 0);
+function renderDashSummary(periodSales) {
+    const total = periodSales.reduce((s, v) => s + v.total, 0);
+    const items = periodSales.reduce((s, v) => s + v.items.reduce((a, i) => a + i.qty, 0), 0);
+    const cash = periodSales.filter(s => s.method === 'Efectivo').reduce((s, v) => s + v.total, 0);
+    const digital = periodSales.filter(s => s.method !== 'Efectivo' && s.method !== 'Credito').reduce((s, v) => s + v.total, 0);
+    const credit = periodSales.filter(s => s.method === 'Credito').reduce((s, v) => s + v.total, 0);
+    const excedente = periodSales.reduce((s, v) => s + (v.excedente || 0), 0);
     document.getElementById('dashSummary').innerHTML = `
         <div class="summary-rows">
             <div class="summary-row"><span>Total facturado</span><strong>${formatPrice(total)}</strong></div>
@@ -906,21 +905,21 @@ function renderDashSummary() {
             <div class="summary-row"><span>Digital (Nequi, Davi, Tarjeta, etc)</span><strong>${formatPrice(digital)}</strong></div>
             <div class="summary-row"><span>Credito</span><strong>${formatPrice(credit)}</strong></div>
             <div class="summary-row"><span>Excedente cobrado</span><strong>${formatPrice(excedente)}</strong></div>
-            <div class="summary-row"><span>Ticket promedio</span><strong>${ps.length > 0 ? formatPrice(total / ps.length) : '$0'}</strong></div>
-            <div class="summary-row"><span>Total transacciones</span><strong>${ps.length}</strong></div>
+            <div class="summary-row"><span>Ticket promedio</span><strong>${periodSales.length > 0 ? formatPrice(total / periodSales.length) : '$0'}</strong></div>
+            <div class="summary-row"><span>Total transacciones</span><strong>${periodSales.length}</strong></div>
         </div>
     `;
 }
 
-function renderDashRecent() {
-    const recent = posSales.slice(-10).reverse();
+function renderDashRecent(periodSales) {
+    const recent = periodSales.slice(-10).reverse();
     const tbody = document.getElementById('dashRecentSales');
     if (recent.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:30px;">No hay ventas registradas</td></tr>';
         return;
     }
     tbody.innerHTML = recent.map((s, idx) => `<tr>
-        <td><strong>#${posSales.length - idx}</strong></td>
+        <td><strong>#${periodSales.length - idx}</strong></td>
         <td>${formatDate(s.date)}</td>
         <td>${s.customer || 'Cliente mostrador'}</td>
         <td>${s.items.reduce((sum, i) => sum + i.qty, 0)}</td>
