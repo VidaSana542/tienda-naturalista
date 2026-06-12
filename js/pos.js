@@ -81,16 +81,19 @@ function saveCategories() {
     localStorage.setItem('posCategories', JSON.stringify(POS_CATEGORIES));
     if (API.isAvailable) {
         POS_CATEGORIES.forEach(c => {
+            if (c._synced) return;
             const apiId = c.id || null;
             API.saveCategory({ id: apiId, key: c.key, label: c.label, parent_key: c.parent_key || null }).then(res => {
                 if (!c.id && res && res.id) c.id = res.id;
+                c._synced = true;
+                localStorage.setItem('posCategories', JSON.stringify(POS_CATEGORIES));
             }).catch(e => { console.error('[POS] saveCategory error:', e); });
         });
     }
 }
 function addCategory(key, label, parent_key) {
     if (!key || !label || POS_CATEGORIES.find(c => c.key === key)) return false;
-    POS_CATEGORIES.push({ key, label, parent_key: parent_key || null });
+    POS_CATEGORIES.push({ key, label, parent_key: parent_key || null, _synced: false });
     saveCategories();
     return true;
 }
@@ -368,6 +371,8 @@ async function syncFromApi() {
                     if (lp) lp._synced = true;
                 }
             });
+            // Remove local products that were synced but no longer exist in Supabase
+            posProducts = posProducts.filter(p => p._synced === false || apiMap[p.id]);
             localStorage.setItem('posProducts', JSON.stringify(posProducts));
             posNextProductId = posProducts.reduce((m, p) => Math.max(m, parseInt(p.id.replace('p',''))), 0) + 1;
         }
@@ -401,11 +406,13 @@ async function syncFromApi() {
             posNextSupplierId = posSuppliers.reduce((m, s) => Math.max(m, parseInt(s.id.replace('s',''))), 0) + 1;
         }
         const apiCategories = await API.getCategories();
-        if (apiCategories && apiCategories.length > 0) {
-            const freshCats = apiCategories.map(c => ({ id: c.id, key: c.key, label: c.label, parent_key: c.parent_key || null }));
-            const existingKeys = POS_CATEGORIES.map(c => c.key);
-            freshCats.forEach(fc => {
-                const idx = POS_CATEGORIES.findIndex(c => c.key === fc.key);
+        if (apiCategories) {
+            const apiKeys = apiCategories.map(c => c.key);
+            // Remove categories synced to Supabase that no longer exist there
+            POS_CATEGORIES = POS_CATEGORIES.filter(c => c._synced === false || apiKeys.includes(c.key));
+            apiCategories.forEach(c => {
+                const fc = { id: c.id, key: c.key, label: c.label, parent_key: c.parent_key || null, _synced: true };
+                const idx = POS_CATEGORIES.findIndex(lc => lc.key === fc.key);
                 if (idx >= 0) {
                     POS_CATEGORIES[idx] = fc;
                 } else {
@@ -1790,7 +1797,7 @@ function deleteCategory(key) {
     } else {
         subs.forEach(s => {
             posProducts.forEach(p => { if (p.subcategory === s.key) p.subcategory = ''; });
-            if (API.isAvailable && s.id) API.deleteCategory(s.id).catch(e => { console.error('[POS] deleteCategory sub error:', e); });
+            if (API.isAvailable && (s._synced || s.id)) API.deleteCategory(s.id).catch(e => { console.error('[POS] deleteCategory sub error:', e); });
         });
         POS_CATEGORIES = POS_CATEGORIES.filter(cat => cat.key !== key && cat.parent_key !== key);
         posProducts.forEach(p => { if (p.category === key) p.category = ''; });
@@ -1805,9 +1812,9 @@ function deleteCategory(key) {
     _invLogCatInit = false;
     renderInventory();
     renderProductTable();
-    if (API.isAvailable && c.id) {
+    if (API.isAvailable && (c._synced || c.id)) {
         API.deleteCategory(c.id).catch(e => { console.error('[POS] deleteCategory error:', e); });
-    } else if (API.isAvailable && !c.id) {
+    } else if (API.isAvailable && !c._synced && !c.id) {
         // Category never synced, nothing to delete in Supabase
         console.log('[POS] deleteCategory: categoria local, no hay que borrar en Supabase');
     }
