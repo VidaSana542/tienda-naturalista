@@ -466,11 +466,12 @@ table .actions button.del:hover svg { fill: var(--danger); }
         display: flex;
         overflow-x: auto;
         overflow-y: hidden;
-        padding: 8px 6px 6px;
+        padding: 8px 12px 6px;
         gap: 4px;
         -webkit-overflow-scrolling: touch;
         max-width: 420px;
         width: 100%;
+        justify-content: center;
         border-radius: 16px 16px 0 0;
     }
     .sidebar-nav .nav-section { display: none; }
