@@ -146,6 +146,7 @@ function saveCategoryModal() {
             if (hasSubs && parentKey) { showToast('No puedes mover una categoria que tiene subcategorias'); return; }
         }
         c.parent_key = parentKey;
+        c._synced = false;
         saveCategories();
         refreshCategorySelect();
         refreshProdCatFilter();
@@ -1967,6 +1968,7 @@ function deleteCategory(key) {
     if (productCount > 0) msg += ' Hay ' + productCount + ' producto(s) ' + (isSub ? 'con esta subcategoria' : 'en esta categoria') + '. Se marcaran como "Sin categoria".';
     if (!confirm(msg)) return;
     if (isSub) {
+        if (API.isAvailable && (c._synced || c.id)) API.deleteCategory(c.id).catch(e => { console.error('[POS] deleteCategory error:', e); });
         POS_CATEGORIES = POS_CATEGORIES.filter(cat => cat.key !== key);
         posProducts.forEach(p => { if (p.subcategory === key) p.subcategory = ''; });
     } else {
@@ -1974,6 +1976,7 @@ function deleteCategory(key) {
             posProducts.forEach(p => { if (p.subcategory === s.key) p.subcategory = ''; });
             if (API.isAvailable && (s._synced || s.id)) API.deleteCategory(s.id).catch(e => { console.error('[POS] deleteCategory sub error:', e); });
         });
+        if (API.isAvailable && (c._synced || c.id)) API.deleteCategory(c.id).catch(e => { console.error('[POS] deleteCategory error:', e); });
         POS_CATEGORIES = POS_CATEGORIES.filter(cat => cat.key !== key && cat.parent_key !== key);
         posProducts.forEach(p => { if (p.category === key) p.category = ''; });
     }
