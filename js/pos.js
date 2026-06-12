@@ -209,6 +209,10 @@ let posNextCustomerId = 1;
 let posNextSupplierId = 1;
 let posNextSaleId = 1;
 
+let cashBase = 0;
+let cashExpenses = [];
+let cashDate = today();
+
 function loadData() {
     try {
         posProducts = JSON.parse(localStorage.getItem('posProducts')) || null;
@@ -237,6 +241,7 @@ function loadData() {
         posNextSupplierId = posSuppliers.reduce((m, s) => Math.max(m, parseInt(s.id.replace('s',''))), 0) + 1;
     }
     migrateProductSubcats();
+    loadCashLocal();
 }
 function migrateProductSubcats() {
     let changed = false;
@@ -498,6 +503,45 @@ async function syncFromApi() {
             // Push local unsynced inventory entries
             saveInvLog();
         } catch(e) {}
+        // Sync cash base & expenses from Supabase
+        try {
+            const apiCashBase = await API.getCashBase(cashDateStr());
+            if (apiCashBase) cashBase = parseFloat(apiCashBase.base_amount) || 0;
+            const apiExpenses = await API.getExpenses(cashDateStr());
+            if (apiExpenses && apiExpenses.length > 0) {
+                // Merge: keep local expenses not in API, add API expenses
+                const apiMap = {};
+                apiExpenses.forEach(e => { apiMap[e.id] = e; });
+                const localKeys = new Set(cashExpenses.map(e => e._apiId));
+                // Remove expenses that came from API but were deleted there
+                cashExpenses = cashExpenses.filter(e => !e._apiId || apiMap[e._apiId]);
+                apiExpenses.forEach(e => {
+                    if (!localKeys.has(e.id)) {
+                        cashExpenses.push({
+                            _apiId: e.id,
+                            description: e.description,
+                            amount: parseFloat(e.amount),
+                            category: e.category,
+                            date: e.date
+                        });
+                    }
+                });
+            }
+        } catch(e) {
+            // Cash data may not have Supabase table yet — use local only
+        }
+        saveCashLocal();
+        // Push local unsynced cash base/expenses
+        try {
+            await API.saveCashBase(cashDateStr(), cashBase);
+            for (const e of cashExpenses) {
+                if (!e._apiId) {
+                    const synced = await API.saveExpense({ date: cashDateStr(), description: e.description, amount: e.amount, category: e.category });
+                    if (synced && synced.id) e._apiId = synced.id;
+                }
+            }
+            saveCashLocal();
+        } catch(e) {}
         // Push local changes up to API so Supabase is always up to date
         saveProducts();
         saveCustomers();
@@ -571,7 +615,7 @@ function switchInvTab(tab) {
     if (tab === 'log') renderInvLog();
 }
 function switchPanel(id) {
-    if (currentUser && currentUser.role === 'empleado' && ['products','suppliers','categories'].includes(id)) {
+    if (currentUser && currentUser.role === 'empleado' && ['products','suppliers','categories','cash'].includes(id)) {
         showToast('No tienes acceso a esta seccion');
         return;
     }
@@ -579,7 +623,7 @@ function switchPanel(id) {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById('panel-' + id).classList.add('active');
     document.querySelector('[data-panel="' + id + '"]').classList.add('active');
-    const titles = { dashboard:'Dashboard', tpv:'TPV / Punto de Venta', products:'Gestion de Productos', inventory:'Control de Inventario', customers:'Gestion de Clientes', suppliers:'Gestion de Proveedores', categories:'Gestion de Categorias', sales:'Historial de Ventas' };
+    const titles = { dashboard:'Dashboard', tpv:'TPV / Punto de Venta', products:'Gestion de Productos', inventory:'Control de Inventario', customers:'Gestion de Clientes', suppliers:'Gestion de Proveedores', categories:'Gestion de Categorias', sales:'Historial de Ventas', cash:'Caja' };
     document.getElementById('panelTitle').textContent = titles[id] || id;
     if (id === 'dashboard') renderDashboard();
     if (id === 'tpv') renderTpv();
@@ -589,6 +633,90 @@ function switchPanel(id) {
     if (id === 'suppliers') renderSupplierTable();
     if (id === 'categories') renderCategoriesTable();
     if (id === 'sales') renderSalesTable();
+    if (id === 'cash') renderCashPanel();
+}
+
+// ============ CAJA / CASH MANAGEMENT ============
+function cashDateStr() { return cashDate || today(); }
+
+function loadCashLocal() {
+    try {
+        const d = cashDateStr();
+        cashBase = parseFloat(localStorage.getItem('cashBase_' + d)) || 0;
+        cashExpenses = JSON.parse(localStorage.getItem('cashExpenses_' + d)) || [];
+    } catch(e) { cashBase = 0; cashExpenses = []; }
+}
+
+function saveCashLocal() {
+    const d = cashDateStr();
+    localStorage.setItem('cashBase_' + d, cashBase);
+    localStorage.setItem('cashExpenses_' + d, JSON.stringify(cashExpenses));
+}
+
+function totalExpenses() { return cashExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0); }
+function availableCash() { return (parseFloat(cashBase) || 0) - totalExpenses(); }
+
+function renderCashPanel() {
+    loadCashLocal();
+    document.getElementById('cashDateLabel').textContent = 'Fecha: ' + cashDateStr();
+    document.getElementById('cashBaseDisplay').textContent = '$' + (parseFloat(cashBase) || 0).toLocaleString('es-CO');
+    document.getElementById('cashExpensesDisplay').textContent = '$' + totalExpenses().toLocaleString('es-CO');
+    document.getElementById('cashAvailableDisplay').textContent = '$' + availableCash().toLocaleString('es-CO');
+    const tbody = document.getElementById('cashExpensesBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (cashExpenses.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px;">No hay gastos registrados hoy</td></tr>';
+        return;
+    }
+    const catLabels = { suministros:'Suministros', servicios:'Servicios', transporte:'Transporte', otros:'Otros' };
+    cashExpenses.forEach((e, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + e.description + '</td><td>' + (catLabels[e.category] || e.category) + '</td><td>$' + (parseFloat(e.amount)||0).toLocaleString('es-CO') + '</td><td><button class="btn btn-danger" style="padding:4px 12px;font-size:12px;" onclick="deleteExpense(' + i + ')">Eliminar</button></td>';
+        tbody.appendChild(tr);
+    });
+}
+
+function setCashBase() {
+    const inp = document.getElementById('cashBaseInput');
+    const val = parseFloat(inp.value);
+    if (isNaN(val) || val < 0) { showToast('Ingrese un valor valido'); return; }
+    cashBase = val;
+    saveCashLocal();
+    inp.value = '';
+    renderCashPanel();
+    showToast('Base de caja actualizada: $' + val.toLocaleString('es-CO'));
+    API.saveCashBase(cashDateStr(), cashBase).catch(() => {});
+}
+
+function addExpense() {
+    const desc = document.getElementById('expenseDesc').value.trim();
+    const amount = parseFloat(document.getElementById('expenseAmount').value);
+    const cat = document.getElementById('expenseCat').value;
+    if (!desc) { showToast('Ingrese una descripcion'); return; }
+    if (isNaN(amount) || amount <= 0) { showToast('Ingrese un valor valido'); return; }
+    const exp = { description: desc, amount: amount, category: cat, date: cashDateStr() };
+    cashExpenses.push(exp);
+    saveCashLocal();
+    document.getElementById('expenseDesc').value = '';
+    document.getElementById('expenseAmount').value = '';
+    renderCashPanel();
+    showToast('Gasto registrado: $' + amount.toLocaleString('es-CO'));
+    API.saveExpense({ date: cashDateStr(), description: desc, amount: amount, category: cat }).then(synced => {
+        if (synced && synced.id) { exp._apiId = synced.id; saveCashLocal(); }
+    }).catch(() => {});
+}
+
+function deleteExpense(idx) {
+    const e = cashExpenses[idx];
+    if (!e) return;
+    if (!confirm('Eliminar gasto "' + e.description + '" por $' + (parseFloat(e.amount)||0).toLocaleString('es-CO') + '?')) return;
+    const apiId = e._apiId;
+    cashExpenses.splice(idx, 1);
+    saveCashLocal();
+    renderCashPanel();
+    if (apiId) API.deleteExpense(apiId).catch(() => {});
+    showToast('Gasto eliminado');
 }
 
 // ============ DASHBOARD ============

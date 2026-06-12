@@ -463,5 +463,67 @@ const API = {
       .eq('id', id);
     if (error) throw error;
     return { success: true };
+  },
+
+  // ---- Caja / Cash Management ----
+
+  async getCashBase(date) {
+    const { data, error } = await _sb
+      .from('cash_base')
+      .select('*')
+      .eq('date', date)
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  async saveCashBase(date, baseAmount) {
+    const { data, error } = await _sb
+      .from('cash_base')
+      .upsert({ date, base_amount: baseAmount }, { onConflict: 'date' })
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return data;
+  },
+
+  async getExpenses(date) {
+    const { data, error } = await _sb
+      .from('expenses')
+      .select('*')
+      .eq('date', date)
+      .order('created_at');
+    if (error) throw error;
+    return data || [];
+  },
+
+  async saveExpense(exp) {
+    if (exp.id) {
+      const { data, error } = await _sb
+        .from('expenses')
+        .update({ description: exp.description, amount: exp.amount, category: exp.category })
+        .eq('id', exp.id)
+        .select()
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    } else {
+      const { data, error } = await _sb
+        .from('expenses')
+        .insert({ date: exp.date, description: exp.description, amount: exp.amount, category: exp.category })
+        .select()
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    }
+  },
+
+  async deleteExpense(id) {
+    const { error } = await _sb
+      .from('expenses')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return { success: true };
   }
 };
