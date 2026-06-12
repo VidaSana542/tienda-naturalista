@@ -271,6 +271,23 @@ function saveProducts() {
 }
 function saveSales() {
     localStorage.setItem('posSales', JSON.stringify(posSales));
+    if (API.isAvailable) {
+        posSales.forEach(s => {
+            if (s.id && !s.apiSynced) {
+                API.saveSale({
+                    customer_id: s.customerId ? parseInt(s.customerId.replace('c','')) : null,
+                    customer_name: s.customer,
+                    total: s.total,
+                    excedente: s.excedente,
+                    method: s.method,
+                    method_key: s.methodKey,
+                    venta_por_fuera: s.ventaPorFuera || false,
+                    credit_info: s.creditInfo || null,
+                    items: s.items || []
+                }).then(res => { if (res && res.id) { s.apiSynced = true; s.id = res.id; } }).catch(() => {});
+            }
+        });
+    }
 }
 function saveCustomers() {
     localStorage.setItem('posCustomers', JSON.stringify(posCustomers));
@@ -398,6 +415,7 @@ async function syncFromApi() {
                 return {
                     id: s.id,
                     apiId: s.id,
+                    apiSynced: true,
                     date: s.created_at,
                     items: (s.items || []).map(i => ({ id: i.product_id, name: i.product_name, qty: i.qty, price: parseFloat(i.price) })),
                     subtotal: parseFloat(s.total) - parseFloat(s.excedente || 0),
@@ -1312,6 +1330,7 @@ function confirmCheckout() {
         }).then(apiSale => {
             if (apiSale && apiSale.id) {
                 sale.apiId = apiSale.id;
+                sale.apiSynced = true;
                 // Update local ID to match Supabase so everything stays in sync
                 const oldId = sale.id;
                 sale.id = apiSale.id;
