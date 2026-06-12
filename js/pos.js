@@ -505,33 +505,7 @@ async function syncFromApi() {
         } catch(e) {}
         // Sync cash base & expenses from Supabase
         loadCashLocal();
-        try {
-            const apiCashBase = await API.getCashBase(cashDateStr());
-            if (apiCashBase !== null && apiCashBase !== undefined) {
-                cashBase = parseFloat(apiCashBase.base_amount) || 0;
-            }
-            const apiExpenses = await API.getExpenses(cashDateStr());
-            if (apiExpenses && apiExpenses.length > 0) {
-                const apiMap = {};
-                apiExpenses.forEach(e => { apiMap[e.id] = e; });
-                const localKeys = new Set(cashExpenses.map(e => e._apiId));
-                cashExpenses = cashExpenses.filter(e => !e._apiId || apiMap[e._apiId]);
-                apiExpenses.forEach(e => {
-                    if (!localKeys.has(e.id)) {
-                        cashExpenses.push({
-                            _apiId: e.id,
-                            description: e.description,
-                            amount: parseFloat(e.amount),
-                            category: e.category,
-                            date: e.date
-                        });
-                    }
-                });
-            }
-        } catch(e) {
-            console.warn('[Caja] No se pudo sincronizar desde Supabase (tablas no creadas?)');
-        }
-        saveCashLocal();
+        await syncCashFromApi();
         // Push local unsynced cash base/expenses
         try {
             await API.saveCashBase(cashDateStr(), cashBase);
@@ -657,6 +631,36 @@ function saveCashLocal() {
 function totalExpenses() { return cashExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0); }
 function availableCash() { return (parseFloat(cashBase) || 0) - totalExpenses(); }
 
+async function syncCashFromApi() {
+    try {
+        const apiCashBase = await API.getCashBase(cashDateStr());
+        if (apiCashBase !== null && apiCashBase !== undefined) {
+            cashBase = parseFloat(apiCashBase.base_amount) || 0;
+        }
+        const apiExpenses = await API.getExpenses(cashDateStr());
+        if (apiExpenses && apiExpenses.length > 0) {
+            const apiMap = {};
+            apiExpenses.forEach(e => { apiMap[e.id] = e; });
+            const localKeys = new Set(cashExpenses.map(e => e._apiId));
+            cashExpenses = cashExpenses.filter(e => !e._apiId || apiMap[e._apiId]);
+            apiExpenses.forEach(e => {
+                if (!localKeys.has(e.id)) {
+                    cashExpenses.push({
+                        _apiId: e.id,
+                        description: e.description,
+                        amount: parseFloat(e.amount),
+                        category: e.category,
+                        date: e.date
+                    });
+                }
+            });
+        }
+        saveCashLocal();
+    } catch(e) {
+        console.warn('[Caja] No se pudo sincronizar desde Supabase');
+    }
+}
+
 function renderCashPanel() {
     loadCashLocal();
     document.getElementById('cashDateLabel').textContent = 'Fecha: ' + cashDateStr();
@@ -670,13 +674,29 @@ function renderCashPanel() {
     tbody.innerHTML = '';
     if (cashExpenses.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px;">No hay gastos registrados hoy</td></tr>';
-        return;
+    } else {
+        const catLabels = { suministros:'Suministros', servicios:'Servicios', transporte:'Transporte', otros:'Otros' };
+        cashExpenses.forEach((e, i) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + e.description + '</td><td>' + (catLabels[e.category] || e.category) + '</td><td>$' + (parseFloat(e.amount)||0).toLocaleString('es-CO') + '</td><td><button class="btn btn-danger" style="padding:4px 12px;font-size:12px;" onclick="deleteExpense(' + i + ')">Eliminar</button></td>';
+            tbody.appendChild(tr);
+        });
     }
-    const catLabels = { suministros:'Suministros', servicios:'Servicios', transporte:'Transporte', otros:'Otros' };
-    cashExpenses.forEach((e, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = '<td>' + e.description + '</td><td>' + (catLabels[e.category] || e.category) + '</td><td>$' + (parseFloat(e.amount)||0).toLocaleString('es-CO') + '</td><td><button class="btn btn-danger" style="padding:4px 12px;font-size:12px;" onclick="deleteExpense(' + i + ')">Eliminar</button></td>';
-        tbody.appendChild(tr);
+    syncCashFromApi().then(() => {
+        document.getElementById('cashBaseDisplay').textContent = '$' + (parseFloat(cashBase) || 0).toLocaleString('es-CO');
+        document.getElementById('cashExpensesDisplay').textContent = '$' + totalExpenses().toLocaleString('es-CO');
+        document.getElementById('cashAvailableDisplay').textContent = '$' + availableCash().toLocaleString('es-CO');
+        tbody.innerHTML = '';
+        if (cashExpenses.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px;">No hay gastos registrados hoy</td></tr>';
+        } else {
+            const catLabels = { suministros:'Suministros', servicios:'Servicios', transporte:'Transporte', otros:'Otros' };
+            cashExpenses.forEach((e, i) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td>' + e.description + '</td><td>' + (catLabels[e.category] || e.category) + '</td><td>$' + (parseFloat(e.amount)||0).toLocaleString('es-CO') + '</td><td><button class="btn btn-danger" style="padding:4px 12px;font-size:12px;" onclick="deleteExpense(' + i + ')">Eliminar</button></td>';
+                tbody.appendChild(tr);
+            });
+        }
     });
 }
 
@@ -690,7 +710,7 @@ function setCashBase() {
     inp.value = '';
     renderCashPanel();
     showToast('Base de caja actualizada: $' + val.toLocaleString('es-CO'));
-    API.saveCashBase(cashDateStr(), cashBase).then(() => { showToast('Sincronizado con la nube'); }).catch(() => { showToast('No se pudo sincronizar a la nube - verifica que las tablas existan en Supabase'); });
+    API.saveCashBase(cashDateStr(), cashBase).then(() => {}).catch(() => {});
 }
 
 function addExpense() {
