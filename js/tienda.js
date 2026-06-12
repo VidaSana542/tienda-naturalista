@@ -18,7 +18,7 @@ const FALLBACK_PRODUCTS = [
 ];
 
 let products = [...FALLBACK_PRODUCTS];
-const WHATSAPP_NUMBER = '573219174696';
+const WHATSAPP_NUMBER = '573136196312';
 
 const cart = JSON.parse(localStorage.getItem('ltnCart')) || [];
 let activeFilter = 'all';

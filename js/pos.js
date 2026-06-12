@@ -2403,7 +2403,7 @@ function showFinalInvoice(saleId) {
                 <div class="inv-logo"><img src="LOGO.jpeg" alt="Logo"></div>
                 <div class="inv-business">
                     <h3>VIDA SANA</h3>
-                    <p>Santa Marta, Colombia<br>NIT: 1082954847-4<br>Tel: 321 917 4696</p>
+                    <p>Santa Marta, Colombia<br>NIT: 1082954847-4<br>Tel: 313 6196312</p>
                 </div>
                 <div class="inv-doc-info">
                     <div class="inv-doc-type">ESTADO DE CUENTA</div>
@@ -2739,7 +2739,7 @@ function showReceipt(sale) {
             <div class="receipt-total"><span>TOTAL</span><span>${formatPrice(sale.total)}</span></div>
             <div class="receipt-footer">
                 <p>Gracias por su compra!</p>
-                <p>tel: 321 917 4696</p>
+                <p>tel: 313 6196312</p>
             </div>
         </div>
     `;
