@@ -1205,6 +1205,10 @@ function renderCheckoutPayGrid() {
         '</div>').join('');
 }
 function pickCheckoutPay(key) {
+    if (key === 'credito' && !document.getElementById('chkCustomerId').value) {
+        showToast('Selecciona un cliente primero para vender a credito');
+        return;
+    }
     chkPayMethod = key;
     renderCheckoutPayGrid();
     const cfg = document.getElementById('chkCreditConfig');
