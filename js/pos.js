@@ -270,7 +270,13 @@ function saveProducts() {
                 API.saveProduct(payload).then(res => {
                     console.log('[POS] saveProducts INSERT respuesta:', res);
                     if (res && res.id) { p.id = 'p' + res.id; p._synced = true; localStorage.setItem('posProducts', JSON.stringify(posProducts)); }
-                }).catch(e => { console.error('[POS] saveProduct(insert) error:', e); });
+                }).catch(e => {
+                    console.error('[POS] saveProduct(insert) error details:', e?.message || e?.code || e);
+                    if (e && (e.code === '23505' || (e.message && e.message.includes('duplicate')))) {
+                        p._synced = true;
+                        localStorage.setItem('posProducts', JSON.stringify(posProducts));
+                    }
+                });
             } else {
                 payload.id = apiId;
                 API.saveProduct(payload).catch(e => { console.error('[POS] saveProduct(update) error:', e); });

@@ -85,7 +85,10 @@ const API = {
         .eq('id', product.id)
         .select()
         .single();
-      if (error) throw error;
+      if (error) {
+        console.error('[API] saveProduct UPDATE error:', { message: error.message, code: error.code, details: error.details, hint: error.hint });
+        throw error;
+      }
       return data;
     } else {
       const { data, error } = await _sb
@@ -107,7 +110,11 @@ const API = {
         })
         .select()
         .single();
-      if (error) throw error;
+
+      if (error) {
+        console.error('[API] saveProduct insert error:', { message: error.message, code: error.code, details: error.details, hint: error.hint });
+        throw error;
+      }
       return data;
     }
   },
