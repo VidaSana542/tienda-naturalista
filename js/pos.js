@@ -2091,6 +2091,11 @@ function openInvMovModal(type) {
             '<option value="Movimiento a Curinca">Movimiento a Curinca</option>' +
             '<option value="Ajuste por inventario final">Ajuste por inventario final</option>' +
             '<option value="Otro">Otro</option>';
+        if (currentUser && currentUser.role === 'empleado') {
+            reasonSel.innerHTML =
+                '<option value="Movimiento a Bastidas">Movimiento a Bastidas</option>' +
+                '<option value="Movimiento a Curinca">Movimiento a Curinca</option>';
+        }
     }
     document.getElementById('invMovModal').classList.add('open');
 }
