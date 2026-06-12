@@ -448,32 +448,30 @@ table .actions button.del:hover svg { fill: var(--danger); }
     /* Sidebar → bottom nav */
     .sidebar-toggle { display: none !important; }
     .sidebar {
-        width: auto;
-        max-width: 400px;
+        width: 100%;
         height: auto;
         flex-direction: row;
         position: fixed;
         bottom: 0;
-        left: 50%;
-        transform: translateX(-50%);
+        left: 0;
+        right: 0;
         z-index: 100;
-        border-top: none;
-        border-radius: 16px 16px 0 0;
-        padding: 0 8px;
-        padding-bottom: env(safe-area-inset-bottom, 4px);
         background: var(--sidebar);
-        margin: 0 12px;
-        box-shadow: 0 -2px 12px rgba(0,0,0,0.2);
+        justify-content: center;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
     }
     .sidebar-brand { display: none; }
     .sidebar-nav {
-        flex: 1;
+        flex: none;
         display: flex;
         overflow-x: auto;
         overflow-y: hidden;
-        padding: 8px 6px;
+        padding: 8px 6px 6px;
         gap: 4px;
         -webkit-overflow-scrolling: touch;
+        max-width: 420px;
+        width: 100%;
+        border-radius: 16px 16px 0 0;
     }
     .sidebar-nav .nav-section { display: none; }
     .nav-item {
