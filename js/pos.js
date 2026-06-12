@@ -615,7 +615,7 @@ function switchInvTab(tab) {
     if (tab === 'log') renderInvLog();
 }
 function switchPanel(id) {
-    if (currentUser && currentUser.role === 'empleado' && ['products','suppliers','categories'].includes(id)) {
+    if (currentUser && currentUser.role === 'empleado' && ['products','suppliers','categories','dashboard'].includes(id)) {
         showToast('No tienes acceso a esta seccion');
         return;
     }
