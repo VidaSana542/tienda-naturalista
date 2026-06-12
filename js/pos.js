@@ -633,7 +633,13 @@ function renderDashboard() {
     else if (_dashType === 'fuera') periodSales = periodSales.filter(s => s.ventaPorFuera);
     const periodTotal = periodSales.reduce((sum, s) => sum + s.total, 0);
     const periodCount = periodSales.length;
-    const pendingCredit = posSales.reduce((sum, s) => {
+    const pendingCredit = posSales
+        .filter(s => {
+            if (_dashType === 'local') return !s.ventaPorFuera;
+            if (_dashType === 'fuera') return s.ventaPorFuera;
+            return true;
+        })
+        .reduce((sum, s) => {
         if (!s.creditInfo) return sum;
         if (s.creditInfo.tipo === 'abono') {
             const pagado = (s.creditInfo.payments || []).reduce((sp, p) => sp + p.amount, 0);
@@ -650,11 +656,16 @@ function renderDashboard() {
     const lowStockCount = posProducts.filter(p => p.stock > 0 && p.stock <= 5).length;
     const outStockCount = posProducts.filter(p => p.stock <= 0).length;
     const avgTicket = periodCount > 0 ? periodTotal / periodCount : 0;
-    const totalCustomers = posCustomers.length;
+    const filteredCustomers = posCustomers.filter(c => {
+        if (_dashType === 'local') return !c.tipo || c.tipo === 'local';
+        if (_dashType === 'fuera') return c.tipo === 'fuera';
+        return true;
+    });
+    const totalCustomers = filteredCustomers.length;
     const salesData = sumSales(periodSales);
-    const custWithDebt = posCustomers.filter(c => {
-        const sales = posSales.filter(s => s.customerId === c.id);
-        return sales.some(s => s.creditInfo);
+    const custWithDebt = filteredCustomers.filter(c => {
+        const custSales = posSales.filter(s => s.customerId === c.id && (_dashType === 'all' || (_dashType === 'local' ? !s.ventaPorFuera : s.ventaPorFuera)));
+        return custSales.some(s => s.creditInfo);
     }).length;
 
     document.getElementById('dashStats').innerHTML = `
