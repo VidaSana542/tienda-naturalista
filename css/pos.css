@@ -467,7 +467,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
         display: flex;
         overflow-x: auto;
         overflow-y: hidden;
-        padding: 8px 20px 6px 90px;
+        padding: 8px 20px 6px 120px;
         gap: 4px;
         -webkit-overflow-scrolling: touch;
         max-width: 420px;
