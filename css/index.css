@@ -195,7 +195,8 @@
             .contact-grid { grid-template-columns: 1fr; gap: 30px; }
             .contact-map-wrap { height: 300px; }
             .footer-grid { grid-template-columns: 1fr 1fr; }
-            .nav { display: none; }
+            .nav { display: flex; gap: 16px; overflow-x: auto; padding: 0 8px; flex-shrink: 0; }
+            .nav a { white-space: nowrap; font-size: 13px; }
         }
         @media (max-width: 576px) {
             .hero-text h1 { font-size: 32px; }
