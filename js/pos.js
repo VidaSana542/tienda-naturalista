@@ -2448,7 +2448,7 @@ function confirmPayment() {
     }
     saveSales();
     if (API.isAvailable) {
-        API.addPayment(sale.apiId || saleId, Math.round(amount), 'Pago registrado desde POS').catch(() => {});
+        API.addPayment(sale.apiId || saleId, Math.round(amount), 'Pago registrado desde POS').catch(e => { console.error('[POS] addPayment error:', e); });
     }
     closePaymentModal();
     refreshCustHistory();
