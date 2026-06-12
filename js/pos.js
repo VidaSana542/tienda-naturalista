@@ -651,6 +651,9 @@ function renderDashboard() {
     const labels = { today: 'Hoy', week: 'Ultimos 7 dias', month: 'Historial mensual', year: 'Historial anual' };
     const typeLabels = { all: '', local: ' — Local', fuera: ' — Por fuera' };
     document.getElementById('dashPeriodLabel').textContent = labels[_dashPeriod] + typeLabels[_dashType] + (isHistory ? '' : ' \u2014 ' + periodCount + ' ventas \u2014 ' + formatPrice(periodTotal));
+    const chartLabels = { today: 'Hoy', week: 'Ultimos 7 dias', month: 'Historial mensual', year: 'Historial anual' };
+    const chartTitle = document.getElementById('dashChartTitle');
+    if (chartTitle) chartTitle.textContent = 'Ventas por Dia (' + chartLabels[_dashPeriod] + ')';
 
     const totalProducts = posProducts.length;
     const lowStockCount = posProducts.filter(p => p.stock > 0 && p.stock <= 5).length;
