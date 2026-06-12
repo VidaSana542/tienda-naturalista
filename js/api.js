@@ -22,14 +22,21 @@ const API = {
 
   // ---- Health Check ----
   async check() {
-    if (!_sb) { this.isAvailable = false; return false; }
+    console.log('[API] check() iniciando...');
+    if (!_sb) { console.error('[API] _sb es null. Supabase client no se creó.'); this.isAvailable = false; return false; }
     try {
-      const { error } = await _sb.from('products').select('id').limit(1);
-      this.isAvailable = !error;
-      if (error) console.error('[API] Check error:', error.message);
-      return !error;
+      console.log('[API] Probando conexión a tabla products...');
+      const { data, error } = await _sb.from('products').select('id').limit(1);
+      if (error) {
+        console.error('[API] Check error:', error.message, 'code:', error.code, 'details:', error.details);
+        this.isAvailable = false;
+        return false;
+      }
+      console.log('[API] Check OK, productos encontrados:', data ? data.length : 0);
+      this.isAvailable = true;
+      return true;
     } catch(e) {
-      console.error('[API] Check exception:', e.message);
+      console.error('[API] Check exception:', e.message, e);
       this.isAvailable = false;
       return false;
     }

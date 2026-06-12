@@ -252,6 +252,7 @@ function migrateProductSubcats() {
 
 function saveProducts() {
     localStorage.setItem('posProducts', JSON.stringify(posProducts));
+    console.log('[POS] saveProducts: API.isAvailable =', API.isAvailable);
     if (API.isAvailable) {
         posProducts.forEach(p => {
             const apiId = p.id && p.id.startsWith('p') ? parseInt(p.id.replace('p','')) : null;
@@ -265,15 +266,17 @@ function saveProducts() {
                 featured: p.featured || false
             };
             if (p.subcategory) payload.subcategory = p.subcategory;
-            API.saveProduct(payload).catch(() => {});
+            API.saveProduct(payload).catch(e => { console.error('[POS] saveProduct error:', e); });
         });
     }
 }
 function saveSales() {
     localStorage.setItem('posSales', JSON.stringify(posSales));
+    console.log('[POS] saveSales: API.isAvailable =', API.isAvailable, ', ventas:', posSales.length);
     if (API.isAvailable) {
-        posSales.forEach(s => {
-            if (s.id && !s.apiSynced) {
+        const unsynced = posSales.filter(s => s.id && !s.apiSynced);
+        console.log('[POS] saveSales: no sincronizadas =', unsynced.length);
+        unsynced.forEach(s => {
                 API.saveSale({
                     customer_id: s.customerId ? parseInt(s.customerId.replace('c','')) : null,
                     customer_name: s.customer,
@@ -284,20 +287,20 @@ function saveSales() {
                     venta_por_fuera: s.ventaPorFuera || false,
                     credit_info: s.creditInfo || null,
                     items: s.items || []
-                }).then(res => { if (res && res.id) { s.apiSynced = true; s.id = res.id; } }).catch(() => {});
-            }
-        });
+                }).then(res => { if (res && res.id) { s.apiSynced = true; s.id = res.id; } }).catch(e => { console.error('[POS] saveSale error:', e); });
+            });
     }
 }
 function saveCustomers() {
     localStorage.setItem('posCustomers', JSON.stringify(posCustomers));
+    console.log('[POS] saveCustomers: API.isAvailable =', API.isAvailable);
     if (API.isAvailable) {
         posCustomers.forEach(c => {
             const apiId = c.id && c.id.startsWith('c') ? parseInt(c.id.replace('c','')) : null;
             API.saveCustomer({
                 id: apiId,
                 name: c.name, phone: c.phone || '', email: c.email || '', address: c.address || '', tipo: c.tipo || 'local'
-            }).catch(() => {});
+            }).catch(e => { console.error('[POS] saveCustomer error:', e); });
         });
     }
 }
@@ -497,6 +500,7 @@ function generateSampleCustomers() {
 function saveCart() { localStorage.setItem('posCart', JSON.stringify(posCart)); }
 function saveInvLog() { 
     localStorage.setItem('invLog', JSON.stringify(invLog)); 
+    console.log('[POS] saveInvLog: API.isAvailable =', API.isAvailable);
     if (API.isAvailable) {
         invLog.forEach(l => {
             if (!l.synced) {
@@ -2605,10 +2609,14 @@ function initCatFilter() {
 
 function initPOS() {
     (async function() {
+        console.log('[POS] initPOS iniciando...');
         const available = await API.check();
+        console.log('[POS] API available:', available, 'API.isAvailable:', API.isAvailable);
         if (available) {
+            console.log('[POS] Cargando desde Supabase...');
             await syncFromApi();
         } else {
+            console.log('[POS] Supabase no disponible, cargando desde localStorage');
             loadData();
         }
         initCatFilter();
