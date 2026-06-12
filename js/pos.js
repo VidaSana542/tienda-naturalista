@@ -1790,7 +1790,7 @@ function deleteCategory(key) {
     } else {
         subs.forEach(s => {
             posProducts.forEach(p => { if (p.subcategory === s.key) p.subcategory = ''; });
-            if (API.isAvailable && s.id) API.deleteCategory(s.id).catch(() => {});
+            if (API.isAvailable && s.id) API.deleteCategory(s.id).catch(e => { console.error('[POS] deleteCategory sub error:', e); });
         });
         POS_CATEGORIES = POS_CATEGORIES.filter(cat => cat.key !== key && cat.parent_key !== key);
         posProducts.forEach(p => { if (p.category === key) p.category = ''; });
@@ -1806,7 +1806,10 @@ function deleteCategory(key) {
     renderInventory();
     renderProductTable();
     if (API.isAvailable && c.id) {
-        API.deleteCategory(c.id).catch(() => {});
+        API.deleteCategory(c.id).catch(e => { console.error('[POS] deleteCategory error:', e); });
+    } else if (API.isAvailable && !c.id) {
+        // Category never synced, nothing to delete in Supabase
+        console.log('[POS] deleteCategory: categoria local, no hay que borrar en Supabase');
     }
     showToast((isSub ? 'Subcategoria' : 'Categoria') + ' eliminada');
 }
