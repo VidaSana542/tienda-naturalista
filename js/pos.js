@@ -2214,8 +2214,8 @@ function showFinalInvoice(saleId) {
             <div class="inv-header">
                 <div class="inv-logo"><img src="LOGO.jpeg" alt="Logo"></div>
                 <div class="inv-business">
-                    <h3>TIENDA NATURALISTA</h3>
-                    <p>Santa Marta, Colombia<br>NIT: 123.456.789-0<br>Tel: 321 917 4696</p>
+                    <h3>VIDA SANA</h3>
+                    <p>Santa Marta, Colombia<br>NIT: 1082954847-4<br>Tel: 321 917 4696</p>
                 </div>
                 <div class="inv-doc-info">
                     <div class="inv-doc-type">ESTADO DE CUENTA</div>
@@ -2277,7 +2277,7 @@ function showFinalInvoice(saleId) {
 
             <div class="inv-footer">
                 <p>Documento generado el ${new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })}</p>
-                <p style="margin-top:4px;">Gracias por su compra — TIENDA NATURALISTA</p>
+                <p style="margin-top:4px;">Gracias por su compra — VIDA SANA</p>
             </div>
         </div>
     `;
@@ -2534,8 +2534,9 @@ function showReceipt(sale) {
     content.innerHTML = `
         <div class="receipt">
             <div class="receipt-header">
-                <h4>LOPEZTECH NATU</h4>
-                <p>Santa Marta, Colombia<br>NIT: 123.456.789-0</p>
+                <img src="LOGO.jpeg" style="height:40px;margin-bottom:4px;" alt="Vida Sana">
+                <h4>VIDA SANA</h4>
+                <p>Santa Marta, Colombia<br>NIT: 1082954847-4</p>
                 <p style="font-size:11px;margin-top:2px;">${shortDate(sale.date)}</p>
             </div>
             <div class="receipt-divider"></div>
@@ -2550,7 +2551,7 @@ function showReceipt(sale) {
             <div class="receipt-total"><span>TOTAL</span><span>${formatPrice(sale.total)}</span></div>
             <div class="receipt-footer">
                 <p>Gracias por su compra!</p>
-                <p>tel: 300 123 4567</p>
+                <p>tel: 321 917 4696</p>
             </div>
         </div>
     `;
