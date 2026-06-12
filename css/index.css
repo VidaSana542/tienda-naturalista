@@ -200,6 +200,7 @@
         @media (max-width: 576px) {
             .hero-text h1 { font-size: 32px; }
             .carousel-slide img { object-fit: contain; }
+            .hero-badge-float { display: none; }
             .cat-grid { grid-template-columns: repeat(auto-fit, 130px); }
             .cat-card { width: 130px; padding: 20px 12px; }
             .prod-grid { grid-template-columns: 1fr; }
