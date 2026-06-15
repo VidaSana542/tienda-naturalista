@@ -1191,6 +1191,7 @@ function initPOS() {
         renderAccountStatus();
         renderSalesTable();
         renderOrders();
+        buildMobileMenu();
     })();
 }
 

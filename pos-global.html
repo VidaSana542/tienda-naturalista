@@ -51,7 +51,10 @@
 
 <div id="posApp" style="display:none;">
 
-<div class="sidebar">
+<div class="sidebar" onclick="if(window.innerWidth<=768)toggleMobileMenu();">
+    <div class="hamburger">
+        <span></span><span></span><span></span>
+    </div>
     <div class="sidebar-brand">
         <a href="#">
             <img src="LOGO.jpeg" alt="TIENDA NATURISTA" style="height:56px;border-radius:10px;">
@@ -89,6 +92,9 @@
         </a>
     </div>
 </div>
+
+<div class="mobile-menu-overlay" onclick="closeMobileMenu()"></div>
+<div class="mobile-menu"></div>
 
 <div class="main">
     <div class="topbar">

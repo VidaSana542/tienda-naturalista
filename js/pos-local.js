@@ -1535,6 +1535,7 @@ function initPOS() {
         renderSupplierTable();
         renderCategoriesTable();
         renderSalesTable();
+        buildMobileMenu();
     })();
 }
 

@@ -571,6 +571,7 @@ function switchPanel(id) {
     if (typeof POS_PANEL_RENDERERS !== 'undefined' && POS_PANEL_RENDERERS[id]) {
         POS_PANEL_RENDERERS[id]();
     }
+    if (typeof closeMobileMenu === 'function') closeMobileMenu();
 }
 
 // ============ PRODUCTS ============
@@ -1333,6 +1334,62 @@ function toggleSidebar() {
     if (!sidebar) return;
     sidebar.classList.toggle('collapsed');
     localStorage.setItem('posSidebarCollapsed', sidebar.classList.contains('collapsed'));
+}
+
+function toggleMobileMenu() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.mobile-menu-overlay');
+    const menu = document.querySelector('.mobile-menu');
+    if (!sidebar || !overlay || !menu) return;
+    const isOpen = sidebar.classList.contains('mobile-open');
+    if (isOpen) {
+        sidebar.classList.remove('mobile-open');
+        overlay.classList.remove('open');
+        menu.classList.remove('open');
+        document.body.style.overflow = '';
+    } else {
+        sidebar.classList.add('mobile-open');
+        overlay.classList.add('open');
+        menu.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeMobileMenu() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.mobile-menu-overlay');
+    const menu = document.querySelector('.mobile-menu');
+    if (!sidebar || !overlay || !menu) return;
+    sidebar.classList.remove('mobile-open');
+    overlay.classList.remove('open');
+    menu.classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+function buildMobileMenu() {
+    const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+    const menu = document.querySelector('.mobile-menu');
+    if (!menu || navItems.length === 0) return;
+    let html = '<div class="mobile-menu-handle"></div>';
+    html += '<div class="nav-section">Menu</div>';
+    navItems.forEach(item => {
+        const panel = item.dataset.panel;
+        const isActive = item.classList.contains('active');
+        const svg = item.querySelector('svg');
+        const span = item.querySelector('span');
+        const badge = item.querySelector('.badge');
+        if (!panel || !span) return;
+        html += `<a class="nav-item${isActive ? ' active' : ''}" data-panel="${panel}" onclick="switchPanel('${panel}');closeMobileMenu();">`;
+        if (svg) html += svg.outerHTML;
+        html += `<span>${span.textContent}</span>`;
+        if (badge) html += badge.outerHTML;
+        html += '</a>';
+    });
+    html += '<div class="mobile-menu-footer">';
+    html += `<a class="nav-item" href="pos.html"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg><span>Volver</span></a>`;
+    html += `<a class="nav-item" onclick="if(confirm('Cerrar sesion?')){localStorage.removeItem('posUser');location.reload();}"><svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg><span>Cerrar Sesion</span></a>`;
+    html += '</div>';
+    menu.innerHTML = html;
 }
 
 // ============ EXPORT ============

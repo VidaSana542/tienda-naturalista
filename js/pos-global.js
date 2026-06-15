@@ -376,5 +376,6 @@ function initPOS() {
         renderCustomerTable();
         renderSalesTable();
         renderInventory();
+        buildMobileMenu();
     })();
 }
