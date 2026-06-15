@@ -487,10 +487,19 @@ table .actions button.del:hover svg { fill: var(--danger); }
 
     /* Topbar Dynamic Island safe area */
     .topbar {
-        padding-top: calc(10px + env(safe-area-inset-top, 0px));
+        padding-top: calc(18px + env(safe-area-inset-top, 0px));
         padding-left: 14px;
         padding-right: 14px;
+        background: var(--sidebar);
+        border-bottom: none;
     }
+    .topbar-left h2 { color: #fff; }
+    .topbar-left .date { color: rgba(255,255,255,0.6); }
+    .topbar-right .avatar { background: rgba(255,255,255,0.15); color: #fff; }
+    .topbar-right .user-name { color: #fff; }
+    .topbar-right .user-role { color: rgba(255,255,255,0.5); }
+    .topbar-logout { background: rgba(255,255,255,0.1); color: #fff; }
+    .topbar-logout:hover { background: rgba(239,68,68,0.6); }
 
     /* Hamburger button */
     .sidebar-toggle { display: none !important; }
@@ -846,7 +855,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
 @media (max-width: 480px) {
     /* Dynamic Island top safe area */
     .topbar {
-        padding-top: calc(12px + env(safe-area-inset-top, 0px));
+        padding-top: calc(14px + env(safe-area-inset-top, 0px));
         padding-left: 12px;
         padding-right: 12px;
         gap: 6px;
@@ -985,9 +994,6 @@ table .actions button.del:hover svg { fill: var(--danger); }
 
 /* === iPHONE CON DINAMIC ISLAND / NOTCH — Safe areas === */
 @supports (padding: env(safe-area-inset-top)) {
-    .topbar {
-        padding-top: calc(10px + env(safe-area-inset-top, 0px));
-    }
     .sidebar {
         bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     }
