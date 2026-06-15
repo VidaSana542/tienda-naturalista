@@ -1343,16 +1343,28 @@ function toggleMobileMenu() {
     if (!sidebar || !overlay || !menu) return;
     const isOpen = sidebar.classList.contains('mobile-open');
     if (isOpen) {
-        sidebar.classList.remove('mobile-open');
-        overlay.classList.remove('open');
-        menu.classList.remove('open');
-        document.body.style.overflow = '';
+        closeMobileMenu();
     } else {
-        sidebar.classList.add('mobile-open');
-        overlay.classList.add('open');
-        menu.classList.add('open');
-        document.body.style.overflow = 'hidden';
+        openMobileMenu();
     }
+}
+
+function openMobileMenu() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.mobile-menu-overlay');
+    const menu = document.querySelector('.mobile-menu');
+    if (!sidebar || !overlay || !menu) return;
+    // Show elements first (no transition yet)
+    menu.style.display = 'block';
+    overlay.style.display = 'block';
+    // Force reflow so the browser picks up the display change
+    void menu.offsetHeight;
+    void overlay.offsetHeight;
+    // Then add classes to trigger transitions
+    sidebar.classList.add('mobile-open');
+    overlay.classList.add('open');
+    menu.classList.add('open');
+    document.body.style.overflow = 'hidden';
 }
 
 function closeMobileMenu() {
@@ -1364,6 +1376,13 @@ function closeMobileMenu() {
     overlay.classList.remove('open');
     menu.classList.remove('open');
     document.body.style.overflow = '';
+    // Wait for transition to finish, then hide
+    setTimeout(function() {
+        if (!menu.classList.contains('open')) {
+            menu.style.display = 'none';
+            overlay.style.display = 'none';
+        }
+    }, 500);
 }
 
 function initMobileMenu() {

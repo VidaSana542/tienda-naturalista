@@ -571,10 +571,9 @@ table .actions button.del:hover svg { fill: var(--danger); }
         background: rgba(0,0,0,0);
         backdrop-filter: blur(0px);
         -webkit-backdrop-filter: blur(0px);
-        transition: background 0.4s, backdrop-filter 0.4s, -webkit-backdrop-filter 0.4s;
+        transition: background 0.4s ease, backdrop-filter 0.4s ease;
     }
     .mobile-menu-overlay.open {
-        display: block;
         background: rgba(0,0,0,0.5);
         backdrop-filter: blur(4px);
         -webkit-backdrop-filter: blur(4px);
@@ -599,7 +598,6 @@ table .actions button.del:hover svg { fill: var(--danger); }
         box-shadow: 0 -8px 40px rgba(0,0,0,0.3);
     }
     .mobile-menu.open {
-        display: block;
         transform: translateY(0);
     }
     .mobile-menu-handle {
