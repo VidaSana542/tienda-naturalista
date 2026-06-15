@@ -53,7 +53,7 @@ body { font-family: 'Roboto', sans-serif; background: var(--bg); color: var(--te
 .sidebar.collapsed .sidebar-toggle svg { transform: rotate(180deg); }
 .sidebar-brand { padding: 20px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .hamburger { display: none; }
-.mobile-menu-overlay, .mobile-menu { display: none !important; }
+.mobile-menu-overlay, .mobile-menu { display: none; }
 .sidebar-brand a { font-family: 'Outfit', sans-serif; font-size: 20px; font-weight: 800; color: #fff; text-decoration: none; display: flex; align-items: center; gap: 10px; }
 .sidebar-brand a span { color: var(--accent); }
 .sidebar-brand small { display: block; font-size: 10px; font-weight: 400; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.4); margin-top: 2px; }
