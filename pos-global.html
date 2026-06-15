@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>POS Global - TIENDA NATURISTA</title>
+<meta name="theme-color" content="#0b513b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="POS Global">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<script src="js/supabase.min.js"></script>
+<script src="js/api.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/pos.css">
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen">
+    <div class="login-card">
+        <div class="login-logo">
+            <img src="LOGO.jpeg" alt="TIENDA NATURISTA" style="height:80px;border-radius:14px;">
+            <h2>TIENDA <span>NATURISTA</span></h2>
+            <p>POS Global - Resumen General</p>
+        </div>
+        <form id="loginForm" onsubmit="return handleLogin(event)">
+            <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" id="loginUser" placeholder="Ingresa tu usuario" required autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Contrasena</label>
+                <input type="password" id="loginPass" placeholder="Ingresa tu contrasena" required>
+            </div>
+            <div id="loginError" style="display:none;color:var(--danger);font-size:13px;margin-bottom:10px;text-align:center;"></div>
+            <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:14px;">
+                <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:#fff;"><path d="M11 7L9.59 8.41 12.17 11H4v2h8.17l-2.58 2.59L11 17l5-5z"/></svg>
+                Ingresar
+            </button>
+            <div style="text-align:center;margin-top:14px;">
+                <a href="pos.html" style="color:var(--text-muted);font-size:13px;text-decoration:none;">&larr; Volver</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="posApp" style="display:none;">
+
+<div class="sidebar">
+    <div class="sidebar-brand">
+        <a href="#">
+            <img src="LOGO.jpeg" alt="TIENDA NATURISTA" style="height:56px;border-radius:10px;">
+            <span style="font-size:16px;">POS Global</span>
+            <small>Resumen General</small>
+        </a>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Menu</div>
+        <a class="nav-item active" data-panel="dashboard" onclick="switchPanel('dashboard')">
+            <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+            <span>Dashboard</span>
+        </a>
+        <a class="nav-item" data-panel="customers" onclick="switchPanel('customers')">
+            <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+            <span>Clientes</span>
+        </a>
+        <a class="nav-item" data-panel="sales" onclick="switchPanel('sales')">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            <span>Historial Ventas</span>
+        </a>
+        <a class="nav-item" data-panel="inventory" onclick="switchPanel('inventory')">
+            <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16zM6 10h12v2H6v-2zm0 4h12v2H6v-2zm0-8h12v2H6V6z"/></svg>
+            <span>Inventario</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a class="nav-item" onclick="location.href='pos.html'" style="cursor:pointer;">
+            <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            <span>Volver</span>
+        </a>
+        <a class="nav-item logout" onclick="logout()">
+            <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+            <span>Cerrar Sesion</span>
+        </a>
+    </div>
+</div>
+
+<div class="main">
+    <div class="topbar">
+        <div class="topbar-left">
+            <button class="sidebar-toggle" onclick="toggleSidebar()" title="Ocultar menu">
+                <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+            </button>
+            <h2 id="panelTitle">Dashboard</h2>
+            <span class="date" id="currentDate"></span>
+        </div>
+        <div class="topbar-right">
+            <div class="user-info">
+                <div class="user-name">Administrador</div>
+                <div class="user-role">POS Global</div>
+            </div>
+            <div class="avatar">A</div>
+            <button class="topbar-logout" onclick="logout()" title="Cerrar Sesion">
+                <svg viewBox="0 0 24 24" width="20" height="20"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="content">
+
+    <div class="panel active" id="panel-dashboard">
+        <div class="dash-top-bar">
+            <div>
+                <h3 style="margin:0;font-weight:700;">Resumen Global</h3>
+                <p style="margin:2px 0 0;font-size:13px;color:var(--text-muted);" id="dashPeriodLabel"></p>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn btn-sm dash-period-btn active" data-period="today" onclick="setDashPeriod('today')">Hoy</button>
+                <button class="btn btn-sm dash-period-btn" data-period="week" onclick="setDashPeriod('week')">Semana</button>
+                <button class="btn btn-sm dash-period-btn" data-period="month" onclick="setDashPeriod('month')">Mes</button>
+                <button class="btn btn-sm dash-period-btn" data-period="year" onclick="setDashPeriod('year')">A&ntilde;o</button>
+                <button class="btn btn-sm btn-primary" onclick="exportPosData()" style="margin-left:8px;font-size:12px;padding:6px 14px;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff" style="vertical-align:middle;margin-right:2px;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Exportar
+                </button>
+            </div>
+        </div>
+        <div class="stats-grid" id="dashStats"></div>
+        <div class="dash-grid-2col">
+            <div class="card">
+                <div class="card-header"><h3 id="dashChartTitle">Ventas por Dia (ultimos 7 dias)</h3></div>
+                <div class="card-body"><div class="dash-chart" id="dashBarChart"></div></div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>M&eacute;todos de Pago</h3></div>
+                <div class="card-body" id="dashPayMethods"></div>
+            </div>
+        </div>
+        <div class="dash-grid-2col">
+            <div class="card">
+                <div class="card-header"><h3>Productos M&aacute;s Vendidos</h3></div>
+                <div class="card-body">
+                    <div class="table-wrap"><table><thead><tr><th>#</th><th>Producto</th><th>Vendidos</th><th>Facturado</th></tr></thead><tbody id="dashTopProducts"></tbody></table></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>Alertas de Stock</h3></div>
+                <div class="card-body">
+                    <div class="table-wrap"><table><thead><tr><th>Producto</th><th>Stock</th><th>Estado</th></tr></thead><tbody id="dashStockAlerts"></tbody></table></div>
+                </div>
+            </div>
+        </div>
+        <div class="dash-grid-2col">
+            <div class="card">
+                <div class="card-header"><h3>Clientes M&aacute;s Frecuentes</h3></div>
+                <div class="card-body">
+                    <div class="table-wrap"><table><thead><tr><th>#</th><th>Cliente</th><th>Compras</th><th>Total Gastado</th></tr></thead><tbody id="dashTopCustomers"></tbody></table></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h3>Resumen del Periodo</h3></div>
+                <div class="card-body" id="dashSummary"></div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <h3>Ultimas Ventas</h3>
+                <button class="btn btn-sm btn-outline" onclick="switchPanel('sales')">Ver todas</button>
+            </div>
+            <div class="card-body">
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Prod.</th><th>Total</th><th>Metodo</th></tr></thead>
+                        <tbody id="dashRecentSales"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="card" id="dashMonthsCard" style="display:none;">
+            <div class="card-header"><h3>Historial Mensual</h3></div>
+            <div class="card-body">
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>Mes</th><th>Ventas</th><th>Unidades</th><th>Total Facturado</th><th>Efectivo</th><th>Digital</th><th>Credito</th><th>Ticket Prom.</th></tr></thead>
+                        <tbody id="dashMonthsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="card" id="dashAnnualCard" style="display:none;">
+            <div class="card-header"><h3>Historial Anual</h3></div>
+            <div class="card-body">
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>A&ntilde;o</th><th>Ventas</th><th>Unidades</th><th>Total Facturado</th><th>Efectivo</th><th>Digital</th><th>Credito</th><th>Ticket Prom.</th></tr></thead>
+                        <tbody id="dashAnnualTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel" id="panel-customers">
+        <div class="card">
+            <div class="card-header">
+                <h3>Clientes</h3>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <div class="search-field">
+                        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        <input type="text" id="custSearch" placeholder="Buscar cliente..." oninput="renderCustomerTable()">
+                    </div>
+                    <select id="custFilter" onchange="renderCustomerTable()" class="filter-select">
+                        <option value="todo">Todos</option>
+                        <option value="aldia">Al dia</option>
+                        <option value="pendiente">Con deuda</option>
+                    </select>
+                    <select id="custTipoFilter" onchange="renderCustomerTable()" class="filter-select">
+                        <option value="all">Todos los tipos</option>
+                        <option value="local">Local</option>
+                        <option value="fuera">Por fuera</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Telefono</th>
+                                <th>Email</th>
+                                <th>Tipo</th>
+                                <th>Compras</th>
+                                <th>Local</th>
+                                <th>Fuera</th>
+                                <th>Total Gastado</th>
+                                <th>Pendiente</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="custTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel" id="panel-sales">
+        <div class="card">
+            <div class="card-header">
+                <h3>Historial de Ventas</h3>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                    <div class="search-field" style="margin:0;">
+                        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        <input type="text" id="salesSearch" placeholder="Buscar por # o cliente..." oninput="renderSalesTable()">
+                    </div>
+                    <select id="salesTipoFilter" onchange="renderSalesTable()" class="filter-select">
+                        <option value="all">Todas las ventas</option>
+                        <option value="local">Local</option>
+                        <option value="fuera">Por fuera</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Tipo</th>
+                                <th>Prod.</th>
+                                <th>Total</th>
+                                <th>Metodo</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salesTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel" id="panel-inventory">
+        <div class="stats-grid" id="invStats"></div>
+        <div class="card">
+            <div class="card-header">
+                <div class="inv-tabs" style="display:flex;gap:4px;">
+                    <button class="inv-tab active" data-invtab="stock" onclick="switchInvTab('stock')">Inventario</button>
+                    <button class="inv-tab" data-invtab="log" onclick="switchInvTab('log')">Movimientos</button>
+                </div>
+                <div id="invActions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <button class="btn btn-success btn-sm" onclick="openInvMovModal('entrada')">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Entrada
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="openInvMovModal('salida')">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><path d="M19 13H5v-2h14v2z"/></svg> Salida
+                    </button>
+                    
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="invStockSection">
+                    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+                        <div class="search-field" style="flex:1;min-width:150px;">
+                            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                            <input type="text" id="invStockSearch" placeholder="Buscar producto..." oninput="renderInventory()">
+                        </div>
+                        <select id="invStockCatFilter" onchange="renderInventory()" class="filter-select">
+                            <option value="all">Todas las categorias</option>
+                        </select>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Categoria</th>
+                                    <th>Stock</th>
+                                    <th>Estado</th>
+                                    <th>Ultimo Mov.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="invLogSection" style="display:none;">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Producto</th>
+                                    <th>Tipo</th>
+                                    <th>Cantidad</th>
+                                    <th>Stock Anterior</th>
+                                    <th>Stock Nuevo</th>
+                                    <th>Razon</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invLogBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div> <!-- /content -->
+
+</div> <!-- /main -->
+
+<div class="modal-overlay receipt-modal" id="receiptModal">
+    <div class="modal-content" style="max-width:380px;">
+        <div class="modal-header"><h3>Recibo</h3><button class="modal-close" onclick="closeReceipt()">&times;</button></div>
+        <div class="modal-body" id="receiptContent"></div>
+        <div class="modal-footer"><button class="btn btn-primary" onclick="closeReceipt()">Cerrar</button></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="paymentModal">
+    <div class="modal-content" style="max-width:400px;">
+        <div class="modal-header"><h3>Registrar Pago</h3><button class="modal-close" onclick="closePaymentModal()">&times;</button></div>
+        <div class="modal-body" id="paymentModalContent"></div>
+        <div class="modal-footer"><button class="btn btn-primary" onclick="confirmPayment()">Confirmar Pago</button></div>
+    </div>
+</div>
+
+<div id="invMovModal" class="modal-overlay" onclick="if(event.target===this)closeInvMovModal()">
+    <div class="modal" style="max-width:450px;">
+        <div class="modal-header">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" id="invMovTitleIcon" style="fill:var(--success);"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            <span id="invMovTitleText" style="font-weight:600;font-size:16px;">Registrar Movimiento</span>
+            <button class="modal-close" onclick="closeInvMovModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="invMovType" value="entrada">
+            <div class="form-group">
+                <label>Producto *</label>
+                <input type="text" id="invMovProductSearch" placeholder="Buscar producto..." oninput="filterInvMovProduct()" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;margin-bottom:6px;">
+                <select id="invMovProduct" size="6" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:13px;"></select>
+            </div>
+            <div class="form-group">
+                <label>Cantidad *</label>
+                <input type="number" id="invMovQty" value="1" min="1" style="width:100px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;">
+            </div>
+            <div class="form-group">
+                <label>Razon</label>
+                <select id="invMovReason" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;"></select>
+            </div>
+            <div class="form-group">
+                <label>Nota (opcional)</label>
+                <input type="text" id="invMovNote" placeholder="Nota adicional..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeInvMovModal()">Cancelar</button>
+            <button class="btn btn-primary" id="invMovConfirmBtn" onclick="confirmInvMov()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+</div> <!-- /posApp -->
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="js/pos-shared.js"></script>
+<script src="js/pos-global.js"></script>
+</body>
+</html>

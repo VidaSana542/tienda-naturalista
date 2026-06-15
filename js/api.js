@@ -317,7 +317,8 @@ const API = {
         method_key: sale.method_key || 'cash',
         credit_info: sale.credit_info || null,
         venta_por_fuera: sale.venta_por_fuera || false,
-        status: 'completada'
+        status: 'completada',
+        created_at: sale.created_at || undefined
       })
       .select()
       .single();
@@ -525,5 +526,30 @@ const API = {
       .eq('id', id);
     if (error) throw error;
     return { success: true };
+  },
+
+  // ---- Productos Temporales ----
+  async saveTempProduct(temp) {
+    const { data, error } = await _sb
+      .from('temp_products')
+      .insert({
+        name: temp.name,
+        price: temp.price,
+        qty: temp.qty || 1,
+        sale_id: temp.sale_id || null
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async getTempProductsBySale(saleId) {
+    const { data, error } = await _sb
+      .from('temp_products')
+      .select('*')
+      .eq('sale_id', saleId);
+    if (error) throw error;
+    return data || [];
   }
 };

@@ -1,11 +1,15 @@
-const CACHE_NAME = 'pos-naturalista-v1';
+const CACHE_NAME = 'pos-naturalista-v3';
 const URLS_TO_CACHE = [
     '/',
     '/pos',
+    '/pos-local',
+    '/pos-fuera',
     '/css/pos.css',
     '/js/api.js',
     '/js/supabase.min.js',
-    '/js/pos.js',
+    '/js/pos-shared.js',
+    '/js/pos-local.js',
+    '/js/pos-fuera.js',
     '/manifest.json',
     '/icon-192.png',
     '/icon-512.png'
