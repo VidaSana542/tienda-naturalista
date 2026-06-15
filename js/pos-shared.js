@@ -1366,6 +1366,24 @@ function closeMobileMenu() {
     document.body.style.overflow = '';
 }
 
+function initMobileMenu() {
+    const hamburger = document.querySelector('.hamburger');
+    if (hamburger) {
+        hamburger.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleMobileMenu();
+        });
+    }
+    const overlay = document.querySelector('.mobile-menu-overlay');
+    if (overlay) {
+        overlay.addEventListener('click', function(e) {
+            e.stopPropagation();
+            closeMobileMenu();
+        });
+    }
+}
+
 function buildMobileMenu() {
     const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
     const menu = document.querySelector('.mobile-menu');
@@ -1390,6 +1408,7 @@ function buildMobileMenu() {
     html += `<a class="nav-item" onclick="if(confirm('Cerrar sesion?')){localStorage.removeItem('posUser');location.reload();}"><svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg><span>Cerrar Sesion</span></a>`;
     html += '</div>';
     menu.innerHTML = html;
+    initMobileMenu();
 }
 
 // ============ EXPORT ============

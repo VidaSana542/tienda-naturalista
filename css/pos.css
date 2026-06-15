@@ -511,6 +511,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.3s;
         overflow: visible;
         flex-direction: row;
+        pointer-events: auto;
     }
     .sidebar:hover { transform: scale(1.05); }
     .sidebar:active { transform: scale(0.95); }
@@ -526,6 +527,10 @@ table .actions button.del:hover svg { fill: var(--danger); }
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        cursor: pointer;
+        pointer-events: auto;
+        z-index: 1;
+        -webkit-tap-highlight-color: transparent;
     }
     .hamburger span {
         display: block;
