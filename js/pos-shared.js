@@ -1387,7 +1387,8 @@ function closeMobileMenu() {
 
 function initMobileMenu() {
     const hamburger = document.querySelector('.hamburger');
-    if (hamburger) {
+    if (hamburger && !hamburger.dataset.mobileInit) {
+        hamburger.dataset.mobileInit = '1';
         hamburger.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
@@ -1395,7 +1396,8 @@ function initMobileMenu() {
         });
     }
     const overlay = document.querySelector('.mobile-menu-overlay');
-    if (overlay) {
+    if (overlay && !overlay.dataset.mobileInit) {
+        overlay.dataset.mobileInit = '1';
         overlay.addEventListener('click', function(e) {
             e.stopPropagation();
             closeMobileMenu();
