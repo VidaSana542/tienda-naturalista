@@ -1416,6 +1416,8 @@ function buildMobileMenu() {
         const span = item.querySelector('span');
         const badge = item.querySelector('.badge');
         if (!panel || !span) return;
+        // Skip admin-only items for empleado
+        if (item.dataset.role && currentUser && currentUser.role !== 'admin') return;
         html += `<a class="nav-item${isActive ? ' active' : ''}" data-panel="${panel}" onclick="switchPanel('${panel}');closeMobileMenu();">`;
         if (svg) html += svg.outerHTML;
         html += `<span>${span.textContent}</span>`;

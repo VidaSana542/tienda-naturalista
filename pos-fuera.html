@@ -66,7 +66,7 @@
     </div>
     <nav class="sidebar-nav">
         <div class="nav-section">Menu</div>
-        <a class="nav-item active" data-panel="dashboard" onclick="switchPanel('dashboard')">
+        <a class="nav-item active" data-panel="dashboard" data-role="admin" onclick="switchPanel('dashboard')">
             <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
             <span>Dashboard</span>
         </a>
@@ -79,7 +79,7 @@
             <span>Nuevo Pedido</span>
             <span class="badge" id="cartBadge">0</span>
         </a>
-        <a class="nav-item" data-panel="products" onclick="switchPanel('products')">
+        <a class="nav-item" data-panel="products" data-role="admin" onclick="switchPanel('products')">
             <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16zM6 10h12v2H6v-2zm0 4h12v2H6v-2zm0-8h12v2H6V6z"/></svg>
             <span>Productos</span>
         </a>
@@ -91,7 +91,7 @@
             <svg viewBox="0 0 24 24"><path d="M11.5 1L2 6v2h19V6l-9.5-5zm-5 9h3v8h-3v-8zm-4.5 9v2h19v-2h-19zm7-9h3v8h-3v-8zm4.5 0h3v8h-3v-8z"/></svg>
             <span>Estado de Cuentas</span>
         </a>
-        <a class="nav-item" data-panel="categories" onclick="switchPanel('categories')">
+        <a class="nav-item" data-panel="categories" data-role="admin" onclick="switchPanel('categories')">
             <svg viewBox="0 0 24 24"><path d="M12 2l-5.5 9h11L12 2zm0 3.84L13.93 9h-3.87L12 5.84zM17.5 13c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zm0 7c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5zM3 21.5h8v-8H3v8zm2-6h4v4H5v-4z"/></svg>
             <span>Categorias</span>
         </a>

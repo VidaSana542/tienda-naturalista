@@ -363,6 +363,11 @@ POS_PANEL_RENDERERS['inventory'] = renderInventory;
 
 function initPOS() {
     (async function() {
+        if (currentUser && currentUser.role !== 'admin') {
+            alert('Acceso denegado. Solo administradores pueden acceder al POS Global.');
+            logout();
+            return;
+        }
         console.log('[POS-GLOBAL] initPOS iniciando...');
         const available = await API.check();
         if (available) {
