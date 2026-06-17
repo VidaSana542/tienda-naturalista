@@ -727,7 +727,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
     .topbar-left .date { font-size: 11px; }
     .topbar-right .user-name { font-size: 13px; }
     .topbar-right .user-role { font-size: 11px; }
-    .content { padding: 12px 10px; overflow: visible; padding-bottom: 80px; padding-top: 72px; }
+    .content { padding: 12px 10px; overflow: visible; padding-bottom: 80px; padding-top: 88px; }
 
     /* Dashboard */
     .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
@@ -899,7 +899,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
     .mobile-menu .nav-item svg { width: 20px; height: 20px; }
 
     /* Content */
-    .content { padding: 10px 8px; padding-bottom: 80px; padding-top: 68px; }
+    .content { padding: 10px 8px; padding-bottom: 80px; padding-top: 84px; }
 
     /* Stats */
     .stats-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -1015,7 +1015,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
     .topbar-left h2 { font-size: 13px; }
     .topbar-right .user-name { font-size: 12px; }
     .topbar-right .user-role { font-size: 10px; }
-    .content { padding: 8px; padding-top: 56px; }
+    .content { padding: 8px; padding-top: 72px; }
     .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
     .stat-card { padding: 8px; gap: 6px; }
     .stat-icon { width: 28px; height: 28px; border-radius: 6px; }
