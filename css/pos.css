@@ -485,19 +485,26 @@ table .actions button.del:hover svg { fill: var(--danger); }
 @media (max-width: 768px) {
     #posApp { flex-direction: column; overflow: auto; }
 
-    /* Topbar Dynamic Island safe area */
+    /* Topbar Fixed on mobile */
     .topbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
         padding-top: calc(18px + env(safe-area-inset-top, 0px));
         padding-left: 14px;
         padding-right: 14px;
         background: var(--sidebar);
         border-bottom: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
     .topbar-left h2 { color: #fff; }
     .topbar-left .date { color: rgba(255,255,255,0.6); }
+    .topbar-right .user-info { display: flex; }
     .topbar-right .avatar { background: rgba(255,255,255,0.15); color: #fff; }
-    .topbar-right .user-name { color: #fff; }
-    .topbar-right .user-role { color: rgba(255,255,255,0.5); }
+    .topbar-right .user-name { color: #fff; font-size: 13px; }
+    .topbar-right .user-role { color: rgba(255,255,255,0.5); font-size: 11px; }
     .topbar-logout { background: rgba(255,255,255,0.1); color: #fff; }
     .topbar-logout:hover { background: rgba(239,68,68,0.6); }
 
@@ -718,8 +725,9 @@ table .actions button.del:hover svg { fill: var(--danger); }
     .main { margin-bottom: 0; overflow: auto; }
     .topbar-left h2 { font-size: 15px; }
     .topbar-left .date { font-size: 11px; }
-    .topbar-right .user-info { display: none; }
-    .content { padding: 12px 10px; overflow: visible; padding-bottom: 80px; }
+    .topbar-right .user-name { font-size: 13px; }
+    .topbar-right .user-role { font-size: 11px; }
+    .content { padding: 12px 10px; overflow: visible; padding-bottom: 80px; padding-top: 72px; }
 
     /* Dashboard */
     .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
@@ -862,6 +870,8 @@ table .actions button.del:hover svg { fill: var(--danger); }
     }
     .topbar-left h2 { font-size: 14px; }
     .topbar-left .date { font-size: 10px; }
+    .topbar-right .user-name { font-size: 12px; }
+    .topbar-right .user-role { font-size: 10px; }
     .topbar-right .avatar { width: 32px; height: 32px; font-size: 12px; }
     .topbar-logout { width: 32px; height: 32px; }
     .topbar-logout svg { width: 16px; height: 16px; }
@@ -889,7 +899,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
     .mobile-menu .nav-item svg { width: 20px; height: 20px; }
 
     /* Content */
-    .content { padding: 10px 8px; padding-bottom: 80px; }
+    .content { padding: 10px 8px; padding-bottom: 80px; padding-top: 68px; }
 
     /* Stats */
     .stats-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -1003,7 +1013,9 @@ table .actions button.del:hover svg { fill: var(--danger); }
 @media (max-height: 500px) and (orientation: landscape) {
     .topbar { padding: 6px 14px; }
     .topbar-left h2 { font-size: 13px; }
-    .content { padding: 8px; }
+    .topbar-right .user-name { font-size: 12px; }
+    .topbar-right .user-role { font-size: 10px; }
+    .content { padding: 8px; padding-top: 56px; }
     .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
     .stat-card { padding: 8px; gap: 6px; }
     .stat-icon { width: 28px; height: 28px; border-radius: 6px; }
