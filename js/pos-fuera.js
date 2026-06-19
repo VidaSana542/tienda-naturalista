@@ -170,6 +170,7 @@ function toggleTpvCart() {
     const cart = document.getElementById('tpvCart');
     if (!cart) return;
     cart.classList.toggle('open');
+    document.querySelector('.sidebar').classList.toggle('cart-open', cart.classList.contains('open'));
 }
 
 function clearCart() {
