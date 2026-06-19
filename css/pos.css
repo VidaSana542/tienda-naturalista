@@ -763,7 +763,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
     /* Cart bottom sheet */
     .tpv-cart {
         position: fixed;
-        bottom: 0;
+        bottom: calc(env(safe-area-inset-bottom, 0px));
         left: 0;
         right: 0;
         height: 52px;
@@ -800,8 +800,8 @@ table .actions button.del:hover svg { fill: var(--danger); }
         height: 52px;
         cursor: pointer;
         pointer-events: auto;
-        border-radius: 14px 14px 0 0;
-        margin: 0;
+        border-radius: 14px;
+        margin: 0 20px;
         box-shadow: 0 -2px 12px rgba(11,81,59,0.3);
         transition: transform 0.15s, opacity 0.2s;
         padding-bottom: env(safe-area-inset-bottom, 0px);
