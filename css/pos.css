@@ -763,7 +763,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
     /* Cart bottom sheet */
     .tpv-cart {
         position: fixed;
-        bottom: calc(env(safe-area-inset-bottom, 0px));
+        bottom: calc(70px + env(safe-area-inset-bottom, 0px));
         left: 0;
         right: 0;
         height: 52px;
@@ -801,8 +801,8 @@ table .actions button.del:hover svg { fill: var(--danger); }
         cursor: pointer;
         pointer-events: auto;
         border-radius: 14px;
-        margin: 0;
-        box-shadow: 0 -2px 12px rgba(11,81,59,0.3);
+        margin: 0 10px;
+        box-shadow: 0 2px 12px rgba(11,81,59,0.3);
         transition: transform 0.15s, opacity 0.2s;
     }
     .tpv-cart.open .tpv-cart-bar { transform: scaleY(0); height: 0; padding: 0; margin: 0; opacity: 0; overflow: hidden; transition: all 0.25s; }
