@@ -98,10 +98,12 @@ function renderTpvCart() {
     }
 
     const totalQty = posCart.reduce((s, i) => s + i.qty, 0);
-    const total = posCart.reduce((s, i) => s + i.price * i.qty, 0);
+    const sub = posCart.reduce((s, i) => s + i.price * i.qty, 0);
+    const excedente = parseFloat(document.getElementById('tpvExcedente')?.value) || 0;
+    const total = sub + excedente;
 
     if (count) count.textContent = totalQty;
-    if (subtotal) subtotal.textContent = formatPrice(total);
+    if (subtotal) subtotal.textContent = formatPrice(sub);
     if (totalEl) totalEl.textContent = formatPrice(total);
     if (btn) { btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Registrar Pedido ' + formatPrice(total); btn.disabled = false; }
     if (badge) badge.textContent = totalQty;
@@ -210,13 +212,93 @@ function addTempProductToCart() {
 }
 
 // ============ CHECKOUT PEDIDO ============
+const PAY_OPTS = [
+    { key: 'cash', label: 'Efectivo', icon: 'M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z' },
+    { key: 'card', label: 'Tarjeta', icon: 'M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h12v2H6v-2zm0 4h8v2H6v-2z' },
+    { key: 'transfer', label: 'Transferencia', icon: 'M21 18v3H3v-3h18zM19 7v3l-7-5-7 5V7l7-5 7 5z' },
+    { key: 'mixed', label: 'Mixto', icon: 'M4 6h18V4H4c-1.1 0-2 .9-2 2v11H0v3h14v-3H4V6zm19 2h-6c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V9c0-.55-.45-1-1-1zm-1 9h-4v-7h4v7z' },
+    { key: 'credito', label: 'Credito', icon: 'M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h12v2H6v-2zm0 4h8v2H6v-2z' }
+];
+let chkPayMethod = 'cash';
+let chkCreditType = 'fijo';
+
+function toggleExcedente() {
+    const inp = document.getElementById('tpvExcedente');
+    if (parseFloat(inp.value) > 0) { inp.value = '0'; } else { inp.value = '5000'; }
+    calcTotalExcedente();
+}
+function calcTotalExcedente() { renderTpvCart(); }
+
+function renderCheckoutPayGrid() {
+    const grid = document.getElementById('chkPayGrid');
+    grid.innerHTML = PAY_OPTS.map(p => '<div class="checkout-pay-opt' + (p.key === chkPayMethod ? ' selected' : '') + '" onclick="pickCheckoutPay(\'' + p.key + '\')">' +
+        '<svg viewBox="0 0 24 24"><path d="' + p.icon + '"/></svg>' +
+        '<span class="p-label">' + p.label + '</span>' +
+        '</div>').join('');
+}
+function pickCheckoutPay(key) {
+    if (key === 'credito' && !document.getElementById('chkCustomerId').value) {
+        showToast('Selecciona un cliente primero para vender a credito');
+        return;
+    }
+    chkPayMethod = key;
+    renderCheckoutPayGrid();
+    const cfg = document.getElementById('chkCreditConfig');
+    if (key === 'credito') {
+        cfg.style.display = '';
+        renderCheckoutCredit();
+    } else {
+        cfg.style.display = 'none';
+    }
+    renderCheckoutResumen();
+}
+function switchCreditType(type) {
+    chkCreditType = type;
+    document.getElementById('credFijoBtn').style.background = type === 'fijo' ? 'var(--green)' : '';
+    document.getElementById('credFijoBtn').style.color = type === 'fijo' ? '#fff' : '';
+    document.getElementById('credAbonoBtn').style.background = type === 'abono' ? 'var(--green)' : '';
+    document.getElementById('credAbonoBtn').style.color = type === 'abono' ? '#fff' : '';
+    renderCheckoutCredit();
+    renderCheckoutResumen();
+}
+function renderCheckoutCredit() {
+    const body = document.getElementById('chkCreditFields');
+    if (chkCreditType === 'fijo') {
+        const total = getCheckoutTotal();
+        body.innerHTML = '<div class="form-group"><label>Numero de cuotas</label><select onchange="renderCheckoutResumen()"><option value="1">1 cuota</option><option value="2">2 cuotas</option><option value="3">3 cuotas</option><option value="4">4 cuotas</option><option value="5">5 cuotas</option><option value="6">6 cuotas</option></select></div>' +
+            '<div class="form-group"><label>Valor por cuota</label><div class="cuota-valor-readonly">' + formatPrice(Math.ceil(total / 1)) + '</div></div>';
+    } else {
+        body.innerHTML = '<div style="padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:13px;color:#166534;">El cliente podra abonar cualquier valor cuando quiera.</div>';
+    }
+}
+function getCheckoutTotal() {
+    const sub = posCart.reduce((s, i) => s + i.price * i.qty, 0);
+    const excedente = parseFloat(document.getElementById('tpvExcedente').value) || 0;
+    return sub + excedente;
+}
+function getCheckoutCreditInfo(total) {
+    if (chkPayMethod !== 'credito') return null;
+    if (chkCreditType === 'fijo') {
+        const sel = document.querySelector('#chkCreditFields select');
+        const cuotas = sel ? parseInt(sel.value) : 1;
+        const cuotaValor = Math.ceil(total / cuotas);
+        return { tipo: 'fijo', totalCuotas: cuotas, cuotaValor, pagadas: 0, payments: [] };
+    } else {
+        return { tipo: 'abono', totalCuotas: 0, cuotaValor: 0, pagadas: 0, payments: [], balance: total };
+    }
+}
+
 function openCheckoutModal() {
     if (posCart.length === 0) { showToast('Agrega productos al pedido'); return; }
+    chkPayMethod = 'cash';
+    chkCreditType = 'fijo';
     document.getElementById('chkCustomerId').value = '';
     document.getElementById('chkCustomerInput').value = '';
+    document.getElementById('chkCreditConfig').style.display = 'none';
     const modal = document.getElementById('checkoutModal');
     modal.classList.add('open');
     renderCheckoutCustomers();
+    renderCheckoutPayGrid();
     renderCheckoutResumen();
 }
 
@@ -297,7 +379,7 @@ function saveQuickCustomer() {
 }
 
 function renderCheckoutResumen() {
-    const total = posCart.reduce((s, i) => s + i.price * i.qty, 0);
+    const total = getCheckoutTotal();
     document.getElementById('chkTotalDisplay').textContent = formatPrice(total);
     const items = document.getElementById('chkResumenItems');
     items.innerHTML = posCart.map(i => {
@@ -305,12 +387,31 @@ function renderCheckoutResumen() {
         const name = p ? p.name : 'Producto';
         return '<div class="checkout-resumen-item"><span>' + i.qty + 'x ' + name + '</span><span>' + formatPrice(i.price * i.qty) + '</span></div>';
     }).join('');
+    const summary = document.getElementById('chkCreditSummary');
+    if (summary) {
+        if (chkPayMethod === 'credito') {
+            let html = '';
+            if (chkCreditType === 'fijo') {
+                const sel = document.querySelector('#chkCreditFields select');
+                const cuotas = sel ? parseInt(sel.value) : 1;
+                const cv = Math.ceil(total / cuotas);
+                html = '<div style="font-size:12px;color:var(--text-muted);">Cuotas fijas: ' + cuotas + ' x ' + formatPrice(cv) + '</div>';
+            } else {
+                html = '<div style="font-size:12px;color:#16a34a;">Cuenta de cobro: ' + formatPrice(total) + '</div>';
+            }
+            summary.innerHTML = html;
+        } else {
+            summary.innerHTML = '';
+        }
+    }
 }
 
 function confirmCheckout() {
     if (posCart.length === 0) { showToast('El pedido esta vacio'); return; }
     const subtotal = posCart.reduce((s, i) => s + i.price * i.qty, 0);
-    const total = subtotal;
+    const excedente = parseFloat(document.getElementById('tpvExcedente').value) || 0;
+    const total = subtotal + excedente;
+    const methods = { cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia', mixed: 'Mixto', credito: 'Credito' };
     const custId = document.getElementById('chkCustomerId').value;
     let customerName = 'Cliente mostrador';
     let customerId = '';
@@ -326,13 +427,13 @@ function confirmCheckout() {
             return { id: i.id, name: i.isTemp ? i.tempName : (p ? p.name : 'Producto'), qty: i.qty, price: i.price, isTemp: i.isTemp || false };
         }),
         subtotal,
-        excedente: 0,
+        excedente,
         total,
-        method: 'Efectivo',
-        methodKey: 'cash',
+        method: methods[chkPayMethod] || 'Efectivo',
+        methodKey: chkPayMethod,
         customer: customerName,
         customerId,
-        creditInfo: null,
+        creditInfo: getCheckoutCreditInfo(total),
         ventaPorFuera: true
     };
     posSales.push(sale);

@@ -328,6 +328,10 @@
                         <div class="tpv-cart-items" id="tpvCartItems"></div>
                         <div class="tpv-cart-footer">
                             <div class="tpv-subtotal"><span>Subtotal</span><span id="tpvSubtotal">$0</span></div>
+                            <div class="tpv-excedente">
+                                <span onclick="toggleExcedente()" style="cursor:pointer;">Excedente (propina)</span>
+                                <input type="number" id="tpvExcedente" value="0" min="0" step="100" oninput="calcTotalExcedente()">
+                            </div>
                             <div class="tpv-total"><span>TOTAL</span><span id="tpvTotal">$0</span></div>
                             <button class="tpv-checkout-btn" id="tpvCheckoutBtn" onclick="openCheckoutModal()" disabled>
                                 <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Registrar Pedido $0
@@ -755,8 +759,22 @@
                 </div>
             </div>
         </div>
+        <div class="checkout-section">
+            <div class="checkout-section-title">
+                <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg> Metodo de Pago
+            </div>
+            <div class="checkout-pay-grid" id="chkPayGrid"></div>
+            <div id="chkCreditConfig" style="display:none;margin-top:10px;">
+                <div style="display:flex;gap:6px;margin-bottom:8px;">
+                    <button class="btn btn-sm" id="credFijoBtn" onclick="switchCreditType('fijo')" style="flex:1;">Cuotas Fijas</button>
+                    <button class="btn btn-sm" id="credAbonoBtn" onclick="switchCreditType('abono')" style="flex:1;">Abono libre</button>
+                </div>
+                <div id="chkCreditFields"></div>
+            </div>
+        </div>
         <div class="checkout-resumen">
             <div class="checkout-resumen-items" id="chkResumenItems"></div>
+            <div id="chkCreditSummary" style="margin-top:8px;"></div>
             <div class="checkout-resumen-total"><span>TOTAL</span><span id="chkTotalDisplay">$0</span></div>
         </div>
         <div class="modal-footer">

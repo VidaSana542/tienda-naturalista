@@ -1641,9 +1641,142 @@ function refreshCustHistory() {
     renderSalesTable();
 }
 
+// ============ MERGE DUPLICATE CATEGORIES & SUBCATEGORIES ============
+function mergeDuplicateSubcats() {
+    let merged = 0;
+    // 1) Merge duplicate PARENT categories (same label)
+    const parentsByLabel = {};
+    POS_CATEGORIES.filter(c => !c.parent_key).forEach(c => {
+        if (!parentsByLabel[c.label]) parentsByLabel[c.label] = [];
+        parentsByLabel[c.label].push(c);
+    });
+    Object.entries(parentsByLabel).forEach(([label, groups]) => {
+        if (groups.length <= 1) return;
+        const keep = groups[0];
+        for (let i = 1; i < groups.length; i++) {
+            const removeKey = groups[i].key;
+            // Reassign subcategories pointing to removed parent
+            POS_CATEGORIES.forEach(c => {
+                if (c.parent_key === removeKey) c.parent_key = keep.key;
+            });
+            // Reassign products with this category
+            posProducts.forEach(p => {
+                if (p.category === removeKey) p.category = keep.key;
+            });
+            const idx = POS_CATEGORIES.findIndex(c => c.key === removeKey);
+            if (idx >= 0) POS_CATEGORIES.splice(idx, 1);
+            merged++;
+        }
+    });
+    // 2) Merge duplicate SUBCATEGORIES (same label)
+    const subsByLabel = {};
+    POS_CATEGORIES.filter(c => c.parent_key).forEach(c => {
+        if (!subsByLabel[c.label]) subsByLabel[c.label] = [];
+        subsByLabel[c.label].push(c);
+    });
+    Object.entries(subsByLabel).forEach(([label, groups]) => {
+        if (groups.length <= 1) return;
+        const keep = groups[0];
+        for (let i = 1; i < groups.length; i++) {
+            const removeKey = groups[i].key;
+            posProducts.forEach(p => {
+                if (p.subcategory === removeKey) p.subcategory = keep.key;
+            });
+            const idx = POS_CATEGORIES.findIndex(c => c.key === removeKey);
+            if (idx >= 0) POS_CATEGORIES.splice(idx, 1);
+            merged++;
+        }
+    });
+    if (merged) {
+        saveProducts();
+        saveCategories();
+        refreshProdCatFilter();
+        renderProductTable();
+    }
+    return merged;
+}
+
+// ============ IMPORT PRODUCTS ============
+function importProductsFromFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    event.target.value = '';
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!Array.isArray(data) || data.length === 0) { alert('El archivo no contiene productos.'); return; }
+            // Auto-create categories from products
+            const catLabels = {
+                'suplementos': 'Suplementos', 'belleza-y-bienestar': 'Belleza y bienestar',
+                'salud-y-bienestar': 'Salud y bienestar', 'vitaminas-y-minerales': 'Vitaminas y minerales'
+            };
+            const subLabels = {
+                'suplementos_complejo-b': 'Complejo B', 'suplementos_salud-sanguinea': 'Salud sanguínea',
+                'vitaminas_antioxidantes': 'Antioxidantes', 'salud_limpieza-intestinal': 'Limpieza intestinal',
+                'suplementos_sistema-inmunologico': 'Sistema inmunológico', 'belleza_calendula': 'Calendula',
+                'belleza_colageno': 'Colageno', 'suplementos_potencia-masculina': 'Potencia Masculina',
+                'salud_rinones': 'Riñones y vías urinarias', 'salud_gastritis': 'Gastritis y acidez',
+                'belleza_glucosamina': 'Glucosamina', 'suplementos_balance-hormonal': 'Balance hormonal',
+                'suplementos_perdida-de-peso': 'Pérdida de peso', 'vitaminas_magnesio': 'Magnecio',
+                'vitaminas_vitamina-e': 'Vitamina E', 'vitaminas_calcio': 'Calcio',
+                'suplementos_creatina': 'Creatina', 'suplementos_proteina': 'Proteina',
+                'vitaminas_vitamina-c': 'Vitamina C', 'salud_desparasitacion': 'Desparasitación',
+                'suplementos_resveratrol': 'Resveratrol', 'vitaminas_multivitaminicos': 'Multivitamínicos',
+                'salud_rendimiento-mental': 'Rendimiento mental', 'belleza_articulaciones': 'Articulaciones',
+                'salud_salud-sueno': 'Salud de sueño', 'salud_higado': 'Hígado y Vesícula',
+                'salud_diabetes': 'Diabetes', 'salud_prostata': 'Próstata',
+                'salud_laxante': 'Laxante', 'suplementos_energia': 'Energía',
+                'salud_omega': 'Omega', 'vitaminas_vitamina-b': 'Vitaminas B',
+                'vitaminas_vitamina-d': 'Vitamina D', 'vitaminas_vitamina-a': 'Vitamina A',
+                'vitaminas_zinc': 'Zinc', 'vitaminas_biotina': 'Biotina',
+                'salud_circulacion': 'Circulación', 'suplementos_sexualidad': 'Sexualidad',
+                'salud_inflamacion': 'Inflamación', 'salud_digestion': 'Digestión'
+            };
+            let catsAdded = 0;
+            for (const [key, label] of Object.entries(catLabels)) {
+                if (!POS_CATEGORIES.find(c => c.key === key)) {
+                    POS_CATEGORIES.push({ key, label, _synced: false });
+                    catsAdded++;
+                }
+            }
+            for (const [key, label] of Object.entries(subLabels)) {
+                if (!POS_CATEGORIES.find(c => c.key === key)) {
+                    const parentKey = key.split('_')[0];
+                    POS_CATEGORIES.push({ key, label, parent_key: parentKey, _synced: false });
+                    catsAdded++;
+                }
+            }
+            if (catsAdded) saveCategories();
+            // Import products (skip duplicates by name+brand, but update images)
+            let nextId = posProducts.reduce((m, p) => Math.max(m, parseInt(String(p.id).replace('p',''))), 0) + 1;
+            let imported = 0, updated = 0, skipped = 0;
+            for (const p of data) {
+                const dup = posProducts.find(x => x.name.toLowerCase() === p.name.toLowerCase() && (x.brand||'').toLowerCase() === (p.brand||'').toLowerCase());
+                if (dup) {
+                    if (p.img && p.img !== dup.img) { dup.img = p.img; updated++; }
+                    skipped++;
+                    continue;
+                }
+                p.id = 'p' + (nextId++);
+                posProducts.push(p);
+                imported++;
+            }
+            saveProducts();
+            refreshProdCatFilter();
+            renderProductTable();
+            // Auto-merge duplicate subcategories
+            const merged = mergeDuplicateSubcats();
+            alert(imported + ' productos nuevos!' + (updated ? '\n' + updated + ' imágenes actualizadas.' : '') + (skipped ? '\n' + skipped + ' duplicados omitidos.' : '') + (merged ? '\n' + merged + ' subcategorías unidas.' : '') + (catsAdded ? '\n' + catsAdded + ' categorías creadas.' : ''));
+        } catch(err) { alert('Error al leer archivo: ' + err.message); }
+    };
+    reader.readAsText(file);
+}
+
 // ============ DATE DISPLAY ============
 document.getElementById('currentDate').textContent = new Date().toLocaleDateString('es-CO', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
 function initCatFilter() {
     refreshProdCatFilter();
+    mergeDuplicateSubcats();
 }

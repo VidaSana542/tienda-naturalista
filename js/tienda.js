@@ -442,8 +442,15 @@ function showToast(msg) {
     try {
         const [apiProducts, apiCategories] = await Promise.all([API.getProducts(), API.getCategories()]);
         if (apiCategories && apiCategories.length > 0) {
-            allApiCategories = apiCategories;
-            const topCats = apiCategories.filter(c => !c.parent_key);
+            // Deduplicate by label
+            const seen = new Set();
+            allApiCategories = apiCategories.filter(c => {
+                const key = (c.parent_key || '') + '|' + c.label;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+            const topCats = allApiCategories.filter(c => !c.parent_key);
             if (topCats.length > 0) {
                 categories = [
                     { key: 'all', label: 'Todos', icon: DEFAULT_CAT_ICON },
