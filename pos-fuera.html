@@ -282,21 +282,19 @@
             </div>
         </div>
 
-        <!-- TPV (Pedido) -->
+        <!-- TPV -->
         <div class="panel" id="panel-tpv">
             <div class="tpv-layout">
                 <div class="tpv-products">
                     <div class="tpv-search-row">
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <div class="tpv-search search-field" style="flex:1;">
+                        <div class="tpv-search search-field">
                             <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
                             <input type="text" id="tpvSearch" placeholder="Buscar producto..." oninput="filterTpvProducts()">
                         </div>
-                        <div class="tpv-search search-field" style="flex:1;">
+                        <div class="tpv-search search-field">
                             <svg viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.57 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 1 1 9.5 3zm0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5z"/></svg>
-                            <input type="text" id="tpvBarcode" placeholder="Codigo de barras (lector)" autocomplete="off" autofocus oninput="handleBarcodeScan()">
+                            <input type="text" id="tpvBarcode" placeholder="Codigo de barras (lector)" autocomplete="off" autofocus>
                         </div>
-                    </div>
                     </div>
                     <div class="tpv-filters">
                         <select id="tpvCatFilter" onchange="updateTpvSubcats(); filterTpvProducts()">
@@ -306,7 +304,7 @@
                             <option value="">Todas las subcategorias</option>
                         </select>
                     </div>
-                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+                    <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
                         <button class="btn btn-sm btn-outline" onclick="openTempProductModal()" style="flex-shrink:0;">
                             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="vertical-align:middle;margin-right:4px;"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Producto Temporal
                         </button>
@@ -317,7 +315,7 @@
                     <div class="tpv-cart-backdrop" onclick="toggleTpvCart()"></div>
                     <div class="tpv-cart-content">
                         <div class="tpv-cart-header">
-                            <h3><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg> Pedido <span id="tpvCartCount">0</span></h3>
+                            <h3><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg> Carrito <span id="tpvCartCount">0</span></h3>
                             <div style="display:flex;gap:8px;align-items:center;">
                                 <button class="btn btn-sm btn-outline" onclick="clearCart()">Vaciar</button>
                                 <button class="tpv-cart-close" onclick="toggleTpvCart()">
@@ -327,21 +325,23 @@
                         </div>
                         <div class="tpv-cart-items" id="tpvCartItems"></div>
                         <div class="tpv-cart-footer">
-                            <div class="tpv-subtotal"><span>Subtotal</span><span id="tpvSubtotal">$0</span></div>
-                            <div class="tpv-excedente">
-                                <span onclick="toggleExcedente()" style="cursor:pointer;">Excedente (propina)</span>
-                                <input type="number" id="tpvExcedente" value="0" min="0" step="100" oninput="calcTotalExcedente()">
+                            <div class="tpv-subtotals">
+                                <div><span>Subtotal</span><span id="tpvSubtotal">$0</span></div>
+                                <div class="tpv-excedente">
+                                    <label onclick="toggleExcedente()"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg> Excedente</label>
+                                    <input type="number" id="tpvExcedente" value="0" min="0" oninput="calcTotalExcedente()">
+                                </div>
                             </div>
                             <div class="tpv-total"><span>TOTAL</span><span id="tpvTotal">$0</span></div>
                             <button class="tpv-checkout-btn" id="tpvCheckoutBtn" onclick="openCheckoutModal()" disabled>
-                                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Registrar Pedido $0
+                                <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Cobrar $0
                             </button>
                         </div>
                     </div>
                     <div class="tpv-cart-bar" onclick="toggleTpvCart()">
                         <div class="tpv-cart-bar-handle"></div>
                         <div class="tpv-cart-bar-info">
-                            <span class="tpv-cart-bar-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg> Pedido</span>
+                            <span class="tpv-cart-bar-title"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/></svg> Carrito</span>
                             <span class="tpv-cart-bar-total" id="tpvBarTotal">$0</span>
                         </div>
                     </div>
@@ -715,72 +715,37 @@
 <div class="modal-overlay checkout-modal" id="checkoutModal">
     <div class="modal">
         <button class="modal-close" onclick="closeCheckoutModal()">&times;</button>
-        <h3><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Registrar Pedido</h3>
+        <h3><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Registrar Pago</h3>
         <div class="checkout-layout">
             <div class="checkout-section">
                 <div class="checkout-section-title"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg> Cliente</div>
-                <div class="checkout-customer-body">
-                    <div class="checkout-customer-left">
-                        <div class="checkout-customer-search">
-                            <input type="text" id="chkCustomerInput" placeholder="Buscar cliente..." oninput="renderCheckoutCustomers()">
-                            <input type="hidden" id="chkCustomerId">
-                        </div>
-                        <button class="btn btn-sm btn-primary" onclick="toggleQuickAddCustomer()" style="width:100%;justify-content:center;margin-bottom:10px;">
-                            <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Nuevo Cliente
-                        </button>
-                        <div id="quickAddCustomer" class="quick-add-customer">
-                            <div class="quick-add-header">
-                                <svg viewBox="0 0 24 24" width="18" height="18" fill="var(--green)"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                                <span>Nuevo Cliente</span>
-                            </div>
-                            <div class="form-group">
-                                <label>Nombre *</label>
-                                <input type="text" id="quickCustName" placeholder="Nombre del cliente">
-                            </div>
-                            <div class="form-group">
-                                <label>Telefono</label>
-                                <input type="text" id="quickCustPhone" placeholder="Opcional">
-                            </div>
-                            <div class="form-group">
-                                <label>Direccion</label>
-                                <input type="text" id="quickCustAddress" placeholder="Opcional">
-                            </div>
-                            <div class="quick-add-actions">
-                                <button class="btn btn-outline" onclick="toggleQuickAddCustomer()">Cancelar</button>
-                                <button class="btn btn-primary" onclick="saveQuickCustomer()">
-                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Guardar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="checkout-customer-right">
-                        <div class="checkout-customer-list" id="chkCustomerList"></div>
-                    </div>
+                <div class="checkout-customer-search">
+                    <input type="text" id="chkCustomerInput" placeholder="Buscar cliente..." oninput="renderCheckoutCustomers()">
+                    <input type="hidden" id="chkCustomerId">
                 </div>
+                <div class="checkout-customer-list" id="chkCustomerList"></div>
             </div>
-        </div>
-        <div class="checkout-section">
-            <div class="checkout-section-title">
-                <svg viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg> Metodo de Pago
-            </div>
-            <div class="checkout-pay-grid" id="chkPayGrid"></div>
-            <div id="chkCreditConfig" style="display:none;margin-top:10px;">
-                <div style="display:flex;gap:6px;margin-bottom:8px;">
-                    <button class="btn btn-sm" id="credFijoBtn" onclick="switchCreditType('fijo')" style="flex:1;">Cuotas Fijas</button>
-                    <button class="btn btn-sm" id="credAbonoBtn" onclick="switchCreditType('abono')" style="flex:1;">Abono libre</button>
+            <div class="checkout-section">
+                <div class="checkout-section-title"><svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg> Metodo de Pago</div>
+                <div class="checkout-pay-grid" id="chkPayGrid"></div>
+                <div class="checkout-credit-config" id="chkCreditConfig">
+                    <div class="checkout-credit-tabs">
+                        <button class="credit-tab active" data-ctype="fijo" onclick="switchCreditType('fijo')">Cuotas Fijas</button>
+                        <button class="credit-tab" data-ctype="abono" onclick="switchCreditType('abono')">Abono libre</button>
+                    </div>
+                    <div class="checkout-credit-body" id="chkCreditBody"></div>
                 </div>
-                <div id="chkCreditFields"></div>
             </div>
         </div>
         <div class="checkout-resumen">
             <div class="checkout-resumen-items" id="chkResumenItems"></div>
-            <div id="chkCreditSummary" style="margin-top:8px;"></div>
+            <div class="checkout-credit-summary" id="chkCreditSummary"></div>
             <div class="checkout-resumen-total"><span>TOTAL</span><span id="chkTotalDisplay">$0</span></div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeCheckoutModal()">Cancelar</button>
             <button class="btn btn-primary" onclick="confirmCheckout()">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Confirmar Pedido
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Confirmar Pago
             </button>
         </div>
     </div>
@@ -790,8 +755,13 @@
 <div class="modal-overlay receipt-modal" id="receiptModal">
     <div class="modal">
         <button class="modal-close" onclick="closeReceipt()">&times;</button>
-        <h3><svg viewBox="0 0 24 24"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg> Recibo de Pedido</h3>
+        <h3><svg viewBox="0 0 24 24"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg> Recibo de Venta</h3>
         <div id="receiptContent"></div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeReceipt()">Cerrar</button>
+            <button class="btn btn-outline" onclick="downloadInvoice()" id="btnDownloadInv" style="display:none;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> Descargar
+            </button>
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeReceipt()">Cerrar</button>
             <button class="btn btn-primary" onclick="printReceipt()">

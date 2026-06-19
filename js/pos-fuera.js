@@ -245,24 +245,21 @@ function pickCheckoutPay(key) {
     renderCheckoutPayGrid();
     const cfg = document.getElementById('chkCreditConfig');
     if (key === 'credito') {
-        cfg.style.display = '';
+        cfg.classList.add('open');
         renderCheckoutCredit();
     } else {
-        cfg.style.display = 'none';
+        cfg.classList.remove('open');
     }
     renderCheckoutResumen();
 }
 function switchCreditType(type) {
     chkCreditType = type;
-    document.getElementById('credFijoBtn').style.background = type === 'fijo' ? 'var(--green)' : '';
-    document.getElementById('credFijoBtn').style.color = type === 'fijo' ? '#fff' : '';
-    document.getElementById('credAbonoBtn').style.background = type === 'abono' ? 'var(--green)' : '';
-    document.getElementById('credAbonoBtn').style.color = type === 'abono' ? '#fff' : '';
+    document.querySelectorAll('.credit-tab').forEach(t => t.classList.toggle('active', t.dataset.ctype === type));
     renderCheckoutCredit();
     renderCheckoutResumen();
 }
 function renderCheckoutCredit() {
-    const body = document.getElementById('chkCreditFields');
+    const body = document.getElementById('chkCreditBody');
     if (chkCreditType === 'fijo') {
         const total = getCheckoutTotal();
         body.innerHTML = '<div class="form-group"><label>Numero de cuotas</label><select onchange="renderCheckoutResumen()"><option value="1">1 cuota</option><option value="2">2 cuotas</option><option value="3">3 cuotas</option><option value="4">4 cuotas</option><option value="5">5 cuotas</option><option value="6">6 cuotas</option></select></div>' +
@@ -279,7 +276,7 @@ function getCheckoutTotal() {
 function getCheckoutCreditInfo(total) {
     if (chkPayMethod !== 'credito') return null;
     if (chkCreditType === 'fijo') {
-        const sel = document.querySelector('#chkCreditFields select');
+        const sel = document.querySelector('#chkCreditBody select');
         const cuotas = sel ? parseInt(sel.value) : 1;
         const cuotaValor = Math.ceil(total / cuotas);
         return { tipo: 'fijo', totalCuotas: cuotas, cuotaValor, pagadas: 0, payments: [] };
@@ -294,7 +291,7 @@ function openCheckoutModal() {
     chkCreditType = 'fijo';
     document.getElementById('chkCustomerId').value = '';
     document.getElementById('chkCustomerInput').value = '';
-    document.getElementById('chkCreditConfig').style.display = 'none';
+    document.getElementById('chkCreditConfig').classList.remove('open');
     const modal = document.getElementById('checkoutModal');
     modal.classList.add('open');
     renderCheckoutCustomers();
@@ -392,7 +389,7 @@ function renderCheckoutResumen() {
         if (chkPayMethod === 'credito') {
             let html = '';
             if (chkCreditType === 'fijo') {
-                const sel = document.querySelector('#chkCreditFields select');
+                const sel = document.querySelector('#chkCreditBody select');
                 const cuotas = sel ? parseInt(sel.value) : 1;
                 const cv = Math.ceil(total / cuotas);
                 html = '<div style="font-size:12px;color:var(--text-muted);">Cuotas fijas: ' + cuotas + ' x ' + formatPrice(cv) + '</div>';
