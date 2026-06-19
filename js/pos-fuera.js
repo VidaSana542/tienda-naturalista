@@ -183,15 +183,21 @@ function clearCart() {
 let _tempProductCounter = 0;
 
 function openTempProductModal() {
+    const m = document.getElementById('tempProductModal');
+    if (!m) { console.error('[POS-FUERA] tempProductModal not found'); return; }
     document.getElementById('tempProdName').value = '';
     document.getElementById('tempProdPrice').value = '';
     document.getElementById('tempProdQty').value = '1';
-    document.getElementById('tempProductModal').classList.add('open');
+    m.style.display = 'flex';
+    m.classList.add('open');
     setTimeout(() => document.getElementById('tempProdName').focus(), 100);
 }
 
 function closeTempProductModal() {
-    document.getElementById('tempProductModal').classList.remove('open');
+    const m = document.getElementById('tempProductModal');
+    if (!m) return;
+    m.style.display = '';
+    m.classList.remove('open');
 }
 
 function addTempProductToCart() {
