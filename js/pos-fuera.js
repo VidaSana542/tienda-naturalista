@@ -189,7 +189,7 @@ function openTempProductModal() {
     const priceInput = document.getElementById('tempProdPrice');
     const qtyInput = document.getElementById('tempProdQty');
     
-    console.log('[POS-FUERA] Elements found:', { modal:', { modal: !!modal, name: !!nameInput, price: !!priceInput, qty: !!qtyInput });
+    console.log('[POS-FUERA] Elements found:', { modal: !!modal, name: !!nameInput, price: !!priceInput, qty: !!qtyInput });
     
     if (!modal || !nameInput || !priceInput || !qtyInput) {
         console.error('[POS-FUERA] tempProductModal elements not found');
