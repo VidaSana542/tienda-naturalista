@@ -166,7 +166,9 @@ async function analyze() {
             const totalCross = Object.values(crossDupFix).reduce((s, f) => s + f.toRemove.length, 0);
             log(`\n--- SUBCATEGORIAS DUPLICADAS ENTRE CATEGORIAS (${totalCross} a eliminar) ---`, 'warn');
             Object.entries(crossDupFix).forEach(([label, fix]) => {
-                log(`  "${label}": se queda "${fix.keep.key}" (${fix.keep.parent_key}), se eliminan: ${fix.toRemove.map(r => '"' + r.key + '" (' + r.parent_key + ')').join(', ')}`, 'warn');
+                const keepParentLabel = categories.find(c => c.key === fix.keep.parent_key)?.label || fix.keep.parent_key;
+                const removeLabels = fix.toRemove.map(r => `"${r.key}" (${categories.find(c => c.key === r.parent_key)?.label || r.parent_key})`);
+                log(`  "${label}": se queda "${fix.keep.key}" (${keepParentLabel}), se eliminan: ${removeLabels.join(', ')}`, 'warn');
                 const affectedProds = products.filter(p => p.subcategory === fix.toRemove.map(r => r.key).find(k => k === p.subcategory));
                 if (affectedProds.length > 0) {
                     log(`    → ${affectedProds.length} productos seran reasignados a "${fix.keep.key}"`, 'warn');
@@ -329,8 +331,9 @@ async function fixData() {
         // Delete the wrong subcategories
         for (const dup of fix.toRemove) {
             try {
+                const parentLabel = _analysis.categories.find(c => c.key === dup.parent_key)?.label || dup.parent_key;
                 await API.deleteCategory(dup.id);
-                log(`  SUBCAT ✓ eliminada "${dup.key}" (${dup.parent_key})`, 'ok');
+                log(`  SUBCAT ✓ eliminada "${dup.key}" (${parentLabel})`, 'ok');
                 ok++;
             } catch (e) {
                 log(`  SUBCAT ✗ eliminar "${dup.key}": ${e.message}`, 'err');
