@@ -199,7 +199,7 @@ async function analyze() {
             });
         }
 
-        if (!dupTopCats.length && !dupSubCats.length && !orphanProds.length && !orphanSubProds.length) {
+        if (!dupTopCats.length && !dupSubCats.length && !orphanProds.length && !orphanSubProds.length && !Object.keys(crossDupFix).length) {
             log('\nTODO EN ORDEN! No se requieren cambios.', 'ok');
         } else {
             log('\n---', 'info');
