@@ -29,12 +29,10 @@ let navStack = [];
 
 // Normaliza categorias de productos para que coincidan con las keys reales de categorias
 const CATEGORY_NORMALIZE = {
-    'belleza-y-bienestar': 'belleza-y-bienestar',
+    'belleza-y-bienestar': 'belleza_y_bienestar',
     'salud-y-bienestar': 'salud_y_bienestar',
     'vitaminas-y-minerales': 'vitaminas',
-    'salud': 'salud_y_bienestar',
-    'belleza_y_bienestar': 'belleza-y-bienestar',
-    'salud_y_bienestar': 'salud_y_bienestar'
+    'salud': 'salud_y_bienestar'
 };
 // Limpia subcategoria si no existe en la lista de categorias (ej: despues de borrarla en POS)
 function cleanOrphanSubcategory(subKey, allCats) {
