@@ -1,6 +1,6 @@
 // ============ POS LOCAL - Config ============
 const POS_SCOPE = 'local';
-const POS_RESTRICTED_PANELS = ['products','suppliers','categories','dashboard'];
+const POS_RESTRICTED_PANELS = ['suppliers','categories','dashboard'];
 const POS_PANEL_TITLES = { dashboard:'Dashboard', tpv:'TPV / Punto de Venta', products:'Gestion de Productos', inventory:'Control de Inventario', customers:'Gestion de Clientes', suppliers:'Gestion de Proveedores', categories:'Gestion de Categorias', sales:'Historial de Ventas', cash:'Caja' };
 const POS_PANEL_RENDERERS = {};
 
