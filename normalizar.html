@@ -140,7 +140,22 @@ async function analyze() {
             });
         }
 
-        if (!dupTopCats.length && !dupSubCats.length && !orphanProds.length) {
+        // --- Products with orphan subcategories ---
+        const subKeys = new Set(categories.filter(c => c.parent_key).map(c => c.key));
+        const orphanSubProds = products.filter(p => p.subcategory && !subKeys.has(p.subcategory));
+        if (orphanSubProds.length > 0) {
+            log(`\n--- PRODUCTOS CON SUBCATEGORIA INEXISTENTE (${orphanSubProds.length}) ---`, 'warn');
+            const bySub = {};
+            orphanSubProds.forEach(p => {
+                if (!bySub[p.subcategory]) bySub[p.subcategory] = [];
+                bySub[p.subcategory].push(p);
+            });
+            Object.entries(bySub).forEach(([sub, prods]) => {
+                log(`  "${sub}" (${prods.length} productos) → se limpiara subcategoria`, 'warn');
+            });
+        }
+
+        if (!dupTopCats.length && !dupSubCats.length && !orphanProds.length && !orphanSubProds.length) {
             log('\nTODO EN ORDEN! No se requieren cambios.', 'ok');
         } else {
             log('\n---', 'info');
@@ -148,7 +163,7 @@ async function analyze() {
             log('Revisa los resultados arriba y haz clic en "Aplicar Normalizacion Completa" para corregir todo.', 'info');
         }
 
-        _analysis = { categories, products, canonical, dupTopCats, dupSubCats };
+        _analysis = { categories, products, canonical, dupTopCats, dupSubCats, orphanSubProds: orphanSubProds || [] };
     } catch (e) {
         log('ERROR: ' + e.message, 'err');
         console.error(e);
@@ -162,8 +177,9 @@ async function fixData() {
     const totalProducts = Object.entries(_analysis.canonical)
         .filter(([cat]) => cat !== _analysis.canonical[cat])
         .reduce((sum, [cat]) => sum + _analysis.products.filter(p => p.category === cat).length, 0);
+    const orphanSubCount = _analysis.orphanSubProds.length;
     const dupCount = _analysis.dupTopCats.reduce((s, g) => s + g.length - 1, 0) + _analysis.dupSubCats.reduce((s, g) => s + g.length - 1, 0);
-    if (!confirm(`Se realizaran estos cambios:\n- Actualizar categoria de ${totalProducts} productos\n- Eliminar ${dupCount} categorias duplicadas\n- Reasignar subcategorias\n\nContinuar?`)) return;
+    if (!confirm(`Se realizaran estos cambios:\n- Actualizar categoria de ${totalProducts} productos\n- Limpiar subcategoria de ${orphanSubCount} productos\n- Eliminar ${dupCount} categorias duplicadas\n- Reasignar subcategorias\n\nContinuar?`)) return;
 
     document.getElementById('btnFix').disabled = true;
     document.getElementById('btnAnalyze').disabled = true;
@@ -215,7 +231,24 @@ async function fixData() {
         }
     }
 
-    // Step 3: Delete duplicate subcategories
+    // Step 3: Clean orphan subcategories on products
+    const subKeys = new Set(_analysis.categories.filter(c => c.parent_key).map(c => c.key));
+    for (const p of _analysis.orphanSubProds) {
+        try {
+            await API.saveProduct({
+                id: p.id, name: p.name, category: p.category,
+                subcategory: '',
+                barcode: '', brand: '', price: 0, stock: 0, active: true
+            });
+            log(`  PRODUCTO ✓ #${p.id} "${p.name}": subcategoria limpiada`, 'ok');
+            ok++;
+        } catch (e) {
+            log(`  PRODUCTO ✗ #${p.id} "${p.name}": ${e.message}`, 'err');
+            err++;
+        }
+    }
+
+    // Step 4: Delete duplicate subcategories
     const subCats = _analysis.categories.filter(c => c.parent_key);
     const subDupLabels = {};
     subCats.forEach(c => {

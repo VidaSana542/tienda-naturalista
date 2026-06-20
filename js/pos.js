@@ -273,7 +273,7 @@ function saveProducts() {
                 description: p.desc || '',
                 featured: p.featured || false
             };
-            if (p.subcategory) payload.subcategory = p.subcategory;
+            payload.subcategory = p.subcategory || '';
             API.saveProduct(payload).then(res => {
                 if (res && res.id) { p.id = 'p' + res.id; p._synced = true; localStorage.setItem('posProducts', JSON.stringify(posProducts)); }
             }).catch(e => { console.error('[POS] saveProduct error:', e); });
