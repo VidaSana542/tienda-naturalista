@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asignar Subcategorias</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="js/api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; padding: 20px; max-width: 1000px; margin: auto; background: #f5f5f5; }
+h1 { margin-bottom: 20px; }
+.card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; font-size: 14px; }
+th { background: #f0f4f8; position: sticky; top: 0; }
+select { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; max-width: 220px; }
+button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-right: 8px; margin-bottom: 8px; }
+.btn-primary { background: #007bff; color: #fff; }
+.btn-primary:hover { background: #0056b3; }
+.btn-success { background: #28a745; color: #fff; }
+.btn-success:hover { background: #218838; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+#result { margin-top: 16px; font-family: monospace; font-size: 13px; line-height: 1.6; }
+.log { padding: 3px 0; }
+.log-ok { color: #155724; }
+.log-err { color: #721c24; }
+.log-info { color: #004085; }
+.cat-header { background: #e8f4f8; padding: 10px 16px; border-radius: 6px; margin: 16px 0 8px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+.cat-header .count { font-weight: normal; font-size: 13px; color: #666; }
+.prod-row:hover { background: #f8f9fa; }
+.suggested { background: #fffbe6; }
+.search-box { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; width: 300px; margin-bottom: 12px; }
+.summary-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.stat { background: #fff; border-radius: 6px; padding: 8px 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); font-size: 14px; }
+.stat strong { font-size: 20px; display: block; }
+</style>
+</head>
+<body>
+<h1>Asignar Subcategorias a Productos</h1>
+<div class="card">
+    <p style="margin-bottom:12px;">Muestra productos sin subcategoria. Usa la columna "Asignar" para elegir una subcategoria y luego guarda.</p>
+    <button id="btnLoad" class="btn-primary" onclick="loadData()">Cargar Productos</button>
+    <button id="btnSave" class="btn-success" disabled onclick="saveAll()">Guardar Cambios</button>
+    <span id="status" style="margin-left:12px;font-size:13px;color:#666;"></span>
+    <div id="result"></div>
+</div>
+
+<script>
+let _categories = [];
+let _products = [];
+let _assignments = {};
+
+const SUBCAT_KEYWORDS = {
+    'belleza_y_bienestar': {
+        'belleza_y_bienestar_colageno': ['colageno','colágeno','colagen'],
+        'belleza_y_bienestar_calendula': ['calendula','caléndula'],
+        'belleza_y_bienestar_articulaciones': ['articulacion','articulación','glucosamina','cartilago'],
+        'belleza_y_bienestar_glucosamina': ['glucosamina']
+    },
+    'salud_y_bienestar': {
+        'salud_y_bienestar_laxante': ['laxante','fibra','ciruelfort','lassacol','digestar'],
+        'salud_y_bienestar_desparasitación': ['desparasitante','desparasit'],
+        'salud_y_bienestar_diabetes': ['diabetes','diab','diabet'],
+        'salud_y_bienestar_digestión': ['digestión','digest','gasgen','gastritis','acidez'],
+        'salud_y_bienestar_gastritis': ['gastritis','acidez'],
+        'salud_y_bienestar_higado': ['hígado','higado','vesícula','vesicula','cardo','milk thistle','silimarina'],
+        'salud_y_bienestar_inflamación': ['inflamación','inflamacion','antiinflam'],
+        'salud_y_bienestar_circulacion': ['circulación','circulacion','venas','varices'],
+        'salud_y_bienestar_salud_sueño': ['sueño','sueno','melatonina','sleep'],
+        'salud_y_bienestar_rendimiento_mental': ['mental','memoria','concentración','concentracion','ginkgo','coenzyme','q10'],
+        'salud_y_bienestar_omega': ['omega','aceite de pescado'],
+        'salud_y_bienestar_próstata': ['próstata','prostata','prostasan'],
+        'salud_y_bienestar_riñones': ['riñon','riñones','rinones','uva ursi'],
+        'salud_y_bienestar_perdida_peso': ['peso','dieta','quema','chupa panza'],
+        'salud_y_bienestar_articulaciones': ['articulacion','articulación','artritis'],
+        'salud_y_bienestar_inmunologico': ['sistema inmuno','defensas','equinacea','echnacea'],
+        'salud_y_bienestar_digestion': ['digestión','digest','enzimas','probiótico','probiotico']
+    },
+    'suplementos': {
+        'suplementos_complejo_b': ['complejo b','vitamina b','vitaminas b','complex b'],
+        'suplementos_creatina': ['creatina'],
+        'suplementos_proteina': ['proteina','proteína','protein','whey'],
+        'suplementos_energia': ['energía','energia','energy','ginseng','macá','maca','guarana','cafeína','cafeina'],
+        'suplementos_perdida_peso': ['peso','dieta','quema','carnitina','carnitine'],
+        'suplementos_potencia_masculina': ['potencia','masculina','testo','maca','horny'],
+        'suplementos_resveratrol': ['resveratrol'],
+        'suplementos_salud_sanguinea': ['sanguinea','sanguínea','hierro','iron','circulacion','circulación'],
+        'suplementos_sistema_inmunologico': ['inmuno','defensas','equinacea','echnacea','propoléo','propoleo'],
+        'suplementos_balance_hormonal': ['hormonal','hormona','tiroides','cortisol']
+    },
+    'vitaminas': {
+        'vitaminas_vitamina_c': ['vitamina c','vitamin c','ácido ascórbico','acido ascorbico','ascorbic'],
+        'vitaminas_vitamina_a': ['vitamina a','vitamin a','retinol','beta caroteno'],
+        'vitaminas_vitamina_e': ['vitamina e','vitamin e','tocoferol'],
+        'vitaminas_vitaminas_b': ['complejo b','vitamina b','vitamin b'],
+        'vitaminas_vitamina_d': ['vitamina d','vitamin d','colecalciferol'],
+        'vitaminas_calcio': ['calcio','calcium'],
+        'vitaminas_magnesio': ['magnesio','magnesium','mg'],
+        'vitaminas_zinc': ['zinc'],
+        'vitaminas_biotina': ['biotina','colageno con biotina'],
+        'vitaminas_multivitamínicos': ['multivitamin','multi-vitamin','multivitam'],
+        'vitaminas_antioxidantes': ['antioxidante','antioxidant']
+    }
+};
+
+function autoSuggestSubcat(name, category) {
+    const catMap = SUBCAT_KEYWORDS[category];
+    if (!catMap) return '';
+    const lower = name.toLowerCase();
+    let best = '', bestScore = 0;
+    for (const [subKey, keywords] of Object.entries(catMap)) {
+        for (const kw of keywords) {
+            if (lower.includes(kw)) {
+                const score = kw.length;
+                if (score > bestScore) { bestScore = score; best = subKey; }
+            }
+        }
+    }
+    return best;
+}
+
+async function loadData() {
+    document.getElementById('result').innerHTML = '<div class="log log-info">Cargando...</div>';
+    document.getElementById('btnLoad').disabled = true;
+    try {
+        await API.check();
+        if (!API.isAvailable) { log('ERROR: API no disponible', 'err'); return; }
+
+        const cats = await API.getCategories();
+        const { data: prods, error } = await _sb.from('products').select('id,name,category,subcategory,brand').eq('active', true);
+        if (error) throw error;
+
+        _categories = cats;
+        _products = (prods || []).filter(p => !p.subcategory || p.subcategory.trim() === '');
+        _assignments = {};
+
+        if (_products.length === 0) {
+            log('Todos los productos ya tienen subcategoria asignada!', 'ok');
+            return;
+        }
+
+        // Group by category
+        const byCat = {};
+        _products.forEach(p => {
+            const c = p.category || 'sin_categoria';
+            if (!byCat[c]) byCat[c] = [];
+            byCat[c].push(p);
+        });
+
+        let html = `<div class="summary-bar">
+            <div class="stat"><strong>${_products.length}</strong> productos sin subcategoria</div>
+            <div class="stat"><strong>${Object.keys(byCat).length}</strong> categorias</div>
+        </div>`;
+
+        for (const [catKey, prods] of Object.entries(byCat)) {
+            const catLabel = _categories.find(c => c.key === catKey)?.label || catKey;
+            const subs = _categories.filter(c => c.parent_key === catKey);
+            html += `<div class="cat-header">${catLabel} (${prods.length}) <span class="count">${subs.length} subcategorias disponibles</span></div>`;
+            html += `<table><thead><tr><th>Producto</th><th>Marca</th><th>Sugerido</th><th>Asignar</th></tr></thead><tbody>`;
+            prods.forEach(p => {
+                const suggest = autoSuggestSubcat(p.name, catKey);
+                const rowClass = suggest ? 'suggested' : '';
+                const opts = '<option value="">(sin subcategoria)</option>' +
+                    subs.map(s => `<option value="${s.key}" ${s.key === suggest ? 'selected' : ''}>${s.label}</option>`).join('');
+                html += `<tr class="prod-row ${rowClass}">
+                    <td>${p.name}</td>
+                    <td style="color:#888;font-size:12px;">${p.brand || '-'}</td>
+                    <td style="font-size:12px;">${suggest ? _categories.find(c => c.key === suggest)?.label || suggest : '—'}</td>
+                    <td><select data-id="${p.id}" onchange="onChange(this)">${opts}</select></td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+        }
+
+        document.getElementById('result').innerHTML = html;
+        document.getElementById('btnSave').disabled = false;
+        log('Listo. Revisa las sugerencias (fondos amarillos) y ajusta antes de guardar.', 'info');
+    } catch (e) {
+        log('ERROR: ' + e.message, 'err');
+        console.error(e);
+    } finally {
+        document.getElementById('btnLoad').disabled = false;
+    }
+}
+
+function onChange(sel) {
+    const id = parseInt(sel.dataset.id);
+    const val = sel.value;
+    if (val) _assignments[id] = val;
+    else delete _assignments[id];
+    const count = Object.keys(_assignments).length;
+    document.getElementById('status').textContent = count + ' producto(s) por guardar';
+}
+
+async function saveAll() {
+    const ids = Object.keys(_assignments);
+    if (ids.length === 0) { alert('No hay cambios para guardar'); return; }
+    if (!confirm(`Guardar subcategoria para ${ids.length} producto(s)?`)) return;
+
+    document.getElementById('btnSave').disabled = true;
+    let ok = 0, err = 0;
+
+    for (const id of ids) {
+        const subKey = _assignments[id];
+        const p = _products.find(x => x.id === id);
+        if (!p) continue;
+        try {
+            await API.saveProduct({
+                id: parseInt(id), name: p.name, category: p.category,
+                subcategory: subKey,
+                barcode: '', brand: p.brand || '', price: 0, stock: 0, active: true
+            });
+            log(`  ✓ #${id} "${p.name}" → ${_categories.find(c => c.key === subKey)?.label || subKey}`, 'ok');
+            ok++;
+        } catch (e) {
+            log(`  ✗ #${id} "${p.name}": ${e.message}`, 'err');
+            err++;
+        }
+    }
+
+    log(`\n=== FIN: ${ok} OK, ${err} errores ===`, err === 0 ? 'ok' : 'warn');
+    document.getElementById('btnSave').disabled = false;
+    if (err === 0) _assignments = {};
+}
+
+function log(msg, type) {
+    const el = document.getElementById('result');
+    el.innerHTML += `<div class="log log-${type}">${msg}</div>`;
+}
+</script>
+</body>
+</html>
