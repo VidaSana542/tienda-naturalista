@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>POS Local - TIENDA NATURISTA</title>
+<title>POS Local - Vida Sana</title>
 <meta name="theme-color" content="#0b513b">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -25,8 +25,8 @@
 <div class="login-screen" id="loginScreen">
     <div class="login-card">
         <div class="login-logo">
-            <img src="LOGO.jpeg" alt="TIENDA NATURISTA" style="height:80px;border-radius:14px;">
-            <h2>TIENDA <span>NATURISTA</span></h2>
+            <img src="LOGO.jpeg" alt="POS VIDA SANA" style="height:80px;border-radius:14px;">
+            <h2>POS <span>VIDA SANA</span></h2>
             <p>POS Local - Punto de Venta</p>
         </div>
         <form id="loginForm" onsubmit="return handleLogin(event)">
@@ -59,7 +59,7 @@
     </div>
     <div class="sidebar-brand">
         <a href="#">
-            <img src="LOGO.jpeg" alt="TIENDA NATURISTA" style="height:56px;border-radius:10px;">
+            <img src="LOGO.jpeg" alt="POS VIDA SANA" style="height:56px;border-radius:10px;">
             <span style="font-size:16px;">POS Local</span>
             <small>Punto de Venta</small>
         </a>
@@ -1044,6 +1044,27 @@
         </div>
     </div>
 </div>
+
+    <!-- Edit Price Modal -->
+    <div class="modal-overlay" id="editPriceModal" onclick="if(event.target===this) closeEditPriceModal()" style="display:none;">
+        <div class="modal" style="max-width:420px;">
+            <button type="button" class="modal-close" onclick="closeEditPriceModal()">&times;</button>
+            <h3><svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Ajustar precio</h3>
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Modifica el precio unitario del artículo en el carrito.</p>
+            <div class="form-group">
+                <label>Producto</label>
+                <div id="editPriceProdName" style="font-weight:700;color:var(--text);"></div>
+            </div>
+            <div class="form-group">
+                <label>Precio unitario</label>
+                <input type="number" id="editPriceInput" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeEditPriceModal()">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveEditPriceModal()">Guardar precio</button>
+            </div>
+        </div>
+    </div>
 
 <!-- Old Purchase Modal -->
 <div class="modal-overlay" id="oldPurchaseModal">

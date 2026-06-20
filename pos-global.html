@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>POS Global - TIENDA NATURISTA</title>
+<title>POS Global - Vida Sana</title>
 <meta name="theme-color" content="#0b513b">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -24,8 +24,8 @@
 <div class="login-screen" id="loginScreen">
     <div class="login-card">
         <div class="login-logo">
-            <img src="LOGO.jpeg" alt="TIENDA NATURISTA" style="height:80px;border-radius:14px;">
-            <h2>TIENDA <span>NATURISTA</span></h2>
+            <img src="LOGO.jpeg" alt="POS VIDA SANA" style="height:80px;border-radius:14px;">
+            <h2>POS <span>VIDA SANA</span></h2>
             <p>POS Global - Resumen General</p>
         </div>
         <form id="loginForm" onsubmit="return handleLogin(event)">
@@ -57,7 +57,7 @@
     </div>
     <div class="sidebar-brand">
         <a href="#">
-            <img src="LOGO.jpeg" alt="TIENDA NATURISTA" style="height:56px;border-radius:10px;">
+            <img src="LOGO.jpeg" alt="POS VIDA SANA" style="height:56px;border-radius:10px;">
             <span style="font-size:16px;">POS Global</span>
             <small>Resumen General</small>
         </a>
@@ -339,16 +339,36 @@
                     </div>
                 </div>
                 <div id="invLogSection" style="display:none;">
+                    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+                        <div class="search-field" style="flex:1;min-width:0;">
+                            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                            <input type="text" id="invLogSearch" placeholder="Buscar en historial..." oninput="renderInvLog()">
+                        </div>
+                        <select id="invLogCatFilter" onchange="renderInvLog()" class="filter-select">
+                            <option value="all">Todas las categorias</option>
+                        </select>
+                        <select id="invLogTypeFilter" onchange="renderInvLog()" class="filter-select">
+                            <option value="all">Todos los tipos</option>
+                            <option value="entrada">Entrada</option>
+                            <option value="salida">Salida</option>
+                        </select>
+                        <select id="invLogVentaFilter" onchange="renderInvLog()" class="filter-select">
+                            <option value="all">Todas</option>
+                            <option value="local">Local</option>
+                            <option value="fuera">Fuera</option>
+                        </select>
+                    </div>
                     <div class="table-wrap">
                         <table>
                             <thead>
                                 <tr>
                                     <th>Fecha</th>
                                     <th>Producto</th>
+                                    <th>Categoria</th>
                                     <th>Tipo</th>
-                                    <th>Cantidad</th>
-                                    <th>Stock Anterior</th>
-                                    <th>Stock Nuevo</th>
+                                    <th>Cant.</th>
+                                    <th>Stock Antes</th>
+                                    <th>Stock Despues</th>
                                     <th>Razon</th>
                                 </tr>
                             </thead>

@@ -29,7 +29,9 @@ let navStack = [];
 
 const CATEGORY_ICONS = {
     suplementos: '<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z"/></svg>',
-    belleza_y_bienestar: '<svg viewBox="0 0 24 24"><path d="M19.42 4.42A8.932 8.932 0 0012 2C6.48 2 2 6.48 2 12s4.48 10 10 10c2.06 0 3.98-.7 5.42-1.91.33-.27.74-.27 1.07 0l4.08 4.08c.27.27.68.27.95 0 .27-.28.27-.68 0-.95l-4.08-4.08zM12 4c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6zm-1.5-9h3v3h-3v-3zm0 4.5h3v3h-3v-3z"/></svg>',
+    belleza_y_bienestar: '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>',
+    salud_y_bienestar: '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
+    vitaminas: '<svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/></svg>',
     alimentos: '<svg viewBox="0 0 24 24"><path d="M18.06 22.99h1.66c.84 0 1.53-.64 1.63-1.46L23 5.05h-5V1h-1.97v4.05h-4.97l.3 2.34c1.71.47 3.31 1.32 4.27 2.26 1.44 1.42 2.43 2.89 2.43 5.15v1.83c-1.92.75-3.57 2.08-4.8 3.89-.04.05-.09.1-.14.15-.36.43-.63.93-.78 1.48l-.11.35-.01 2.49zM6.69 12.7l5.73 5.73-5.73 5.73-2.86-2.86 2.87-2.87-2.87-2.87L6.69 12.7zm0-2.83L3.83 7.01 6.69 4.15l2.86 2.86-2.87 2.87 2.87 2.87-2.86 2.85z"/></svg>',
     aromas: '<svg viewBox="0 0 24 24"><path d="M12 2C9.38 2 7.13 3.44 6 5.55 4.88 7.65 5.12 10.31 6.54 12.19c.79.98 1.21 2.17 1.21 3.41V19c0 .55.45 1 1 1h6.5c.55 0 1-.45 1-1v-3.4c0-1.24.42-2.43 1.21-3.41 1.42-1.88 1.66-4.54.54-6.64C16.87 3.44 14.62 2 12 2zm0 2c1.83 0 3.42 1.05 4.18 2.69.76 1.64.46 3.61-.63 5.05-1.07 1.41-1.55 3.09-1.55 4.86V17h-4v-.4c0-1.77-.48-3.45-1.55-4.86-1.09-1.44-1.39-3.41-.63-5.05C8.58 5.05 10.17 4 12 4zm-2 13h4v2h-4v-2z"/></svg>',
     cosmeticos: '<svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16zM18 6h-5v7l4-2.5 4 2.5V6zm-9 4H5v2h4v-2zm0 4H5v2h4v-2zm0-8H5v2h4V6z"/></svg>',
@@ -152,7 +154,9 @@ function handleSearch() {
 function getFilteredProducts() {
     let filtered = products;
     if (activeFilter && activeFilter !== 'all') {
-        filtered = filtered.filter(p => p.category === activeFilter);
+        console.log('[DEBUG] activeFilter:', JSON.stringify(activeFilter));
+        console.log('[DEBUG] product categories sample:', JSON.stringify(Array.from(new Set(products.slice(0, 50).map(p => p.category)))));
+        filtered = filtered.filter(p => (p.category || '').trim() === activeFilter.trim());
     }
     if (activeSubcategory) {
         filtered = filtered.filter(p => p.subcategory === activeSubcategory);
@@ -439,46 +443,55 @@ function showToast(msg) {
 }
 
 (async function init() {
+    let apiProducts = [], apiCategories = [];
     try {
-        const [apiProducts, apiCategories] = await Promise.all([API.getProducts(), API.getCategories()]);
-        if (apiCategories && apiCategories.length > 0) {
-            // Deduplicate by label
-            const seen = new Set();
-            allApiCategories = apiCategories.filter(c => {
-                const key = (c.parent_key || '') + '|' + c.label;
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            });
-            const topCats = allApiCategories.filter(c => !c.parent_key);
-            if (topCats.length > 0) {
-                categories = [
-                    { key: 'all', label: 'Todos', icon: DEFAULT_CAT_ICON },
-                    ...topCats.map(c => ({
-                        key: c.key,
-                        label: c.label,
-                        icon: CATEGORY_ICONS[c.key] || DEFAULT_CAT_ICON
-                    }))
-                ];
-            }
-        }
-        if (apiProducts && apiProducts.length > 0) {
-            products = apiProducts.map(p => ({
-                id: parseInt(p.id),
-                name: p.name,
-                brand: p.brand || '',
-                category: p.category,
-                subcategory: p.subcategory || '',
-                price: parseFloat(p.price),
-                oldPrice: 0,
-                img: p.img || FALLBACK_PRODUCTS.find(f => f.name === p.name)?.img || '',
-                stock: p.stock > 5 ? 'in' : p.stock > 0 ? 'low' : 'out',
-                badge: '',
-                desc: p.description || ''
-            }));
-        }
+        const results = await Promise.allSettled([API.getProducts(), API.getCategories()]);
+        if (results[0].status === 'fulfilled') apiProducts = results[0].value || [];
+        else console.error('Error cargando productos:', results[0].reason);
+        if (results[1].status === 'fulfilled') apiCategories = results[1].value || [];
+        else console.error('Error cargando categorias:', results[1].reason);
     } catch (e) {
-        console.error('Error cargando productos:', e);
+        console.error('Error en init:', e);
+    }
+    if (apiCategories.length > 0) {
+        const seen = new Set();
+        allApiCategories = apiCategories.filter(c => {
+            const key = (c.parent_key || '') + '|' + c.label;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+        const topCats = allApiCategories.filter(c => !c.parent_key);
+        if (topCats.length > 0) {
+            categories = [
+                { key: 'all', label: 'Todos', icon: DEFAULT_CAT_ICON },
+                ...topCats.map(c => ({
+                    key: c.key,
+                    label: c.label,
+                    icon: CATEGORY_ICONS[c.key] || DEFAULT_CAT_ICON
+                }))
+            ];
+        }
+    }
+    if (apiProducts.length > 0) {
+        products = apiProducts.map(p => ({
+            id: parseInt(p.id),
+            name: p.name,
+            brand: p.brand || '',
+            category: p.category,
+            subcategory: p.subcategory || '',
+            price: parseFloat(p.price),
+            oldPrice: 0,
+            img: p.img || '',
+            stock: p.stock > 5 ? 'in' : p.stock > 0 ? 'low' : 'out',
+            badge: '',
+            desc: p.description || ''
+        }));
+        console.log('[DEBUG] Categories from API:', JSON.stringify(categories.map(c => c.key)));
+        console.log('[DEBUG] Unique product categories:', JSON.stringify([...new Set(products.map(p => p.category))]));
+        console.log('[DEBUG] Products with no/invalid category:', JSON.stringify(products.filter(p => !p.category || p.category.trim() === '').map(p => ({ id: p.id, name: p.name, category: p.category }))));
+    } else {
+        showToast('No hay productos en la nube. Crea productos desde el POS y sincroniza.');
     }
     initCategoryCards();
     showProductsView();

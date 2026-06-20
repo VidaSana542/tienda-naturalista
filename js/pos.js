@@ -2406,10 +2406,6 @@ function showFinalInvoice(saleId) {
         <div class="invoice-print" id="invoicePrintArea">
             <div class="inv-header">
                 <div class="inv-logo"><img src="LOGO.jpeg" alt="Logo"></div>
-                <div class="inv-business">
-                    <h3>VIDA SANA</h3>
-                    <p>Santa Marta, Colombia<br>NIT: 1082954847-4<br>Tel: 313 6196312</p>
-                </div>
                 <div class="inv-doc-info">
                     <div class="inv-doc-type">ESTADO DE CUENTA</div>
                     <div class="inv-doc-num">Factura #${sale.id}</div>

@@ -5,6 +5,48 @@ const POS_USERS = [
 ];
 let currentUser = null;
 
+// ============ POS SCOPE (local / fuera) ============
+function getPosScope() { return typeof POS_SCOPE !== 'undefined' ? POS_SCOPE : null; }
+function isCustomerInScope(c) {
+    const scope = getPosScope();
+    if (!scope) return true;
+    const tipo = c.tipo || 'local';
+    return scope === 'local' ? tipo !== 'fuera' : tipo === 'fuera';
+}
+function isSaleInScope(s) {
+    const scope = getPosScope();
+    if (!scope) return true;
+    return scope === 'local' ? !s.ventaPorFuera : !!s.ventaPorFuera;
+}
+function filterCustomersByScope(customers) {
+    const scope = getPosScope();
+    if (!scope) return customers;
+    return customers.filter(isCustomerInScope);
+}
+function filterSalesByScope(sales) {
+    const scope = getPosScope();
+    if (!scope) return sales;
+    return sales.filter(isSaleInScope);
+}
+function filterInvLogByScope(log) {
+    const scope = getPosScope();
+    if (!scope) return log;
+    return log.filter(l => scope === 'local' ? !l.ventaPorFuera : !!l.ventaPorFuera);
+}
+function getDefaultCustomerTipo() {
+    return getPosScope() === 'fuera' ? 'fuera' : 'local';
+}
+function applyPosScopeUI() {
+    const scope = getPosScope();
+    if (!scope) return;
+    ['custTipoFilter', 'salesTipoFilter', 'invLogVentaFilter', 'cuentasTipoFilter', 'custSalesTypeFilter'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.tagName === 'SELECT') el.value = scope;
+        el.style.display = 'none';
+    });
+}
+
 function handleLogin(e) {
     e.preventDefault();
     const user = document.getElementById('loginUser').value.trim();
@@ -801,7 +843,7 @@ function renderCustomerTable() {
     const custFilter = filterEl ? filterEl.value : 'todo';
     const custSalesType = salesTypeEl ? salesTypeEl.value : 'all';
     const custTipoFilter = tipoEl ? tipoEl.value : 'all';
-    let filtered = posCustomers;
+    let filtered = filterCustomersByScope(posCustomers);
     if (q) filtered = filtered.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q));
     if (custFilter !== 'todo') {
         filtered = filtered.filter(c => {
@@ -809,12 +851,12 @@ function renderCustomerTable() {
             return custFilter === 'aldia' ? p <= 0 : p > 0;
         });
     }
-    if (custTipoFilter !== 'all') {
+    if (!getPosScope() && custTipoFilter !== 'all') {
         filtered = filtered.filter(c => (c.tipo || 'local') === custTipoFilter);
     }
-    if (custSalesType !== 'all') {
+    if (!getPosScope() && custSalesType !== 'all') {
         filtered = filtered.filter(c => {
-            const sales = posSales.filter(s => s.customerId === c.id);
+            const sales = filterSalesByScope(posSales.filter(s => s.customerId === c.id));
             const hasLocal = sales.some(s => !s.ventaPorFuera);
             const hasFuera = sales.some(s => s.ventaPorFuera);
             return custSalesType === 'local' ? hasLocal : hasFuera;
@@ -826,7 +868,7 @@ function renderCustomerTable() {
         return;
     }
     tbody.innerHTML = filtered.map((c, idx) => {
-        const sales = posSales.filter(s => s.customerId === c.id);
+        const sales = filterSalesByScope(posSales.filter(s => s.customerId === c.id));
         const purchases = sales.length;
         const localCount = sales.filter(s => !s.ventaPorFuera).length;
         const fueraCount = sales.filter(s => s.ventaPorFuera).length;
@@ -854,7 +896,7 @@ function renderCustomerTable() {
 }
 
 function getCustomerPending(cid) {
-    const sales = posSales.filter(s => s.customerId === cid);
+    const sales = filterSalesByScope(posSales.filter(s => s.customerId === cid));
     return sales.reduce((sum, s) => {
             if (!s.creditInfo) return sum;
             if (s.creditInfo.tipo === 'abono') {
@@ -890,7 +932,7 @@ function openCustomerModal(id) {
         document.getElementById('custPhone').value = '';
         document.getElementById('custEmail').value = '';
         document.getElementById('custAddress').value = '';
-        document.getElementById('custTipo').value = 'local';
+        document.getElementById('custTipo').value = getDefaultCustomerTipo();
     }
     modal.classList.add('open');
 }
@@ -1124,21 +1166,27 @@ function deleteCategory(key) {
 let _invLogCatInit = false;
 function renderInvLog() {
     const catFilter = document.getElementById('invLogCatFilter');
-    if (!_invLogCatInit) {
+    const searchEl = document.getElementById('invLogSearch');
+    const typeFilter = document.getElementById('invLogTypeFilter');
+    const ventaFilterEl = document.getElementById('invLogVentaFilter');
+    const tbody = document.getElementById('invLogBody');
+    if (!tbody) return;
+    if (catFilter && !_invLogCatInit) {
         _invLogCatInit = true;
         catFilter.innerHTML = '<option value="all">Todas las categorias</option>' + catOptsHtml();
     }
-    const q = document.getElementById('invLogSearch').value.toLowerCase().trim();
-    const cat = catFilter.value;
-    const type = document.getElementById('invLogTypeFilter').value;
-    const ventaFilter = document.getElementById('invLogVentaFilter').value;
-    let filtered = invLog;
+    const q = searchEl ? searchEl.value.toLowerCase().trim() : '';
+    const cat = catFilter ? catFilter.value : 'all';
+    const type = typeFilter ? typeFilter.value : 'all';
+    const ventaFilter = ventaFilterEl ? ventaFilterEl.value : 'all';
+    let filtered = filterInvLogByScope(invLog);
     if (q) filtered = filtered.filter(l => l.productName.toLowerCase().includes(q));
     if (cat !== 'all') filtered = filtered.filter(l => l.category === cat);
     if (type !== 'all') filtered = filtered.filter(l => l.type === type);
-    if (ventaFilter === 'local') filtered = filtered.filter(l => l.type === 'salida' && !l.ventaPorFuera);
-    else if (ventaFilter === 'fuera') filtered = filtered.filter(l => l.type === 'salida' && l.ventaPorFuera);
-    const tbody = document.getElementById('invLogBody');
+    if (!getPosScope()) {
+        if (ventaFilter === 'local') filtered = filtered.filter(l => l.type === 'salida' && !l.ventaPorFuera);
+        else if (ventaFilter === 'fuera') filtered = filtered.filter(l => l.type === 'salida' && l.ventaPorFuera);
+    }
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">Sin movimientos registrados</td></tr>';
         return;
@@ -1201,7 +1249,7 @@ function renderInventory() {
         return;
     }
     tbody.innerHTML = filtered.map(p => {
-        const lastSale = posSales.filter(s => s.items.some(i => i.id === p.id)).pop();
+        const lastSale = filterSalesByScope(posSales.filter(s => s.items.some(i => i.id === p.id))).pop();
         const tag = p.stock <= 0 ? 'tag-danger' : p.stock <= 5 ? 'tag-warning' : 'tag-success';
         const text = p.stock <= 0 ? 'Agotado' : p.stock <= 5 ? 'Stock Bajo' : 'OK';
         return '<tr>' +
@@ -1232,19 +1280,28 @@ function filterInvMovProduct() {
     }
 }
 function openInvMovModal(type) {
-    document.getElementById('invMovProductSearch').value = '';
+    const modal = document.getElementById('invMovModal');
+    const searchEl = document.getElementById('invMovProductSearch');
     const sel = document.getElementById('invMovProduct');
-    sel.innerHTML = posProducts.map(p => '<option value="' + p.id + '">' + p.name + ' (Stock: ' + p.stock + ')</option>').join('');
-    document.getElementById('invMovType').value = type;
-    document.getElementById('invMovQty').value = '1';
-    document.getElementById('invMovNote').value = '';
+    const typeEl = document.getElementById('invMovType');
+    const qtyEl = document.getElementById('invMovQty');
+    const noteEl = document.getElementById('invMovNote');
     const reasonSel = document.getElementById('invMovReason');
+    const titleIcon = document.getElementById('invMovTitleIcon');
+    const titleText = document.getElementById('invMovTitleText');
+    const confirmBtn = document.getElementById('invMovConfirmBtn');
+    if (!modal || !sel || !typeEl || !reasonSel) { showToast('No se pudo abrir el formulario de inventario'); return; }
+    if (searchEl) searchEl.value = '';
+    sel.innerHTML = (Array.isArray(posProducts) ? posProducts : []).map(p => '<option value="' + p.id + '">' + p.name + ' (Stock: ' + p.stock + ')</option>').join('');
+    typeEl.value = type;
+    if (qtyEl) qtyEl.value = '1';
+    if (noteEl) noteEl.value = '';
+    const iconPath = titleIcon && titleIcon.tagName === 'path' ? titleIcon : (titleIcon ? titleIcon.querySelector('path') : null);
     if (type === 'entrada') {
-        document.getElementById('invMovTitleIcon').style.fill = 'var(--success)';
-        document.getElementById('invMovTitleIcon').setAttribute('d', 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z');
-        document.getElementById('invMovTitleText').textContent = 'Registrar Entrada';
-        document.getElementById('invMovConfirmBtn').textContent = 'Guardar Entrada';
-        document.getElementById('invMovConfirmBtn').className = 'btn btn-primary';
+        if (iconPath) { iconPath.style.fill = 'var(--success)'; iconPath.setAttribute('d', 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'); }
+        else if (titleIcon) titleIcon.style.fill = 'var(--success)';
+        if (titleText) titleText.textContent = 'Registrar Entrada';
+        if (confirmBtn) { confirmBtn.textContent = 'Guardar Entrada'; confirmBtn.className = 'btn btn-primary'; confirmBtn.style.cssText = ''; }
         reasonSel.innerHTML =
             '<option value="Compra a proveedor">Compra a proveedor</option>' +
             '<option value="Devolucion de cliente">Devolucion de cliente</option>' +
@@ -1252,12 +1309,10 @@ function openInvMovModal(type) {
             '<option value="Ajuste por inventario inicial">Ajuste por inventario inicial</option>' +
             '<option value="Otro">Otro</option>';
     } else {
-        document.getElementById('invMovTitleIcon').style.fill = 'var(--danger)';
-        document.getElementById('invMovTitleIcon').setAttribute('d', 'M19 13H5v-2h14v2z');
-        document.getElementById('invMovTitleText').textContent = 'Registrar Salida';
-        document.getElementById('invMovConfirmBtn').textContent = 'Guardar Salida';
-        document.getElementById('invMovConfirmBtn').className = 'btn';
-        document.getElementById('invMovConfirmBtn').style.cssText = 'background:var(--danger);color:#fff;';
+        if (iconPath) { iconPath.style.fill = 'var(--danger)'; iconPath.setAttribute('d', 'M19 13H5v-2h14v2z'); }
+        else if (titleIcon) titleIcon.style.fill = 'var(--danger)';
+        if (titleText) titleText.textContent = 'Registrar Salida';
+        if (confirmBtn) { confirmBtn.textContent = 'Guardar Salida'; confirmBtn.className = 'btn'; confirmBtn.style.cssText = 'background:var(--danger);color:#fff;'; }
         reasonSel.innerHTML =
             '<option value="Venta directa">Venta directa</option>' +
             '<option value="Merma / Deterioro">Merma / Deterioro</option>' +
@@ -1275,10 +1330,16 @@ function openInvMovModal(type) {
                 '<option value="Movimiento a Curinca">Movimiento a Curinca</option>';
         }
     }
-    document.getElementById('invMovModal').classList.add('open');
+    modal.style.display = 'flex';
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
 }
 function closeInvMovModal() {
-    document.getElementById('invMovModal').classList.remove('open');
+    const modal = document.getElementById('invMovModal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
 }
 function confirmInvMov() {
     const type = document.getElementById('invMovType').value;
@@ -1469,10 +1530,6 @@ function showFinalInvoice(saleId) {
         '<div class="invoice-print" id="invoicePrintArea">' +
             '<div class="inv-header">' +
                 '<div class="inv-logo"><img src="LOGO.jpeg" alt="Logo"></div>' +
-                '<div class="inv-business">' +
-                    '<h3>TIENDA NATURISTA</h3>' +
-                    '<p>Santa Marta, Colombia</p>' +
-                '</div>' +
                 '<div class="inv-doc-info">' +
                     '<div class="inv-doc-type">ESTADO DE CUENTA</div>' +
                     '<div class="inv-doc-num">Factura #' + sale.id + '</div>' +
@@ -1540,7 +1597,7 @@ function showCustomerHistory(custId) {
     const cust = posCustomers.find(c => c.id === custId);
     if (!cust) return;
     document.getElementById('custHistoryTitle').textContent = 'Cuenta de Cobro: ' + cust.name;
-    const sales = posSales.filter(s => s.customerId === custId);
+    const sales = filterSalesByScope(posSales.filter(s => s.customerId === custId));
     const creditSales = sales.filter(s => s.creditInfo);
     const totalOwedGlobal = creditSales.reduce((sum, s) => {
         if (s.creditInfo.tipo === 'abono') {
@@ -1708,8 +1765,8 @@ function importProductsFromFile(event) {
             if (!Array.isArray(data) || data.length === 0) { alert('El archivo no contiene productos.'); return; }
             // Auto-create categories from products
             const catLabels = {
-                'suplementos': 'Suplementos', 'belleza-y-bienestar': 'Belleza y bienestar',
-                'salud-y-bienestar': 'Salud y bienestar', 'vitaminas-y-minerales': 'Vitaminas y minerales'
+                'suplementos': 'Suplementos', 'belleza_y_bienestar': 'Belleza y bienestar',
+                'salud_y_bienestar': 'Salud y bienestar', 'vitaminas': 'Vitaminas'
             };
             const subLabels = {
                 'suplementos_complejo-b': 'Complejo B', 'suplementos_salud-sanguinea': 'Salud sanguínea',

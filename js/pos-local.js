@@ -1,4 +1,5 @@
 // ============ POS LOCAL - Config ============
+const POS_SCOPE = 'local';
 const POS_RESTRICTED_PANELS = ['products','suppliers','categories','dashboard'];
 const POS_PANEL_TITLES = { dashboard:'Dashboard', tpv:'TPV / Punto de Venta', products:'Gestion de Productos', inventory:'Control de Inventario', customers:'Gestion de Clientes', suppliers:'Gestion de Proveedores', categories:'Gestion de Categorias', sales:'Historial de Ventas', cash:'Caja' };
 const POS_PANEL_RENDERERS = {};
@@ -145,7 +146,7 @@ function renderTpvCart() {
         return `<div class="tpv-cart-item">
             <div class="tpv-ci-info">
                 <div class="tpv-ci-name">${name}${item.isTemp ? ' <span style="font-size:10px;color:var(--warning);">(temp)</span>' : ''}</div>
-                <div class="tpv-ci-price" onclick="${item.isTemp ? '' : 'editCartItemPrice(' + idx + ')'}" title="${item.isTemp ? 'Producto temporal' : 'Clic para editar precio'}" style="cursor:${item.isTemp ? 'default' : 'pointer'};${priceDiff ? 'color:var(--primary);font-weight:700;' : ''}">${formatPrice(item.price)}${priceDiff ? ' ✎' : ''}</div>
+                <div class="tpv-ci-price" onclick="${item.isTemp ? '' : 'openEditPriceModal(' + idx + ')'}" title="${item.isTemp ? 'Producto temporal' : 'Clic para editar precio'}" style="cursor:${item.isTemp ? 'default' : 'pointer'};${priceDiff ? 'color:var(--primary);font-weight:700;' : ''}">${formatPrice(item.price)}${priceDiff ? ' ✎' : ''}</div>
             </div>
             <div class="tpv-ci-qty">
                 <button onclick="updateCartQty(${idx}, -1)">-</button>
@@ -195,21 +196,6 @@ function removeFromCart(idx) {
     saveCart();
     renderTpvCart();
 }
-function editCartItemPrice(idx) {
-    if (!posCart[idx]) return;
-    const prod = posProducts.find(p => p.id === posCart[idx].id);
-    const currentPrice = posCart[idx].price;
-    const newPrice = prompt('Precio unitario para este producto:', currentPrice);
-    if (newPrice === null) return;
-    const parsed = parseInt(newPrice);
-    if (isNaN(parsed) || parsed <= 0) { showToast('Precio invalido'); return; }
-    posCart[idx].price = parsed;
-    saveCart();
-    renderTpvCart();
-    if (prod && parsed !== prod.price) {
-        showToast('Precio ajustado: ' + formatPrice(parsed) + ' (original: ' + formatPrice(prod.price) + ')');
-    }
-}
 
 function toggleTpvCart() {
     const cart = document.getElementById('tpvCart');
@@ -252,6 +238,58 @@ function openTempProductModal() {
 
 function closeTempProductModal() {
     document.getElementById('tempProductModal').classList.remove('open');
+}
+
+let _editPriceIndex = null;
+
+function openEditPriceModal(idx) {
+    if (!posCart[idx]) return;
+    const modal = document.getElementById('editPriceModal');
+    const priceInput = document.getElementById('editPriceInput');
+    const productName = document.getElementById('editPriceProdName');
+    const item = posCart[idx];
+    const prod = item.isTemp ? null : posProducts.find(p => p.id === item.id);
+
+    _editPriceIndex = idx;
+    if (!modal || !priceInput || !productName) return;
+    productName.textContent = item.isTemp ? item.tempName : (prod ? prod.name : 'Producto');
+    priceInput.value = item.price.toFixed(2);
+    modal.style.display = 'flex';
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => priceInput.focus(), 100);
+}
+
+function closeEditPriceModal() {
+    const modal = document.getElementById('editPriceModal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    _editPriceIndex = null;
+}
+
+function saveEditPriceModal() {
+    if (_editPriceIndex === null) return;
+    const priceInput = document.getElementById('editPriceInput');
+    const value = priceInput ? priceInput.value.trim() : '';
+    const parsed = Math.round(parseFloat(value) * 100) / 100;
+    if (isNaN(parsed) || parsed <= 0) {
+        showToast('Precio invalido');
+        return;
+    }
+    const item = posCart[_editPriceIndex];
+    if (!item) return;
+    const prod = item.isTemp ? null : posProducts.find(p => p.id === item.id);
+    item.price = parsed;
+    saveCart();
+    renderTpvCart();
+    closeEditPriceModal();
+    if (prod && parsed !== prod.price) {
+        showToast('Precio ajustado: ' + formatPrice(parsed) + ' (original: ' + formatPrice(prod.price) + ')');
+    } else {
+        showToast('Precio actualizado: ' + formatPrice(parsed));
+    }
 }
 
 function addTempProductToCart() {
@@ -304,7 +342,7 @@ function renderCheckoutCustomers() {
     const q = document.getElementById('chkCustomerInput').value.toLowerCase().trim();
     const list = document.getElementById('chkCustomerList');
     const selectedId = document.getElementById('chkCustomerId').value;
-    const filtered = q ? posCustomers.filter(c => c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q))) : posCustomers;
+    const filtered = q ? filterCustomersByScope(posCustomers).filter(c => c.name.toLowerCase().includes(q) || (c.phone && c.phone.includes(q))) : filterCustomersByScope(posCustomers);
     if (filtered.length === 0) {
         list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Sin resultados</div>';
         return;
@@ -859,8 +897,7 @@ function showReceipt(sale) {
     content.innerHTML = `
         <div class="receipt">
             <div class="receipt-header">
-                <img src="LOGO.jpeg" style="height:40px;margin-bottom:4px;" alt="Vida Sana">
-                <h4>VIDA SANA</h4>
+                <img src="LOGO.jpeg" style="height:52px;margin-bottom:6px;" alt="Logo">
                 <p>Santa Marta, Colombia<br>NIT: 1082954847-4</p>
                 <p style="font-size:11px;margin-top:2px;">${shortDate(sale.date)}</p>
             </div>
@@ -1236,39 +1273,8 @@ function deleteExpense(idx) {
     showToast('Gasto eliminado');
 }
 
-// ============ LOCAL OVERRIDE (filter out "fuera" inventory log) ============
-function renderInvLog() {
-    const catFilter = document.getElementById('invLogCatFilter');
-    if (!_invLogCatInit) {
-        _invLogCatInit = true;
-        catFilter.innerHTML = '<option value="all">Todas las categorias</option>' + catOptsHtml();
-    }
-    const q = document.getElementById('invLogSearch').value.toLowerCase().trim();
-    const cat = catFilter.value;
-    const type = document.getElementById('invLogTypeFilter').value;
-    let filtered = invLog.filter(l => !l.ventaPorFuera);
-    if (q) filtered = filtered.filter(l => l.productName.toLowerCase().includes(q));
-    if (cat !== 'all') filtered = filtered.filter(l => l.category === cat);
-    if (type !== 'all') filtered = filtered.filter(l => l.type === type);
-    const tbody = document.getElementById('invLogBody');
-    if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">Sin movimientos registrados</td></tr>';
-        return;
-    }
-    tbody.innerHTML = filtered.slice().reverse().slice(0, 200).map(l => {
-        const typeLabel = l.type === 'entrada' ? '<span style="color:var(--success);font-weight:600;">Entrada</span>' : l.type === 'salida' ? '<span style="color:var(--danger);font-weight:600;">Salida</span>' : '<span style="color:var(--warning);font-weight:600;">Ajuste</span>';
-        return '<tr>' +
-            '<td>' + shortDate(l.date) + '</td>' +
-            '<td><strong>' + l.productName + '</strong></td>' +
-            '<td>' + getCatLabel(l.category) + '</td>' +
-            '<td>' + typeLabel + '</td>' +
-            '<td style="font-weight:600;' + (l.quantity > 0 ? 'color:var(--success);' : 'color:var(--danger);') + '">' + (l.quantity > 0 ? '+' : '') + l.quantity + '</td>' +
-            '<td>' + l.previousStock + '</td>' +
-            '<td>' + l.newStock + '</td>' +
-            '<td style="font-size:12px;color:var(--text-muted);">' + (l.reason || '-') + '</td>' +
-        '</tr>';
-    }).join('');
-}
+// ============ LOCAL OVERRIDE (inventory log uses shared scope filter) ============
+// renderInvLog inherited from pos-shared.js with POS_SCOPE = 'local'
 
 // ============ ESTADO DE CUENTAS (local only) ============
 function renderAccountStatus() {
@@ -1276,7 +1282,7 @@ function renderAccountStatus() {
     if (!tbody) return;
     const q = (document.getElementById('cuentasSearch')?.value || '').toLowerCase().trim();
     const filter = document.getElementById('cuentasFilter')?.value || 'todo';
-    let customers = posCustomers.filter(c => (c.tipo || 'local') !== 'fuera');
+    let customers = filterCustomersByScope(posCustomers);
     if (q) customers = customers.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q));
     if (filter === 'deuda') customers = customers.filter(c => getCustomerPending(c.id) > 0);
     else if (filter === 'aldia') customers = customers.filter(c => getCustomerPending(c.id) <= 0);
@@ -1286,7 +1292,7 @@ function renderAccountStatus() {
         return;
     }
     tbody.innerHTML = customers.map(c => {
-        const sales = posSales.filter(s => s.customerId === c.id && !s.ventaPorFuera);
+        const sales = filterSalesByScope(posSales.filter(s => s.customerId === c.id));
         const totalSpent = sales.reduce((sum, s) => sum + s.total, 0);
         const pendingTotal = getCustomerPending(c.id);
         const totalPaid = Math.max(0, totalSpent - pendingTotal);
@@ -1321,7 +1327,7 @@ function renderAccountStatus() {
 function openOldPurchaseModal() {
     document.getElementById('oldPurchaseDate').value = new Date().toISOString().split('T')[0];
     const sel = document.getElementById('oldPurchaseCustomer');
-    sel.innerHTML = '<option value="">Seleccionar cliente existente...</option>' + posCustomers.map(c => '<option value="' + c.id + '">' + c.name + (c.phone ? ' - ' + c.phone : '') + '</option>').join('');
+    sel.innerHTML = '<option value="">Seleccionar cliente existente...</option>' + filterCustomersByScope(posCustomers).map(c => '<option value="' + c.id + '">' + c.name + (c.phone ? ' - ' + c.phone : '') + '</option>').join('');
     sel.value = '';
     document.getElementById('oldPurchaseNewCustSection').classList.remove('open');
     document.getElementById('oldPurchaseNewName').value = '';
@@ -1526,6 +1532,7 @@ function initPOS() {
         }
         initCatFilter();
         migrateProductSubcats();
+        applyPosScopeUI();
         renderDashboard();
         renderTpv();
         setupBarcodeScan();

@@ -77,6 +77,7 @@ const API = {
       images: product.images || [],
       supplier_id: product.supplier_id || null,
       featured: product.featured || false,
+      active: true,
       updated_at: new Date().toISOString()
     };
     if (product.id) payload.id = product.id;

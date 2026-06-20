@@ -1,10 +1,140 @@
 // ============ POS POR FUERA - Config ============
+const POS_SCOPE = 'fuera';
 const POS_RESTRICTED_PANELS = [];
-const POS_PANEL_TITLES = { dashboard:'Dashboard', orders:'Pedidos', tpv:'TPV / Pedido', products:'Productos', customers:'Clientes', cuentas:'Estado de Cuentas', inventory:'Inventario', sales:'Historial de Ventas' };
+const POS_PANEL_TITLES = { dashboard:'Dashboard', orders:'Pedidos', tpv:'TPV / Pedido', salidas:'Salidas', products:'Productos', customers:'Clientes', cuentas:'Estado de Cuentas', inventory:'Inventario', sales:'Historial de Ventas' };
 const POS_PANEL_RENDERERS = {};
 
 // ============ TPV POR FUERA ============
 let _barcodeTimer = null;
+
+// ============ SALIDAS TEMPORALES (Ruta / Bodega) ==========
+let posSalidas = []; // persisted list of salidas
+let posSalidasNextId = 1;
+
+function loadSalidas() {
+    try {
+        const raw = localStorage.getItem('posSalidas');
+        if (raw) {
+            posSalidas = JSON.parse(raw) || [];
+            if (posSalidas.length > 0) posSalidasNextId = Math.max(...posSalidas.map(s => s.id)) + 1;
+        } else {
+            posSalidas = [];
+        }
+    } catch (e) { console.error('loadSalidas error', e); posSalidas = []; }
+}
+
+function saveSalidas() {
+    try { localStorage.setItem('posSalidas', JSON.stringify(posSalidas)); } catch (e) { console.error('saveSalidas error', e); }
+}
+
+function createSalidaObject(userId, userName, items, notes) {
+    return {
+        id: posSalidasNextId++,
+        created_at: now(),
+        userId: userId || (currentUser ? currentUser.user : ''),
+        userName: userName || (currentUser ? currentUser.name : 'Usuario'),
+        items: items.map(it => ({ productId: it.productId, sentQty: it.sentQty, soldQty: 0, returnedQty: 0 })),
+        notes: notes || '',
+        status: 'open'
+    };
+}
+
+function getOpenSalidaForUser(userId) {
+    return posSalidas.find(s => s.userId === userId && s.status === 'open');
+}
+
+function renderSalidas() {
+    try {
+        const tbody = document.getElementById('salidasTable');
+        if (!tbody) return;
+        if (!posSalidas || posSalidas.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">No hay salidas registradas</td></tr>';
+            return;
+        }
+        tbody.innerHTML = posSalidas.slice().reverse().map(s => {
+            const sent = s.items.reduce((a,i)=>a+i.sentQty,0);
+            const sold = s.items.reduce((a,i)=>a+i.soldQty,0);
+            const ret = s.items.reduce((a,i)=>a+i.returnedQty,0);
+            const statusColor = s.status === 'closed' ? '#dc2626' : '#16a34a';
+            const statusBg = s.status === 'closed' ? '#fee2e2' : '#f0fdf4';
+            const statusLabel = s.status === 'closed' ? 'Cerrada' : 'Abierta';
+            const completeness = sent > 0 ? Math.round(((sold + ret) / sent) * 100) : 0;
+            return `<tr>
+                <td><strong>#${s.id}</strong></td>
+                <td style="font-size:12px;color:var(--text-muted);">${s.created_at.split('T')[0]}</td>
+                <td><small>${s.userName}</small></td>
+                <td style="text-align:center;"><strong>${sent}</strong></td>
+                <td style="text-align:center;color:#16a34a;"><strong>${sold}</strong></td>
+                <td style="text-align:center;color:#dc2626;"><strong>${ret}</strong></td>
+                <td style="text-align:center;"><span style="background:${statusBg};color:${statusColor};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">${statusLabel}</span></td>
+                <td style="text-align:center;"><button class="btn btn-sm" onclick="openSalidaDetail(${s.id})" style="font-size:11px;padding:4px 10px;">Ver</button></td>
+            </tr>`;
+        }).join('');
+    } catch (e) {
+        console.error('renderSalidas error', e);
+    }
+}
+
+function openSalidaDetail(id) {
+    const s = posSalidas.find(x=>x.id===id);
+    if (!s) return;
+    const el = document.getElementById('returnSalidaItems');
+    if (!el) return;
+    el.innerHTML = s.items.map(it => {
+        const prod = posProducts.find(p=>p.id===it.productId) || { name: 'Producto' };
+        const available = Math.max(0, it.sentQty - it.soldQty - it.returnedQty);
+        return `<div style="background:#f9fafb;border:1px solid var(--border);border-radius:6px;padding:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                <div><strong>${prod.name}</strong><br><small style="color:var(--text-muted);">ID: ${it.productId}</small></div>
+                <div style="text-align:right;font-size:12px;color:var(--text-muted);">
+                    <div>Enviados: <strong>${it.sentQty}</strong></div>
+                    <div>Vendidos: <strong style="color:#16a34a;">${it.soldQty}</strong></div>
+                    <div>Devueltos: <strong style="color:#dc2626;">${it.returnedQty}</strong></div>
+                    <div>Disponible: <strong style="color:#2563eb;">${available}</strong></div>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+                <label style="font-size:12px;flex:1;">¿Cuántos devolver?</label>
+                <input type="number" min="0" max="${available}" value="0" data-prod="${it.productId}" class="return-qty-input" style="width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:center;">
+            </div>
+        </div>`;
+    }).join('');
+    (document.getElementById('returnSalidaModal')||{}).style.display = 'flex';
+    (document.getElementById('returnSalidaModal')||{}).classList.add('open');
+    document.getElementById('returnSalidaModal').dataset.salidaId = id;
+    document.body.style.overflow = 'hidden';
+}
+
+function closeReturnSalidaModal() {
+    const m = document.getElementById('returnSalidaModal');
+    if (!m) return; m.classList.remove('open'); m.style.display = 'none'; document.body.style.overflow = '';
+}
+
+function saveReturnSalida() {
+    const m = document.getElementById('returnSalidaModal');
+    if (!m) return; const id = parseInt(m.dataset.salidaId);
+    const s = posSalidas.find(x=>x.id===id); if (!s) return;
+    const inputs = Array.from(document.querySelectorAll('#returnSalidaItems .return-qty-input'));
+    let any = false;
+    inputs.forEach(inp=>{
+        const prodId = inp.dataset.prod; const v = parseInt(inp.value)||0; if (v<=0) return; any=true;
+        const it = s.items.find(i=>i.productId===prodId); if (!it) return;
+        const canReturn = Math.max(0, it.sentQty - it.soldQty - it.returnedQty);
+        const toReturn = Math.min(canReturn, v);
+        if (toReturn>0) {
+            it.returnedQty += toReturn;
+            const prod = posProducts.find(p=>p.id===prodId);
+            if (prod) {
+                const prev = prod.stock;
+                prod.stock = (prod.stock || 0) + toReturn;
+                addInvLog(prod.id, prod.name, 'retorno', toReturn, prev, prod.stock, 'Devolucion Salida #' + s.id, s.id, true);
+            }
+        }
+    });
+    if (!any) { showToast('Ingresa cantidades a devolver'); return; }
+    if (s.items.every(i=>i.sentQty <= (i.soldQty + i.returnedQty))) s.status = 'closed';
+    saveSalidas(); saveProducts(); renderSalidas(); closeReturnSalidaModal(); showToast('Devolucion registrada');
+}
 
 function handleBarcodeScan() {
     const input = document.getElementById('tpvBarcode');
@@ -112,10 +242,11 @@ function renderTpvCart() {
     if (container) container.innerHTML = posCart.map((item, idx) => {
         const p = item.isTemp ? null : posProducts.find(pr => pr.id === item.id);
         const name = item.isTemp ? item.tempName : (p ? p.name : 'Producto');
+        const priceDiff = !item.isTemp && p && item.price !== p.price;
         return `<div class="tpv-cart-item">
             <div class="tpv-ci-info">
                 <div class="tpv-ci-name">${name}${item.isTemp ? ' <span style="font-size:10px;color:var(--warning);">(temp)</span>' : ''}</div>
-                <div class="tpv-ci-price">${formatPrice(item.price)}</div>
+                <div class="tpv-ci-price" onclick="${item.isTemp ? '' : 'openEditPriceModal(' + idx + ')'}" title="${item.isTemp ? 'Producto temporal' : 'Clic para editar precio'}" style="cursor:${item.isTemp ? 'default' : 'pointer'};${priceDiff ? 'color:var(--primary);font-weight:700;' : ''}">${formatPrice(item.price)}${priceDiff ? ' ✎' : ''}</div>
             </div>
             <div class="tpv-ci-qty">
                 <button onclick="updateCartQty(${idx}, -1)">-</button>
@@ -181,17 +312,247 @@ function clearCart() {
 
 // ============ PRODUCTO TEMPORAL ============
 let _tempProductCounter = 0;
+let _editPriceIndex = null;
 
 function openTempProductModal() {
-    document.getElementById('tempProdName').value = '';
-    document.getElementById('tempProdPrice').value = '';
-    document.getElementById('tempProdQty').value = '1';
-    document.getElementById('tempProductModal').classList.add('open');
-    setTimeout(() => document.getElementById('tempProdName').focus(), 100);
+    const modal = document.getElementById('tempProductModal');
+    const nameInput = document.getElementById('tempProdName');
+    const priceInput = document.getElementById('tempProdPrice');
+    const qtyInput = document.getElementById('tempProdQty');
+
+    if (!modal) return;
+    if (nameInput) nameInput.value = '';
+    if (priceInput) priceInput.value = '';
+    if (qtyInput) qtyInput.value = '1';
+    modal.style.display = 'flex';
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => {
+        if (nameInput) {
+            nameInput.focus();
+            nameInput.select();
+        }
+    }, 120);
+}
+
+// ============ Create Salida Modal Handlers ==========
+function openCreateSalidaModal() {
+    const el = document.getElementById('createSalidaItems');
+    if (el) el.innerHTML = '';
+    const notesEl = document.getElementById('createSalidaNotes');
+    if (notesEl) notesEl.value = '';
+    addCreateSalidaRow();
+    const m = document.getElementById('createSalidaModal');
+    if (!m) return; m.style.display = 'flex'; m.classList.add('open'); document.body.style.overflow = 'hidden';
+}
+
+function closeCreateSalidaModal() { const m = document.getElementById('createSalidaModal'); if (!m) return; m.classList.remove('open'); m.style.display = 'none'; document.body.style.overflow = ''; }
+
+function addCreateSalidaRow() {
+    const el = document.getElementById('createSalidaItems'); if (!el) return;
+    const productsList = Array.isArray(posProducts) ? posProducts : [];
+    
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.gap = '8px';
+    row.style.alignItems = 'flex-start';
+    row.style.padding = '8px';
+    row.style.background = '#fff';
+    row.style.border = '1px solid var(--border)';
+    row.style.borderRadius = '6px';
+    row.style.position = 'relative';
+    
+    // Product search container
+    const prodContainer = document.createElement('div');
+    prodContainer.style.flex = '1';
+    prodContainer.style.minWidth = '200px';
+    prodContainer.style.position = 'relative';
+    
+    const prodInput = document.createElement('input');
+    prodInput.type = 'text';
+    prodInput.placeholder = 'Busca producto...';
+    prodInput.style.width = '100%';
+    prodInput.style.padding = '6px 8px';
+    prodInput.style.border = '1px solid var(--border)';
+    prodInput.style.borderRadius = '4px';
+    prodInput.style.fontSize = '13px';
+    prodInput.dataset.selectedId = '';
+    
+    const dropdown = document.createElement('div');
+    dropdown.style.display = 'none';
+    dropdown.style.position = 'absolute';
+    dropdown.style.top = '100%';
+    dropdown.style.left = '0';
+    dropdown.style.right = '0';
+    dropdown.style.background = '#fff';
+    dropdown.style.border = '1px solid var(--border)';
+    dropdown.style.borderRadius = '4px';
+    dropdown.style.marginTop = '2px';
+    dropdown.style.maxHeight = '200px';
+    dropdown.style.overflowY = 'auto';
+    dropdown.style.zIndex = '1000';
+    dropdown.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+    
+    prodInput.addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase().trim();
+        let filtered = productsList;
+        if (q) {
+            filtered = productsList.filter(p => 
+                p.name.toLowerCase().includes(q) || 
+                (p.brand && p.brand.toLowerCase().includes(q))
+            );
+        }
+        if (q && filtered.length > 0) {
+            dropdown.innerHTML = '';
+            filtered.slice(0, 10).forEach(p => {
+                const div = document.createElement('div');
+                div.style.padding = '8px';
+                div.style.cursor = 'pointer';
+                div.style.borderBottom = '1px solid var(--border)';
+                div.style.fontSize = '12px';
+                div.style.transition = 'background 0.2s';
+                div.innerHTML = `<strong>${p.name}</strong><br><small style="color:var(--text-muted);">Stock: ${p.stock || 0} | ${p.brand || '-'}</small>`;
+                div.onmouseover = () => { div.style.background = '#f0f0f0'; };
+                div.onmouseout = () => { div.style.background = ''; };
+                div.onclick = () => {
+                    prodInput.dataset.selectedId = p.id;
+                    prodInput.value = p.name;
+                    dropdown.style.display = 'none';
+                };
+                dropdown.appendChild(div);
+            });
+            dropdown.style.display = 'block';
+        } else if (q) {
+            dropdown.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:12px;">Sin resultados</div>';
+            dropdown.style.display = 'block';
+        } else {
+            dropdown.style.display = 'none';
+        }
+    });
+    
+    prodInput.addEventListener('focus', (e) => {
+        if (e.target.value.trim()) {
+            e.target.dispatchEvent(new Event('input'));
+        }
+    });
+    
+    prodInput.addEventListener('blur', () => {
+        setTimeout(() => { dropdown.style.display = 'none'; }, 150);
+    });
+    
+    prodContainer.appendChild(prodInput);
+    prodContainer.appendChild(dropdown);
+    
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.min = '1';
+    inp.value = '1';
+    inp.placeholder = 'Cant.';
+    inp.style.width = '60px';
+    inp.style.padding = '6px 8px';
+    inp.style.border = '1px solid var(--border)';
+    inp.style.borderRadius = '4px';
+    inp.style.fontSize = '13px';
+    inp.style.textAlign = 'center';
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'btn btn-sm';
+    removeBtn.style.padding = '4px 8px';
+    removeBtn.style.fontSize = '12px';
+    removeBtn.textContent = '✕ Eliminar';
+    removeBtn.onclick = () => { row.remove(); };
+    
+    row.appendChild(prodContainer);
+    row.appendChild(inp);
+    row.appendChild(removeBtn);
+    el.appendChild(row);
+}
+
+function createSalida() {
+    const itemsEl = document.getElementById('createSalidaItems'); if (!itemsEl) return;
+    const rows = Array.from(itemsEl.children);
+    const items = [];
+    for (const r of rows) {
+        const prodInput = r.querySelector('input[data-selected-id]');
+        const qtyInput = r.querySelector('input[type="number"]');
+        if (!prodInput || !qtyInput) continue;
+        const pid = prodInput.dataset.selectedId;
+        const qty = parseInt(qtyInput.value)||0;
+        if (!pid) { showToast('Selecciona un producto en cada fila'); return; }
+        if (qty <= 0) { showToast('La cantidad debe ser mayor a 0'); return; }
+        const prod = posProducts.find(p=>p.id===pid);
+        if (!prod) { showToast('Producto no encontrado'); return; }
+        if (qty > (prod.stock || 0)) { showToast('Cantidad ' + qty + ' mayor al stock de ' + prod.name + ' (' + (prod.stock||0) + ')'); return; }
+        items.push({ productId: pid, sentQty: qty });
+    }
+    if (items.length === 0) { showToast('Agrega al menos un producto'); return; }
+    const notes = document.getElementById('createSalidaNotes').value || '';
+    const s = createSalidaObject(currentUser ? currentUser.user : '', currentUser ? currentUser.name : 'Usuario', items, notes);
+    posSalidas.push(s);
+    // reduce main stock now
+    s.items.forEach(it => {
+        const p = posProducts.find(x=>x.id===it.productId);
+        if (p) { const prev = p.stock; p.stock = Math.max(0, p.stock - it.sentQty); addInvLog(p.id, p.name, 'salida_temp', -it.sentQty, prev, p.stock, 'Salida temporal #' + s.id, s.id, true); }
+    });
+    saveSalidas(); saveProducts(); renderSalidas(); closeCreateSalidaModal(); showToast('✓ Salida #' + s.id + ' creada (' + items.reduce((a,i)=>a+i.sentQty,0) + ' items)');
 }
 
 function closeTempProductModal() {
-    document.getElementById('tempProductModal').classList.remove('open');
+    const modal = document.getElementById('tempProductModal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function openEditPriceModal(idx) {
+    if (!posCart[idx]) return;
+    const modal = document.getElementById('editPriceModal');
+    const priceInput = document.getElementById('editPriceInput');
+    const productName = document.getElementById('editPriceProdName');
+    const item = posCart[idx];
+    const prod = item.isTemp ? null : posProducts.find(p => p.id === item.id);
+
+    _editPriceIndex = idx;
+    if (!modal || !priceInput || !productName) return;
+    productName.textContent = item.isTemp ? item.tempName : (prod ? prod.name : 'Producto');
+    priceInput.value = item.price.toFixed(2);
+    modal.style.display = 'flex';
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => priceInput.focus(), 100);
+}
+
+function closeEditPriceModal() {
+    const modal = document.getElementById('editPriceModal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    _editPriceIndex = null;
+}
+
+function saveEditPriceModal() {
+    if (_editPriceIndex === null) return;
+    const priceInput = document.getElementById('editPriceInput');
+    const value = priceInput ? priceInput.value.trim() : '';
+    const parsed = Math.round(parseFloat(value) * 100) / 100;
+    if (isNaN(parsed) || parsed <= 0) {
+        showToast('Precio invalido');
+        return;
+    }
+    const item = posCart[_editPriceIndex];
+    if (!item) return;
+    const prod = item.isTemp ? null : posProducts.find(p => p.id === item.id);
+    item.price = parsed;
+    saveCart();
+    renderTpvCart();
+    closeEditPriceModal();
+    if (prod && parsed !== prod.price) {
+        showToast('Precio ajustado: ' + formatPrice(parsed) + ' (original: ' + formatPrice(prod.price) + ')');
+    } else {
+        showToast('Precio actualizado: ' + formatPrice(parsed));
+    }
 }
 
 function addTempProductToCart() {
@@ -308,7 +669,8 @@ function renderCheckoutCustomers() {
     const q = document.getElementById('chkCustomerInput').value.toLowerCase().trim();
     const list = document.getElementById('chkCustomerList');
     const selectedId = document.getElementById('chkCustomerId').value;
-    const filtered = q ? posCustomers.filter(c => {
+    const scopedCustomers = filterCustomersByScope(posCustomers);
+    const filtered = q ? scopedCustomers.filter(c => {
         const nameMatch = c.name.toLowerCase().includes(q);
         const phoneMatch = c.phone && c.phone.includes(q);
         const parts = q.split(/\s*-\s*/);
@@ -317,7 +679,7 @@ function renderCheckoutCustomers() {
             (c.phone && c.phone.includes(parts[1].trim()))
         );
         return nameMatch || phoneMatch || partMatch;
-    }) : posCustomers;
+    }) : scopedCustomers;
     if (filtered.length === 0) {
         list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Sin resultados</div>';
         return;
@@ -435,15 +797,36 @@ function confirmCheckout() {
         ventaPorFuera: true
     };
     posSales.push(sale);
+    const openSalida = (currentUser ? getOpenSalidaForUser(currentUser.user) : null);
     posCart.forEach(ci => {
         if (ci.isTemp) return;
         const p = posProducts.find(pr => pr.id === ci.id);
         if (p) {
-            const prev = p.stock;
-            p.stock = Math.max(0, p.stock - ci.qty);
-            addInvLog(ci.id, p.name, 'salida', -ci.qty, prev, p.stock, 'Pedido #' + sale.id + ' (Por fuera)', sale.id, true);
+            let remaining = ci.qty;
+            if (openSalida) {
+                const si = openSalida.items.find(it => it.productId === ci.id);
+                if (si) {
+                    const availableOnRoute = Math.max(0, si.sentQty - si.soldQty - si.returnedQty);
+                    const fromRoute = Math.min(availableOnRoute, remaining);
+                    if (fromRoute > 0) {
+                        si.soldQty += fromRoute;
+                        remaining -= fromRoute;
+                        // log venta desde salida (no main stock change)
+                        addInvLog(ci.id, p.name, 'venta_ruta', -fromRoute, p.stock, p.stock, 'Venta desde Salida #' + openSalida.id, sale.id, true);
+                    }
+                }
+            }
+            if (remaining > 0) {
+                const prev = p.stock;
+                p.stock = Math.max(0, p.stock - remaining);
+                addInvLog(ci.id, p.name, 'salida', -remaining, prev, p.stock, 'Pedido #' + sale.id + ' (Por fuera)', sale.id, true);
+            }
         }
     });
+    if (openSalida) {
+        if (openSalida.items.every(i => i.sentQty <= (i.soldQty + i.returnedQty))) openSalida.status = 'closed';
+        saveSalidas();
+    }
     saveSales();
     saveProducts();
     posCart.filter(ci => ci.isTemp).forEach(ci => {
@@ -886,8 +1269,7 @@ function showReceipt(sale) {
     content.innerHTML = `
         <div class="receipt">
             <div class="receipt-header">
-                <img src="LOGO.jpeg" style="height:40px;margin-bottom:4px;" alt="Vida Sana">
-                <h4>VIDA SANA</h4>
+                <img src="LOGO.jpeg" style="height:52px;margin-bottom:6px;" alt="Logo">
                 <p>Santa Marta, Colombia<br>NIT: 1082954847-4</p>
                 <p style="font-size:11px;margin-top:2px;">${shortDate(sale.date)}</p>
             </div>
@@ -1023,18 +1405,18 @@ function renderAccountStatus() {
     const q = (document.getElementById('cuentasSearch')?.value || '').toLowerCase().trim();
     const filter = document.getElementById('cuentasFilter')?.value || 'todo';
     const tipoFilter = document.getElementById('cuentasTipoFilter')?.value || 'all';
-    let customers = [...posCustomers];
+    let customers = filterCustomersByScope(posCustomers);
     if (q) customers = customers.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q));
     if (filter === 'deuda') customers = customers.filter(c => getCustomerPending(c.id) > 0);
     else if (filter === 'aldia') customers = customers.filter(c => getCustomerPending(c.id) <= 0);
-    if (tipoFilter !== 'all') customers = customers.filter(c => (c.tipo || 'local') === tipoFilter);
+    if (!getPosScope() && tipoFilter !== 'all') customers = customers.filter(c => (c.tipo || 'local') === tipoFilter);
     customers.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
     if (customers.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">No hay clientes registrados</td></tr>';
         return;
     }
     tbody.innerHTML = customers.map(c => {
-        const sales = posSales.filter(s => s.customerId === c.id);
+        const sales = filterSalesByScope(posSales.filter(s => s.customerId === c.id));
         const totalSpent = sales.reduce((sum, s) => sum + s.total, 0);
         const pendingTotal = getCustomerPending(c.id);
         const totalPaid = Math.max(0, totalSpent - pendingTotal);
@@ -1069,7 +1451,7 @@ function renderAccountStatus() {
 function openOldPurchaseModal() {
     document.getElementById('oldPurchaseDate').value = new Date().toISOString().split('T')[0];
     const sel = document.getElementById('oldPurchaseCustomer');
-    sel.innerHTML = '<option value="">Seleccionar cliente existente...</option>' + posCustomers.map(c => '<option value="' + c.id + '">' + c.name + (c.phone ? ' - ' + c.phone : '') + '</option>').join('');
+    sel.innerHTML = '<option value="">Seleccionar cliente existente...</option>' + filterCustomersByScope(posCustomers).map(c => '<option value="' + c.id + '">' + c.name + (c.phone ? ' - ' + c.phone : '') + '</option>').join('');
     sel.value = '';
     document.getElementById('oldPurchaseNewCustSection').classList.remove('open');
     document.getElementById('oldPurchaseNewName').value = '';
@@ -1270,16 +1652,29 @@ POS_PANEL_RENDERERS['categories'] = renderCategoriesTable;
 POS_PANEL_RENDERERS['cuentas'] = renderAccountStatus;
 POS_PANEL_RENDERERS['inventory'] = renderInventory;
 POS_PANEL_RENDERERS['sales'] = renderSalesTable;
+POS_PANEL_RENDERERS['salidas'] = renderSalidas;
 
 function initPOS() {
     (async function() {
         console.log('[POS-FUERA] initPOS iniciando...');
+        const tempBtn = document.getElementById('tempProductBtn');
+        if (tempBtn && !tempBtn.dataset.bound) {
+            tempBtn.dataset.bound = 'true';
+            tempBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openTempProductModal();
+            });
+        }
+
         const available = await API.check();
         if (available) {
             await syncFromApi();
         } else {
             loadData();
         }
+        loadSalidas();
+        applyPosScopeUI();
         initCatFilter();
         migrateProductSubcats();
         renderDashboard();

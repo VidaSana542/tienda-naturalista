@@ -1,6 +1,6 @@
 {
-  "name": "TIENDA NATURISTA - Punto de Venta",
-  "short_name": "POS Naturalista",
+  "name": "POS Vida Sana",
+  "short_name": "POS Vida Sana",
   "description": "Sistema de punto de venta para Tienda Naturalista",
   "start_url": "/pos?v=14",
   "scope": "/",
