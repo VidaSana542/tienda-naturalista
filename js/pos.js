@@ -1603,8 +1603,7 @@ function openProductModal(id) {
             document.getElementById('prodDesc').value = p.desc || '';
             document.getElementById('prodSupplier').value = p.supplier || '';
             document.getElementById('prodFeatured').checked = p.featured || false;
-            updateSubcatSelect();
-            document.getElementById('prodSubcategory').value = p.subcategory || '';
+            updateSubcatSelect(p.subcategory);
             renderProdImagesPreview(_prodImages);
         }
     } else {
@@ -1627,10 +1626,10 @@ function openProductModal(id) {
 
     modal.classList.add('open');
 }
-function updateSubcatSelect() {
+function updateSubcatSelect(subcatValue) {
     const cat = document.getElementById('prodCategory').value;
     const sel = document.getElementById('prodSubcategory');
-    const current = sel.value;
+    const current = subcatValue !== undefined ? subcatValue : sel.value;
     const subs = getSubCats(cat);
     let opts = '<option value="">Ninguna</option>' + subs.map(s => `<option value="${s.key}">${s.label}</option>`).join('');
     const found = subs.find(s => s.key === current);
