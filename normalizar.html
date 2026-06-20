@@ -66,7 +66,7 @@ async function analyze() {
         if (!API.isAvailable) { log('ERROR: API no disponible', 'err'); return; }
 
         const categories = await API.getCategories();
-        const products = await _sb.from('products').select('id,name,category,subcategory,active').then(r => { if (r.error) throw r.error; return r.data || []; });
+        const products = await _sb.from('products').select('*').then(r => { if (r.error) throw r.error; return r.data || []; });
 
         // --- Detect duplicate top-level categories ---
         const topCats = categories.filter(c => !c.parent_key);
@@ -191,10 +191,7 @@ async function fixData() {
         const toUpdate = _analysis.products.filter(p => p.category === wrongCat);
         for (const p of toUpdate) {
             try {
-                await API.saveProduct({
-                    id: p.id, name: p.name, category: correctCat,
-                    barcode: '', brand: '', price: 0, stock: 0, active: true
-                });
+                await API.saveProduct({ ...p, category: correctCat });
                 log(`  PRODUCTO ✓ #${p.id} "${p.name}": "${wrongCat}" → "${correctCat}"`, 'ok');
                 ok++;
             } catch (e) {
@@ -235,11 +232,7 @@ async function fixData() {
     const subKeys = new Set(_analysis.categories.filter(c => c.parent_key).map(c => c.key));
     for (const p of _analysis.orphanSubProds) {
         try {
-            await API.saveProduct({
-                id: p.id, name: p.name, category: p.category,
-                subcategory: '',
-                barcode: '', brand: '', price: 0, stock: 0, active: true
-            });
+            await API.saveProduct({ ...p, subcategory: '' });
             log(`  PRODUCTO ✓ #${p.id} "${p.name}": subcategoria limpiada`, 'ok');
             ok++;
         } catch (e) {

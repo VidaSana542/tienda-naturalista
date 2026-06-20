@@ -308,7 +308,7 @@ async function run() {
         if (!API.isAvailable) { log('ERROR: API no disponible', 'err'); return; }
 
         const categories = await API.getCategories();
-        const { data: products, error } = await _sb.from('products').select('id,name,category,subcategory,brand').eq('active', true);
+        const { data: products, error } = await _sb.from('products').select('*').eq('active', true);
         if (error) throw error;
 
         const sinSub = (products || []).filter(p => !p.subcategory || p.subcategory.trim() === '');
@@ -331,11 +331,7 @@ async function run() {
 
             const subLabel = categories.find(c => c.key === suggested)?.label || suggested;
             try {
-                await API.saveProduct({
-                    id: p.id, name: p.name, category: p.category,
-                    subcategory: suggested,
-                    barcode: '', brand: p.brand || '', price: 0, stock: 0, active: true
-                });
+                await API.saveProduct({ ...p, subcategory: suggested });
                 log(`  ✓ #${p.id} "${p.name}" → ${subLabel}`, 'ok');
                 asignados++;
             } catch (e) {
@@ -395,11 +391,7 @@ async function assignBatch(catKey) {
     let ok = 0, err = 0;
     for (const p of toAssign) {
         try {
-            await API.saveProduct({
-                id: p.id, name: p.name, category: p.category,
-                subcategory: subKey,
-                barcode: '', brand: p.brand || '', price: 0, stock: 0, active: true
-            });
+            await API.saveProduct({ ...p, subcategory: subKey });
             log(`  ✓ #${p.id} "${p.name}" → ${(window._categories||[]).find(c=>c.key===subKey)?.label||subKey}`, 'ok');
             ok++;
         } catch (e) {
