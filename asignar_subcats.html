@@ -34,7 +34,7 @@ button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; 
 <h1>Asignar Subcategorias Automaticamente</h1>
 <div class="card">
     <div class="summary-box">
-        Asigna subcategorias a productos segun su nombre. El mapa incluye nombres exactos de Supabase (con y sin sufijo de marca). Los que no coincidan se asignan por palabras clave o en lote manual.
+        Asigna subcategorias a productos segun su nombre. Usa los labels reales de la BD para traducir a keys correctos.
     </div>
     <p style="margin:12px 0;">
         <button id="btnRun" class="btn-success" onclick="run()">Auto-Asignar Subcategorias</button>
@@ -45,205 +45,201 @@ button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; 
 </div>
 
 <script>
-// Mapa: nombre EXACTO del producto (como aparece en Supabase) → subcategoria key canónica
-// Incluye TODOS los nombres que pueden fallar incluyendo los que tienen _Brand pegados
-const PRODUCT_SUBCAT_MAP = {
+// Mapa: nombre EXACTO del producto → LABEL de la subcategoria (no key)
+// Se traduce a key real usando las categorias de la BD
+const PRODUCT_SUBCAT_LABEL_MAP = {
     // Belleza y Bienestar
-    'Colage': 'belleza_y_bienestar_colageno',
-    'Colageno Complex': 'belleza_y_bienestar_colageno',
-    'Colageno-Pastilla': 'belleza_y_bienestar_colageno',
-    'Colageno Hidrolizado': 'belleza_y_bienestar_colageno',
-    'Peptidos de Colageno Hidrolizado': 'belleza_y_bienestar_colageno',
-    'Péptidos de Colágeno Hidrolizado': 'belleza_y_bienestar_colageno',
-    'Xero Fit': 'belleza_y_bienestar_articulaciones',
+    'Colage': 'Colageno',
+    'Colageno Complex': 'Colageno',
+    'Colageno-Pastilla': 'Colageno',
+    'Colageno Hidrolizado': 'Colageno',
+    'Peptidos de Colageno Hidrolizado': 'Colageno',
+    'Péptidos de Colágeno Hidrolizado': 'Colageno',
+    'Xero Fit': 'Articulaciones',
 
     // Vitaminas
-    'Ashwagandha + Magnesium Glycinate': 'vitaminas_magnesio',
-    'B-12 Methylcobalamin 5000 mcg': 'vitaminas_vitaminas_b',
-    'Biotin 10000 mcg': 'vitaminas_biotina',
-    'Citrato De Magnesio': 'vitaminas_magnesio',
-    'Complejo B': 'vitaminas_vitaminas_b',
-    'Magnesium Citrate Gummies': 'vitaminas_magnesio',
-    'Magnesium Glycinate 550mg + D3': 'vitaminas_magnesio',
-    'Magpro Magnesium Malate 500mg': 'vitaminas_magnesio',
-    'Melatonin 10000 mcg': 'salud_y_bienestar_salud_sueno',
-    'Niacinamide Vitamin B3 500mg': 'vitaminas_vitaminas_b',
-    'Vitamina A 600mg': 'vitaminas_vitamina_a',
-    'Vitamina D3 + Calcio 600mg': 'vitaminas_calcio',
-    'Vitamina E 1000IU': 'vitaminas_vitamina_e',
-    'Zinc Gluconate 120 mg': 'vitaminas_zinc',
+    'Ashwagandha + Magnesium Glycinate': 'Magnesio',
+    'B-12 Methylcobalamin 5000 mcg': 'Vitaminas B',
+    'Biotin 10000 mcg': 'Biotina',
+    'Citrato De Magnesio': 'Magnesio',
+    'Complejo B': 'Complejo B',
+    'Magnesium Citrate Gummies': 'Magnesio',
+    'Magnesium Glycinate 550mg + D3': 'Magnesio',
+    'Magpro Magnesium Malate 500mg': 'Magnesio',
+    'Melatonin 10000 mcg': 'Salud de sueño',
+    'Niacinamide Vitamin B3 500mg': 'Vitaminas B',
+    'Vitamina A 600mg': 'Vitamina A',
+    'Vitamina D3 + Calcio 600mg': 'Calcio',
+    'Vitamina E 1000IU': 'Vitamina E',
+    'Zinc Gluconate 120 mg': 'Zinc',
 
     // Salud y Bienestar
-    'Antax': 'salud_y_bienestar_desparasitacion',
-    'Antax 170ml': 'salud_y_bienestar_desparasitacion',
-    'Antax 3600ml': 'salud_y_bienestar_desparasitacion',
-    'Apetifort 240g': 'salud_y_bienestar_laxante',
-    'Apetifort 300g': 'salud_y_bienestar_laxante',
-    'Cardo Mariano Higado Vesicula': 'salud_y_bienestar_higado',
-    'Cardo Mariano Hígado Vesícula': 'salud_y_bienestar_higado',
-    'Chanca Piedra': 'salud_y_bienestar_rinones',
-    'Chupa Panza': 'salud_y_bienestar_laxante',
-    'Ciruelfort Jalea Laxante': 'salud_y_bienestar_laxante',
-    'Co-enzyme Q-10 150mg': 'salud_y_bienestar_omega',
-    'CortiLip Fitoesteroles': 'salud_y_bienestar_circulacion',
-    'Curcuma': 'salud_y_bienestar_digestion',
-    'Diabcontrol': 'salud_y_bienestar_diabetes',
-    'Digestar Jalea Laxante 190g': 'salud_y_bienestar_laxante',
-    'Fibaxil Laxante de Fibra': 'salud_y_bienestar_laxante',
-    'GASGEN': 'salud_y_bienestar_gastritis',
-    'Garlic Oil® 1500 mg': 'salud_y_bienestar_digestion',
-    'Ginkgo Biloba': 'salud_y_bienestar_rendimiento_mental',
-    'Ginkgo Biloba 60mg': 'salud_y_bienestar_rendimiento_mental',
-    'Healthy Life Zarzaparrilla 500mg': 'salud_y_bienestar_rinones',
-    'Jarabe Totumo': 'salud_y_bienestar_inflamacion',
-    'Jengibre Ice': 'salud_y_bienestar_digestion',
-    'LASSACOL': 'salud_y_bienestar_circulacion',
-    'Milk Thistle': 'salud_y_bienestar_higado',
-    'Max Forte 500 mg': 'salud_y_bienestar_circulacion',
-    'NEURO-STRESS HC': 'salud_y_bienestar_rendimiento_mental',
-    'Omega 3 1000mg': 'salud_y_bienestar_omega',
-    'Omega 3, 6, 9': 'salud_y_bienestar_omega',
-    'Omega Plus 30 Softgels': 'salud_y_bienestar_omega',
-    'Oregano 1000mg': 'salud_y_bienestar_digestion',
-    'Ortiga Diuretico': 'salud_y_bienestar_rinones',
-    'PIP3R4SIN Bebida Naranja 60mL': 'salud_y_bienestar_inflamacion',
-    'Pasuchaca Diabetisan': 'salud_y_bienestar_diabetes',
-    'Pipi Loco': 'salud_y_bienestar_rinones',
-    'Prostasan': 'salud_y_bienestar_prostata',
-    'Purgante La Escobita + Zarzaparrilla': 'salud_y_bienestar_rinones',
-    'R-13-Sabor Uva': 'salud_y_bienestar_inflamacion',
-    'R-QMAZ': 'salud_y_bienestar_inflamacion',
-    'Remartrin': 'salud_y_bienestar_inflamacion',
-    'Sinhemorroidas': 'salud_y_bienestar_circulacion',
-    'The Moon Dream Maker': 'salud_y_bienestar_salud_sueno',
-    'Ulsn': 'salud_y_bienestar_gastritis',
-    'Urovital': 'salud_y_bienestar_rinones',
-    'Venasfull Max Forte 500 mg': 'salud_y_bienestar_circulacion',
-    'Zarzaparrilla': 'salud_y_bienestar_rinones',
+    'Antax': 'Desparasitante',
+    'Antax 170ml': 'Desparasitante',
+    'Antax 3600ml': 'Desparasitante',
+    'Apetifort 240g': 'Laxante',
+    'Apetifort 300g': 'Laxante',
+    'Cardo Mariano Higado Vesicula': 'Hígado y Vesícula',
+    'Cardo Mariano Hígado Vesícula': 'Hígado y Vesícula',
+    'Chanca Piedra': 'Riñones y vías urinarias',
+    'Chupa Panza': 'Laxante',
+    'Ciruelfort Jalea Laxante': 'Laxante',
+    'Co-enzyme Q-10 150mg': 'Omega',
+    'CortiLip Fitoesteroles': 'Rendimiento mental',
+    'Curcuma': 'Digestión',
+    'Diabcontrol': 'Diabetes',
+    'Digestar Jalea Laxante 190g': 'Laxante',
+    'Fibaxil Laxante de Fibra': 'Laxante',
+    'GASGEN': 'Gastritis y acidez',
+    'Garlic Oil® 1500 mg': 'Digestión',
+    'Ginkgo Biloba': 'Rendimiento mental',
+    'Ginkgo Biloba 60mg': 'Rendimiento mental',
+    'Healthy Life Zarzaparrilla 500mg': 'Riñones y vías urinarias',
+    'Jarabe Totumo': 'Inflamación',
+    'Jengibre Ice': 'Digestión',
+    'LASSACOL': 'Laxante',
+    'Milk Thistle': 'Hígado y Vesícula',
+    'Max Forte 500 mg': 'Rendimiento mental',
+    'NEURO-STRESS HC': 'Rendimiento mental',
+    'Omega 3 1000mg': 'Omega',
+    'Omega 3, 6, 9': 'Omega',
+    'Omega Plus 30 Softgels': 'Omega',
+    'Oregano 1000mg': 'Digestión',
+    'Ortiga Diuretico': 'Riñones y vías urinarias',
+    'PIP3R4SIN Bebida Naranja 60mL': 'Inflamación',
+    'Pasuchaca Diabetisan': 'Diabetes',
+    'Pipi Loco': 'Riñones y vías urinarias',
+    'Prostasan': 'Próstata',
+    'Purgante La Escobita + Zarzaparrilla': 'Riñones y vías urinarias',
+    'R-13-Sabor Uva': 'Inflamación',
+    'R-QMAZ': 'Inflamación',
+    'Remartrin': 'Inflamación',
+    'Sinhemorroidas': 'Rendimiento mental',
+    'The Moon Dream Maker': 'Salud de sueño',
+    'Ulsn': 'Gastritis y acidez',
+    'Urovital': 'Riñones y vías urinarias',
+    'Venasfull Max Forte 500 mg': 'Rendimiento mental',
+    'Zarzaparrilla': 'Riñones y vías urinarias',
 
     // Suplementos
-    '180 K.L.G': 'suplementos_energia',
-    'Aguaje': 'suplementos_potencia_masculina',
-    'Aguaje Hinogo-Maca Triple': 'suplementos_potencia_masculina',
-    'Alcachofa': 'suplementos_digestion',
-    'B-Chotta': 'suplementos_energia',
-    'Biocros': 'suplementos_energia',
-    'ColMax': 'suplementos_proteina',
-    'Cranberry 400 mg.': 'salud_y_bienestar_rinones',
-    'Diente de León': 'salud_y_bienestar_higado',
-    'Dura Mas': 'suplementos_potencia_masculina',
-    'Echinacea 250mg': 'suplementos_sistema_inmunologico',
-    'El Matador': 'suplementos_potencia_masculina',
-    'Famel': 'suplementos_balance_hormonal',
-    'Fenogreco Aleluya': 'suplementos_balance_hormonal',
-    'Freshlypausia Complex': 'suplementos_balance_hormonal',
-    'G4-STR1': 'suplementos_energia',
-    'GHR-15 Plus': 'suplementos_energia',
-    'King-s': 'suplementos_potencia_masculina',
-    'LIMPLUS': 'suplementos_digestion',
-    'Leche de Higuerón con Casigua': 'salud_y_bienestar_laxante',
-    'Leche de Higueron con Casigua': 'salud_y_bienestar_laxante',
-    'Maca': 'suplementos_potencia_masculina',
-    'MegaSex 20 tabletas': 'suplementos_potencia_masculina',
-    'Mero Macho': 'suplementos_potencia_masculina',
-    'Mieltertos 4 Porciones': 'suplementos_sistema_inmunologico',
-    'Miletertos Max Forte': 'suplementos_energia',
-    'Nerozin': 'suplementos_energia',
-    'Ovarmex': 'suplementos_balance_hormonal',
-    'PROPOLEO® KIDS': 'suplementos_sistema_inmunologico',
-    'Resveratrol 3000 + NAD Ultra': 'suplementos_resveratrol',
-    'Retardex': 'suplementos_potencia_masculina',
-    'Sex Love-Gel intimo': 'suplementos_potencia_masculina',
-    'Shilajit 10000mg': 'suplementos_energia',
-    'Shilajit-Papeleta': 'suplementos_energia',
-    'shilajit': 'suplementos_energia',
-    'TestoUltra': 'suplementos_potencia_masculina',
-    'TiraKtira': 'suplementos_perdida_peso',
-    'Triple Maca': 'suplementos_potencia_masculina',
-    'Vinagre de manzana': 'suplementos_digestion',
-    'Vitafer-L': 'suplementos_salud_sanguinea',
-    'Vitalfer-Papeleta': 'suplementos_salud_sanguinea',
-    'Vitalfer': 'suplementos_salud_sanguinea',
+    '180 K.L.G': 'Energía',
+    'Aguaje': 'Potencia Masculina',
+    'Aguaje Hinogo-Maca Triple': 'Potencia Masculina',
+    'Alcachofa': 'Digestión',
+    'B-Chotta': 'Energía',
+    'Biocros': 'Energía',
+    'ColMax': 'Proteina',
+    'Cranberry 400 mg.': 'Riñones y vías urinarias',
+    'Diente de León': 'Hígado y Vesícula',
+    'Dura Mas': 'Potencia Masculina',
+    'Echinacea 250mg': 'Sistema inmunológico',
+    'El Matador': 'Potencia Masculina',
+    'Famel': 'Balance hormonal',
+    'Fenogreco Aleluya': 'Balance hormonal',
+    'Freshlypausia Complex': 'Balance hormonal',
+    'G4-STR1': 'Energía',
+    'GHR-15 Plus': 'Energía',
+    'King-s': 'Potencia Masculina',
+    'LIMPLUS': 'Limpieza intestinal',
+    'Leche de Higuerón con Casigua': 'Laxante',
+    'Leche de Higueron con Casigua': 'Laxante',
+    'Maca': 'Potencia Masculina',
+    'MegaSex 20 tabletas': 'Potencia Masculina',
+    'Mero Macho': 'Potencia Masculina',
+    'Mieltertos 4 Porciones': 'Sistema inmunológico',
+    'Miletertos Max Forte': 'Energía',
+    'Nerozin': 'Energía',
+    'Ovarmex': 'Balance hormonal',
+    'PROPOLEO® KIDS': 'Sistema inmunológico',
+    'Resveratrol 3000 + NAD Ultra': 'Resveratrol',
+    'Retardex': 'Potencia Masculina',
+    'Sex Love-Gel intimo': 'Potencia Masculina',
+    'Shilajit 10000mg': 'Energía',
+    'Shilajit-Papeleta': 'Energía',
+    'shilajit': 'Energía',
+    'TestoUltra': 'Potencia Masculina',
+    'TiraKtira': 'Pérdida de peso',
+    'Triple Maca': 'Potencia Masculina',
+    'Vinagre de manzana': 'Digestión',
+    'Vitafer-L': 'Salud sanguínea',
+    'Vitalfer-Papeleta': 'Salud sanguínea',
+    'Vitalfer': 'Salud sanguínea',
 
-    // === PRODUCTOS CON SUFIJO DE MARCA (_Brand) ===
-    // Ginkgo/NutriPlan
-    'Ginkgo biloba_NutriPlan': 'salud_y_bienestar_rendimiento_mental',
-    // Ginkgo/Americano (con typo Bilboa)
-    'Ginkgo Bilboa 80mg_AMERICANO': 'salud_y_bienestar_rendimiento_mental',
-    'Ginkgo Bilboa 60mg_AMERICANO': 'salud_y_bienestar_rendimiento_mental',
-    // Varices/NutriPlan
-    'VARIZAN_NutriPlan': 'salud_y_bienestar_circulacion',
-    // Vita fancesa/Vitalim (varias presentaciones)
-    'Vita fancesa_Vitalim': 'vitaminas_vitaminas_b',
-    'Vita Francesa_Vitalim Jalea': 'vitaminas_vitaminas_b',
-    'Vita Fancesa_Vitalim Pastillas': 'vitaminas_vitaminas_b',
-    // Factor de Transferencia/NutriPluss
-    'Factor de Transferencia_Nutri Pluss': 'suplementos_sistema_inmunologico',
-    // Granulada/Vitalim
-    'Granulada (Sabor Fresa)_Vitalim': 'suplementos_proteina',
-    // Sure/Polvo
-    'Sure_Polvo': 'suplementos_proteina',
-    // Memorex/Macel
-    'Memorex_Macel': 'salud_y_bienestar_rendimiento_mental',
-    // FERROVIN/VITALIM
-    'FERROVIN-VITALIM': 'suplementos_salud_sanguinea',
-    // Otros sin marca pero no en import
-    'Jarabe de concreto': 'salud_y_bienestar_digestion',
-    'Barrido Arterial': 'salud_y_bienestar_circulacion',
-    'Aceite de ricino': 'salud_y_bienestar_laxante',
+    // === PRODUCTOS CON SUFIJO DE MARCA ===
+    'Ginkgo biloba_NutriPlan': 'Rendimiento mental',
+    'Ginkgo Bilboa 80mg_AMERICANO': 'Rendimiento mental',
+    'Ginkgo Bilboa 60mg_AMERICANO': 'Rendimiento mental',
+    'VARIZAN_NutriPlan': 'Rendimiento mental',
+    'Vita fancesa_Vitalim': 'Vitaminas B',
+    'Vita Francesa_Vitalim Jalea': 'Vitaminas B',
+    'Vita Fancesa_Vitalim Pastillas': 'Vitaminas B',
+    'Factor de Transferencia_Nutri Pluss': 'Sistema inmunológico',
+    'Granulada (Sabor Fresa)_Vitalim': 'Proteina',
+    'Sure_Polvo': 'Proteina',
+    'Memorex_Macel': 'Rendimiento mental',
+    'FERROVIN-VITALIM': 'Salud sanguínea',
+    'Jarabe de concreto': 'Digestión',
+    'Barrido Arterial': 'Rendimiento mental',
+    'Aceite de ricino': 'Laxante',
 };
 
-// Keywords de respaldo para productos no cubiertos en el mapa exacto
+// Keywords de respaldo: label de subcategoria → palabras clave
 const SUBCAT_KEYWORDS = {
     'suplementos': {
-        'suplementos_energia': ['energía','energia','energy','ginseng','guarana','shilajit','b-chotta','bchotta','miletertos','g4-str1','g4str1','ghr-15','ghr15','nerozi','180 k.l.g','180klg'],
-        'suplementos_potencia_masculina': ['potencia','masculina','testo','maca','horny','sex','macho','king','retardex','dura mas','mega','triple','aguaje'],
-        'suplementos_balance_hormonal': ['hormonal','hormona','tiroides','cortisol','famel','freshlypausia','ovarmex','fenogreco'],
-        'suplementos_proteina': ['proteina','proteína','protein','whey','colmax','granulada','sure'],
-        'suplementos_creatina': ['creatina'],
-        'suplementos_perdida_peso': ['peso','dieta','quema','carnitina','tiraktira'],
-        'suplementos_salud_sanguinea': ['sanguinea','sanguínea','hierro','iron','vitafer','ferrovi'],
-        'suplementos_sistema_inmunologico': ['inmuno','defensas','equinacea','echinacea','propoleo','factor de transferencia','transferencia'],
-        'suplementos_resveratrol': ['resveratrol'],
-        'suplementos_digestion': ['alcachofa','vinagre','digest','limplus','limpieza','alcacho']
+        'Energía': ['energía','energia','energy','ginseng','guarana','shilajit','b-chotta','bchotta','miletertos','g4-str1','g4str1','ghr-15','ghr15','nerozi','180 k.l.g','180klg','biocros'],
+        'Potencia Masculina': ['potencia','masculina','testo','maca','horny','sex','macho','king','retardex','dura mas','mega','triple','aguaje'],
+        'Balance hormonal': ['hormonal','hormona','tiroides','cortisol','famel','freshlypausia','ovarmex','fenogreco'],
+        'Proteina': ['proteina','proteína','protein','whey','colmax','granulada','sure'],
+        'Creatina': ['creatina'],
+        'Pérdida de peso': ['peso','dieta','quema','carnitina','tiraktira'],
+        'Salud sanguínea': ['sanguinea','sanguínea','hierro','iron','vitafer','ferrovi'],
+        'Sistema inmunológico': ['inmuno','defensas','equinacea','echinacea','propoleo','factor de transferencia','transferencia'],
+        'Resveratrol': ['resveratrol'],
+        'Digestión': ['alcachofa','vinagre','digest','limplus','limpieza','alcacho'],
+        'Limpieza intestinal': ['limpieza intestinal','limplus']
     },
     'salud_y_bienestar': {
-        'salud_y_bienestar_laxante': ['laxante','fibra','ciruelfort','lassacol','digestar','apetifort','chupa panza','higuerón','higueron','ricino','leche de higuer'],
-        'salud_y_bienestar_desparasitacion': ['desparasitante','desparasit','antax'],
-        'salud_y_bienestar_diabetes': ['diabetes','diab','diabetisan','pasuchaca'],
-        'salud_y_bienestar_digestion': ['digestión','digest','gasgen','jengibre','oregano','curcuma','garlic','jarabe de'],
-        'salud_y_bienestar_gastritis': ['gastritis','acidez','ulcera','ulsn'],
-        'salud_y_bienestar_higado': ['hígado','higado','vesícula','vesicula','cardo','milk thistle','silimarina','diente de león','diente de leon'],
-        'salud_y_bienestar_inflamacion': ['inflamación','inflamacion','antiinflam','jarabe totumo','pip3r4sin','remartrin','r-qmaz'],
-        'salud_y_bienestar_circulacion': ['circulación','circulacion','venas','varices','lassacol','cortilip','max forte','venasfull','sinhemorroidas','varizan','barrido arterial'],
-        'salud_y_bienestar_salud_sueno': ['sueño','sueno','melatonina','melatonin','moon dream'],
-        'salud_y_bienestar_rendimiento_mental': ['mental','memoria','concentración','concentracion','ginkgo','neuro-stress','memorex'],
-        'salud_y_bienestar_omega': ['omega','coenzyme','co-enzima','q10'],
-        'salud_y_bienestar_prostata': ['próstata','prostata','prostasan'],
-        'salud_y_bienestar_rinones': ['riñon','riñones','rinones','uva ursi','renal','ortiga','zarzaparrilla','chanca piedra','cranberry','urovital','pipi loco']
+        'Laxante': ['laxante','fibra','ciruelfort','lassacol','digestar','apetifort','chupa panza','higuerón','higueron','ricino','leche de higuer'],
+        'Desparasitante': ['desparasitante','desparasit','antax'],
+        'Diabetes': ['diabetes','diab','diabetisan','pasuchaca'],
+        'Digestión': ['digestión','digest','gasgen','jengibre','oregano','curcuma','garlic','jarabe de'],
+        'Gastritis y acidez': ['gastritis','acidez','ulcera','ulsn'],
+        'Hígado y Vesícula': ['hígado','higado','vesícula','vesicula','cardo','milk thistle','silimarina','diente de león','diente de leon'],
+        'Inflamación': ['inflamación','inflamacion','antiinflam','jarabe totumo','pip3r4sin','remartrin','r-qmaz'],
+        'Rendimiento mental': ['mental','memoria','concentración','concentracion','ginkgo','neuro-stress','memorex','sinhemorroidas','varizan','barrido arterial','cortilip','venasfull'],
+        'Salud de sueño': ['sueño','sueno','melatonina','melatonin','moon dream'],
+        'Riñones y vías urinarias': ['riñon','riñones','rinones','uva ursi','renal','ortiga','zarzaparrilla','chanca piedra','cranberry','urovital','pipi loco','purgante'],
+        'Pérdida de peso': ['peso','dieta','quema'],
+        'Omega': ['omega','coenzyme','co-enzima','q10'],
+        'Próstata': ['próstata','prostata','prostasan'],
+        'Articulaciones': ['articulacion','articulación'],
+        'Glucosamina': ['glucosamina'],
+        'Calendula': ['calendula','caléndula'],
+        'Limpieza intestinal': ['limpieza']
     },
     'belleza_y_bienestar': {
-        'belleza_y_bienestar_colageno': ['colageno','colágeno','colagen','colage','péptidos','peptidos'],
-        'belleza_y_bienestar_calendula': ['calendula','caléndula'],
-        'belleza_y_bienestar_articulaciones': ['articulacion','articulación','xero fit'],
-        'belleza_y_bienestar_glucosamina': ['glucosamina']
+        'Colageno': ['colageno','colágeno','colagen','colage','péptidos','peptidos'],
+        'Calendula': ['calendula','caléndula'],
+        'Articulaciones': ['articulacion','articulación','xero fit'],
+        'Glucosamina': ['glucosamina'],
+        'Resveratrol': ['resveratrol']
     },
     'vitaminas': {
-        'vitaminas_magnesio': ['magnesio','magnesium','ashwagandha','magpro','citrato de magnesio'],
-        'vitaminas_calcio': ['calcio','calcium'],
-        'vitaminas_zinc': ['zinc'],
-        'vitaminas_biotina': ['biotina','biotin'],
-        'vitaminas_vitamina_a': ['vitamina a','vitamin a','retinol'],
-        'vitaminas_vitamina_c': ['vitamina c','vitamin c','ascórbico','ascorbico'],
-        'vitaminas_vitamina_e': ['vitamina e','vitamin e','tocoferol'],
-        'vitaminas_vitamina_d': ['vitamina d','vitamin d','colecalciferol'],
-        'vitaminas_vitaminas_b': ['vitamina b','vitamin b','complejo b','niacinamide','methylcobalamin','vita fancesa','vita francesa','vitafancesa'],
-        'vitaminas_multivitaminicos': ['multivitamin','multi-vitamin'],
-        'vitaminas_antioxidantes': ['antioxidante','antioxidant']
+        'Magnesio': ['magnesio','magnesium','ashwagandha','magpro','citrato de magnesio'],
+        'Calcio': ['calcio','calcium'],
+        'Zinc': ['zinc'],
+        'Biotina': ['biotina','biotin'],
+        'Vitamina A': ['vitamina a','vitamin a','retinol'],
+        'Vitamina C': ['vitamina c','vitamin c','ascórbico','ascorbico'],
+        'Vitamina E': ['vitamina e','vitamin e','tocoferol'],
+        'Vitamina D': ['vitamina d','vitamin d','colecalciferol'],
+        'Vitaminas B': ['vitamina b','vitamin b','complejo b','niacinamide','methylcobalamin','vita fancesa','vita francesa','vitafancesa'],
+        'Multivitamínicos': ['multivitamin','multi-vitamin'],
+        'Omega': ['omega']
     }
 };
 
-// --- Normalized lookup ---
+// --- Helpers ---
 function normalizeName(name) {
     return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 }
@@ -256,46 +252,45 @@ function cleanName(name) {
     return n;
 }
 
-const NORM_MAP = {};
-(function buildNormMap() {
-    for (const [name, sub] of Object.entries(PRODUCT_SUBCAT_MAP)) {
-        NORM_MAP[normalizeName(name).toLowerCase()] = sub;
+// Build normalized lookup from PRODUCT_SUBCAT_LABEL_MAP
+function buildNormLabelMap() {
+    const m = {};
+    for (const [name, label] of Object.entries(PRODUCT_SUBCAT_LABEL_MAP)) {
+        m[normalizeName(name).toLowerCase()] = label;
     }
-})();
+    return m;
+}
+const NORM_LABEL_MAP = buildNormLabelMap();
 
-function findByName(name) {
+// Find label by product name (normalized, cleaned, partial)
+function findLabel(name) {
     const norm = normalizeName(name).toLowerCase();
+    if (NORM_LABEL_MAP[norm]) return NORM_LABEL_MAP[norm];
 
-    // 1. Exact match on full normalized name
-    if (NORM_MAP[norm]) return NORM_MAP[norm];
-
-    // 2. Strip brand suffix and try again
     const cleaned = normalizeName(cleanName(name)).toLowerCase();
-    if (cleaned !== norm && NORM_MAP[cleaned]) return NORM_MAP[cleaned];
+    if (cleaned !== norm && NORM_LABEL_MAP[cleaned]) return NORM_LABEL_MAP[cleaned];
 
-    // 3. Partial: map key is a substring of cleaned name (longest key first)
-    const keys = Object.keys(NORM_MAP).sort((a, b) => b.length - a.length);
+    const keys = Object.keys(NORM_LABEL_MAP).sort((a, b) => b.length - a.length);
     for (const key of keys) {
-        if (key.length >= 4 && cleaned.includes(key)) return NORM_MAP[key];
+        if (key.length >= 4 && cleaned.includes(key)) return NORM_LABEL_MAP[key];
     }
-
     return '';
 }
 
-function findByKeywords(name, category) {
-    const catMap = SUBCAT_KEYWORDS[category];
-    if (!catMap) return '';
-    const lower = name.toLowerCase();
-    let best = '', bestScore = 0;
-    for (const [subKey, keywords] of Object.entries(catMap)) {
-        for (const kw of keywords) {
-            if (lower.includes(kw.toLowerCase()) && kw.length > bestScore) {
-                bestScore = kw.length;
-                best = subKey;
-            }
-        }
-    }
-    return best;
+// Find subcategory key by label + category (uses real DB categories)
+function findSubcatKey(label, catKey, categories) {
+    if (!label || !categories) return '';
+    const normLabel = normalizeName(label).toLowerCase();
+    // Prefer subcat whose parent matches the product's category
+    let match = categories.find(c => c.parent_key === catKey && normalizeName(c.label).toLowerCase() === normLabel);
+    if (match) return match.key;
+    // Fallback: any subcat with matching label
+    match = categories.find(c => c.parent_key && normalizeName(c.label).toLowerCase() === normLabel);
+    if (match) return match.key;
+    // Fallback: partial
+    match = categories.find(c => c.parent_key && normalizeName(c.label).toLowerCase().includes(normLabel));
+    if (match) return match.key;
+    return '';
 }
 
 async function run() {
@@ -320,8 +315,26 @@ async function run() {
         let asignados = 0, errors = 0, noMatch = [];
 
         for (const p of sinSub) {
-            let suggested = findByName(p.name);
-            if (!suggested) suggested = findByKeywords(p.name, p.category);
+            const label = findLabel(p.name);
+            let suggested = label ? findSubcatKey(label, p.category, categories) : '';
+
+            if (!suggested) {
+                // Keyword fallback
+                const catKeywords = SUBCAT_KEYWORDS[p.category];
+                if (catKeywords) {
+                    const lower = p.name.toLowerCase();
+                    let bestLabel = '', bestScore = 0;
+                    for (const [subLabel, keywords] of Object.entries(catKeywords)) {
+                        for (const kw of keywords) {
+                            if (lower.includes(kw.toLowerCase()) && kw.length > bestScore) {
+                                bestScore = kw.length;
+                                bestLabel = subLabel;
+                            }
+                        }
+                    }
+                    if (bestLabel) suggested = findSubcatKey(bestLabel, p.category, categories);
+                }
+            }
 
             if (!suggested) {
                 noMatch.push(p);
@@ -329,10 +342,10 @@ async function run() {
                 continue;
             }
 
-            const subLabel = categories.find(c => c.key === suggested)?.label || suggested;
+            const subCat = categories.find(c => c.key === suggested);
             try {
                 await API.saveProduct({ ...p, subcategory: suggested });
-                log(`  ✓ #${p.id} "${p.name}" → ${subLabel}`, 'ok');
+                log(`  ✓ #${p.id} "${p.name}" → ${subCat ? subCat.label : suggested}`, 'ok');
                 asignados++;
             } catch (e) {
                 log(`  ✗ #${p.id} "${p.name}": ${e.message}`, 'err');
