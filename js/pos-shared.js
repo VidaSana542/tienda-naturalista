@@ -1736,8 +1736,7 @@ async function mergeSelectedSales() {
     const sales = filterSalesByScope(posSales.filter(s => _mergeSelection.includes(s.id)));
     if (sales.length < 2) return;
 
-    if (!confirm('Se unirán ' + sales.length + ' facturas de ' + cust.name + ' en una sola. Las originales quedaran con saldo $0 y la deuda total se trasladara a la nueva factura.\n\nContinuar?')) return;
-
+    showMergeConfirmModal(cust.name, sales.length, async () => {
     try {
         const combinedTotal = sales.reduce((sum, s) => sum + s.total, 0);
         const allItems = [];
@@ -1819,6 +1818,35 @@ async function mergeSelectedSales() {
         showToast('Error al unir facturas: ' + e.message);
         console.error(e);
     }
+    });
+}
+
+function showMergeConfirmModal(customerName, count, callback) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+        <div class="modal" style="max-width:440px;text-align:center;">
+            <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            <div style="padding:16px 0 8px;">
+                <svg viewBox="0 0 24 24" style="width:48px;height:48px;fill:var(--warning);"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                <h3 style="margin:12px 0 4px;font-size:18px;">Unir Facturas</h3>
+                <p style="color:var(--text-muted);font-size:14px;line-height:1.5;margin:8px 0;">
+                    Se unirán <strong>${count} facturas</strong> de <strong>${customerName}</strong> en una sola.
+                    Las originales quedaran con saldo $0 y la deuda total se trasladara a la nueva factura.
+                </p>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:center;padding:16px 0 8px;">
+                <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()" style="padding:10px 24px;font-size:14px;">Cancelar</button>
+                <button class="btn btn-primary" id="mergeConfirmBtn" style="padding:10px 24px;font-size:14px;">Unir facturas</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    document.getElementById('mergeConfirmBtn').addEventListener('click', function() {
+        overlay.remove();
+        callback();
+    });
 }
 
 function closeCustHistory() {
