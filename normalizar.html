@@ -8,48 +8,49 @@
 <script src="js/api.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: system-ui, sans-serif; padding: 20px; max-width: 800px; margin: auto; background: #f5f5f5; }
+body { font-family: system-ui, sans-serif; padding: 20px; max-width: 900px; margin: auto; background: #f5f5f5; }
 h1 { margin-bottom: 20px; }
 .card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
-th { background: #f9f9f9; }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
 .badge-ok { background: #d4edda; color: #155724; }
 .badge-err { background: #f8d7da; color: #721c24; }
 .badge-warn { background: #fff3cd; color: #856404; }
-button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-right: 8px; }
 .btn-primary { background: #007bff; color: #fff; }
 .btn-primary:hover { background: #0056b3; }
 .btn-danger { background: #dc3545; color: #fff; }
 .btn-danger:hover { background: #c82333; }
+.btn-warning { background: #ffc107; color: #000; }
+.btn-warning:hover { background: #e0a800; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-#result { margin-top: 16px; white-space: pre-wrap; font-family: monospace; font-size: 13px; }
-.log { padding: 4px 0; }
+#result { margin-top: 16px; font-family: monospace; font-size: 13px; line-height: 1.6; }
+.log { padding: 3px 0; }
 .log-ok { color: #155724; }
 .log-err { color: #721c24; }
 .log-info { color: #004085; }
+.log-warn { color: #856404; }
+.summary-box { background: #e8f4f8; border-left: 4px solid #007bff; padding: 12px; margin: 10px 0; border-radius: 4px; }
 </style>
 </head>
 <body>
 <h1>Normalizar Categorias y Productos</h1>
 <div class="card">
-    <p style="margin-bottom:12px;">Esta herramienta revisa y normaliza las categorias de productos para que coincidan con las categorias reales en la base de datos.</p>
-    <button id="btnAnalyze" class="btn-primary" onclick="analyze()">Analizar Base de Datos</button>
-    <button id="btnFix" class="btn-danger" disabled onclick="fixData()">Aplicar Normalizacion</button>
+    <div class="summary-box">
+        <strong>Que hace esta herramienta:</strong><br>
+        1. Normaliza productos con categoria incorrecta (ej: "salud" → "salud_y_bienestar")<br>
+        2. Elimina categorias principales duplicadas (ej: "belleza-y-bienestar" + "belleza_y_bienestar" → solo una)<br>
+        3. Reasigna subcategorias huerfanas a la categoria correcta<br>
+        4. Elimina subcategorias duplicadas
+    </div>
+    <p style="margin:12px 0;">
+        <button id="btnAnalyze" class="btn-primary" onclick="analyze()">Analizar Base de Datos</button>
+        <button id="btnFix" class="btn-danger" disabled onclick="fixData()">Aplicar Normalizacion Completa</button>
+    </p>
     <div id="result"></div>
 </div>
 
 <script>
 let _analysis = null;
-
-async function _sbQuery(table, select, filters) {
-    const q = _sb.from(table).select(select);
-    (filters || []).forEach(f => q[f.method](f.column, f.value));
-    const { data, error } = await q;
-    if (error) throw error;
-    return data || [];
-}
 
 function log(msg, type) {
     const el = document.getElementById('result');
@@ -62,59 +63,94 @@ async function analyze() {
     document.getElementById('btnFix').disabled = true;
     try {
         await API.check();
-        if (!API.isAvailable) { log('API no disponible', 'err'); return; }
+        if (!API.isAvailable) { log('ERROR: API no disponible', 'err'); return; }
 
         const categories = await API.getCategories();
-        const products = await _sbQuery('products', 'id,name,category,subcategory,active', []);
+        const products = await _sb.from('products').select('id,name,category,subcategory,active').then(r => { if (r.error) throw r.error; return r.data || []; });
 
-        log(`--- CATEGORIAS (${categories.length}) ---`, 'info');
-        categories.forEach(c => log(`  key="${c.key}" label="${c.label}" parent_key="${c.parent_key || ''}" id=${c.id}`, 'info'));
+        // --- Detect duplicate top-level categories ---
+        const topCats = categories.filter(c => !c.parent_key);
+        const dupLabels = {};
+        topCats.forEach(c => {
+            if (!dupLabels[c.label]) dupLabels[c.label] = [];
+            dupLabels[c.label].push(c);
+        });
+        const dupTopCats = Object.values(dupLabels).filter(arr => arr.length > 1);
 
-        const prodCats = {};
+        // --- Detect duplicate subcategories ---
+        const subCats = categories.filter(c => c.parent_key);
+        const subDupLabels = {};
+        subCats.forEach(c => {
+            const key = c.parent_key + '|' + c.label;
+            if (!subDupLabels[key]) subDupLabels[key] = [];
+            subDupLabels[key].push(c);
+        });
+        const dupSubCats = Object.values(subDupLabels).filter(arr => arr.length > 1);
+
+        // --- Products with no matching category ---
+        const catKeys = new Set(categories.map(c => c.key));
+        const prodCatMap = {};
         products.forEach(p => {
             const cat = p.category || '(vacio)';
-            if (!prodCats[cat]) prodCats[cat] = [];
-            prodCats[cat].push(p);
+            if (!prodCatMap[cat]) prodCatMap[cat] = [];
+            prodCatMap[cat].push(p);
         });
+        const orphanProds = Object.entries(prodCatMap).filter(([cat]) => !catKeys.has(cat) && cat !== '(vacio)');
 
-        log(`--- PRODUCTOS POR CATEGORIA (${products.length} total) ---`, 'info');
-        Object.entries(prodCats).forEach(([cat, prods]) => {
-            const match = categories.some(c => c.key === cat);
-            const status = match ? 'ok' : 'err';
-            log(`  "${cat}" (${prods.length} productos) ${match ? 'OK' : 'SIN CATEGORIA'}` + (prods[0].active === false ? ' [inactivos]' : ''), status);
+        // --- Build canonical mapping ---
+        const canonical = {};
+        dupTopCats.forEach(group => {
+            // Prefer underscore variant (POS format) over hyphen
+            const canonicalCat = group.find(c => c.key.includes('_')) || group[0];
+            group.forEach(c => { if (c.key !== canonicalCat.key) canonical[c.key] = canonicalCat.key; });
         });
+        // Also map known problem product categories
+        canonical['salud'] = 'salud_y_bienestar';
+        canonical['salud-y-bienestar'] = 'salud_y_bienestar';
+        canonical['belleza-y-bienestar'] = 'belleza_y_bienestar';
+        canonical['vitaminas-y-minerales'] = 'vitaminas';
 
-        const fixes = [];
-        const catMap = {}; // product category → canonical category key
-        categories.forEach(c => { catMap[c.key] = c.key; });
-        // Add manual mappings for known mismatches
-        catMap['salud-y-bienestar'] = 'salud_y_bienestar';
-        catMap['vitaminas-y-minerales'] = 'vitaminas';
-        catMap['salud'] = 'salud_y_bienestar';
-        catMap['belleza-y-bienestar'] = 'belleza-y-bienestar';
+        log(`--- CATEGORIAS PRINCIPALES (${topCats.length}) ---`, 'info');
+        topCats.forEach(c => log(`  ${canonical[c.key] ? '✗ DUPLICADO → ' + canonical[c.key] : '✓'} "${c.key}" = "${c.label}" id=${c.id}`, canonical[c.key] ? 'err' : 'ok'));
 
-        const toUpdate = products.filter(p => {
-            const correct = catMap[p.category];
-            return correct && correct !== p.category;
-        });
-
-        if (toUpdate.length > 0) {
-            log(`--- PRODUCTOS A NORMALIZAR (${toUpdate.length}) ---`, 'warn');
-            toUpdate.forEach(p => log(`  #${p.id} "${p.name}" : "${p.category}" → "${catMap[p.category]}"`, 'warn'));
-        } else {
-            log('No hay productos que normalizar', 'ok');
+        if (dupTopCats.length > 0) {
+            log(`\n--- CATEGORIAS DUPLICADAS (${dupTopCats.length} grupos) ---`, 'warn');
+            dupTopCats.forEach(group => {
+                const keep = group.find(c => !canonical[c.key]) || group[0];
+                const remove = group.filter(c => c.key !== keep.key);
+                log(`  "${keep.label}": se queda "${keep.key}" (id=${keep.id}), se eliminan: ${remove.map(r => '"' + r.key + '" (id=' + r.id + ')').join(', ')}`, 'warn');
+            });
         }
 
-        _analysis = { categories, products, catMap, toUpdate };
-        log('---', 'info');
-        if (toUpdate.length > 0) {
+        if (dupSubCats.length > 0) {
+            log(`\n--- SUBCATEGORIAS DUPLICADAS (${dupSubCats.length} grupos) ---`, 'warn');
+            dupSubCats.forEach(group => {
+                const parentLabel = '(' + (categories.find(c => c.key === group[0].parent_key)?.label || group[0].parent_key) + ')';
+                const keep = group[0];
+                const remove = group.slice(1);
+                log(`  "${group[0].label}" ${parentLabel}: se queda "${keep.key}", se eliminan: ${remove.map(r => '"' + r.key + '"').join(', ')}`, 'warn');
+            });
+        }
+
+        if (orphanProds.length > 0) {
+            log(`\n--- PRODUCTOS CON CATEGORIA INEXISTENTE (${orphanProds.reduce((s, [,ps]) => s + ps.length, 0)}) ---`, 'warn');
+            orphanProds.forEach(([cat, prods]) => {
+                const target = canonical[cat] || '?';
+                log(`  "${cat}" (${prods.length} productos) → "${target}"`, target !== '?' ? 'warn' : 'err');
+            });
+        }
+
+        if (!dupTopCats.length && !dupSubCats.length && !orphanProds.length) {
+            log('\nTODO EN ORDEN! No se requieren cambios.', 'ok');
+        } else {
+            log('\n---', 'info');
             document.getElementById('btnFix').disabled = false;
-            log('Listo. Revisa los resultados y haz clic en "Aplicar Normalizacion" si todo se ve correcto.', 'info');
-        } else {
-            log('Todo en orden! No se requieren cambios.', 'ok');
+            log('Revisa los resultados arriba y haz clic en "Aplicar Normalizacion Completa" para corregir todo.', 'info');
         }
+
+        _analysis = { categories, products, canonical, dupTopCats, dupSubCats };
     } catch (e) {
-        log('Error: ' + e.message, 'err');
+        log('ERROR: ' + e.message, 'err');
         console.error(e);
     } finally {
         document.getElementById('btnAnalyze').disabled = false;
@@ -122,35 +158,87 @@ async function analyze() {
 }
 
 async function fixData() {
-    if (!_analysis || _analysis.toUpdate.length === 0) return;
-    if (!confirm('Vas a actualizar ' + _analysis.toUpdate.length + ' productos. Continuar?')) return;
+    if (!_analysis) return;
+    const totalProducts = Object.entries(_analysis.canonical)
+        .filter(([cat]) => cat !== _analysis.canonical[cat])
+        .reduce((sum, [cat]) => sum + _analysis.products.filter(p => p.category === cat).length, 0);
+    const dupCount = _analysis.dupTopCats.reduce((s, g) => s + g.length - 1, 0) + _analysis.dupSubCats.reduce((s, g) => s + g.length - 1, 0);
+    if (!confirm(`Se realizaran estos cambios:\n- Actualizar categoria de ${totalProducts} productos\n- Eliminar ${dupCount} categorias duplicadas\n- Reasignar subcategorias\n\nContinuar?`)) return;
 
     document.getElementById('btnFix').disabled = true;
     document.getElementById('btnAnalyze').disabled = true;
     let ok = 0, err = 0;
 
-    for (const p of _analysis.toUpdate) {
-        const correctCat = _analysis.catMap[p.category];
-        try {
-            await API.saveProduct({
-                id: p.id,
-                name: p.name,
-                category: correctCat,
-                barcode: '',
-                brand: '',
-                price: 0,
-                stock: 0,
-                active: true
-            });
-            log(`  ✓ #${p.id} "${p.name}" actualizado: "${p.category}" → "${correctCat}"`, 'ok');
-            ok++;
-        } catch (e) {
-            log(`  ✗ #${p.id} "${p.name}" ERROR: ${e.message}`, 'err');
-            err++;
+    // Step 1: Update products with wrong categories
+    for (const [wrongCat, correctCat] of Object.entries(_analysis.canonical)) {
+        if (wrongCat === correctCat) continue;
+        const toUpdate = _analysis.products.filter(p => p.category === wrongCat);
+        for (const p of toUpdate) {
+            try {
+                await API.saveProduct({
+                    id: p.id, name: p.name, category: correctCat,
+                    barcode: '', brand: '', price: 0, stock: 0, active: true
+                });
+                log(`  PRODUCTO ✓ #${p.id} "${p.name}": "${wrongCat}" → "${correctCat}"`, 'ok');
+                ok++;
+            } catch (e) {
+                log(`  PRODUCTO ✗ #${p.id} "${p.name}": ${e.message}`, 'err');
+                err++;
+            }
         }
     }
 
-    log(`--- FIN: ${ok} OK, ${err} errores ---`, ok > 0 ? 'ok' : 'err');
+    // Step 2: Reassign subcategories of duplicate top cats to the canonical cat
+    for (const group of _analysis.dupTopCats) {
+        const keep = group.find(c => !_analysis.canonical[c.key]) || group[0];
+        const toRemove = group.filter(c => c.key !== keep.key);
+        for (const dup of toRemove) {
+            const subsToMove = _analysis.categories.filter(c => c.parent_key === dup.key);
+            for (const sub of subsToMove) {
+                try {
+                    await API.saveCategory({ id: sub.id, key: sub.key, label: sub.label, parent_key: keep.key });
+                    log(`  SUBCAT ✓ "${sub.key}" ahora padre="${keep.key}"`, 'ok');
+                    ok++;
+                } catch (e) {
+                    log(`  SUBCAT ✗ "${sub.key}": ${e.message}`, 'err');
+                    err++;
+                }
+            }
+            try {
+                await API.deleteCategory(dup.id);
+                log(`  CATEGORIA ✓ eliminada "${dup.key}"`, 'ok');
+                ok++;
+            } catch (e) {
+                log(`  CATEGORIA ✗ eliminar "${dup.key}": ${e.message}`, 'err');
+                err++;
+            }
+        }
+    }
+
+    // Step 3: Delete duplicate subcategories
+    const subCats = _analysis.categories.filter(c => c.parent_key);
+    const subDupLabels = {};
+    subCats.forEach(c => {
+        const key = c.parent_key + '|' + c.label;
+        if (!subDupLabels[key]) subDupLabels[key] = [];
+        subDupLabels[key].push(c);
+    });
+    const dupSubCats = Object.values(subDupLabels).filter(arr => arr.length > 1);
+    for (const group of dupSubCats) {
+        const toRemove = group.slice(1);
+        for (const dup of toRemove) {
+            try {
+                await API.deleteCategory(dup.id);
+                log(`  SUBCAT ✓ eliminada duplicada "${dup.key}"`, 'ok');
+                ok++;
+            } catch (e) {
+                log(`  SUBCAT ✗ eliminar "${dup.key}": ${e.message}`, 'err');
+                err++;
+            }
+        }
+    }
+
+    log(`\n=== FIN: ${ok} OK, ${err} errores ===`, err === 0 ? 'ok' : 'warn');
     document.getElementById('btnAnalyze').disabled = false;
     _analysis = null;
 }
