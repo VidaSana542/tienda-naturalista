@@ -183,10 +183,13 @@ function clearCart() {
 let _tempProductCounter = 0;
 
 function openTempProductModal() {
+    console.log('[POS-FUERA] openTempProductModal called');
     const modal = document.getElementById('tempProductModal');
     const nameInput = document.getElementById('tempProdName');
     const priceInput = document.getElementById('tempProdPrice');
     const qtyInput = document.getElementById('tempProdQty');
+    
+    console.log('[POS-FUERA] Elements found:', { modal:', { modal: !!modal, name: !!nameInput, price: !!priceInput, qty: !!qtyInput });
     
     if (!modal || !nameInput || !priceInput || !qtyInput) {
         console.error('[POS-FUERA] tempProductModal elements not found');
@@ -197,6 +200,7 @@ function openTempProductModal() {
     priceInput.value = '';
     qtyInput.value = '1';
     modal.classList.add('open');
+    console.log('[POS-FUERA] Modal classList:', modal.classList.toString());
     setTimeout(() => nameInput.focus(), 100);
 }
 
