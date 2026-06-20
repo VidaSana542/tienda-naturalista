@@ -346,6 +346,16 @@ const API = {
     return saleData;
   },
 
+  async updateSale(id, data) {
+    const { error } = await _sb
+      .from('sales')
+      .update(data)
+      .eq('id', id);
+
+    if (error) throw error;
+    return { message: 'Venta actualizada' };
+  },
+
   async addPayment(saleId, amount, note) {
     const { data, error } = await _sb
       .from('payments')

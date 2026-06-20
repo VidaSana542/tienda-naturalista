@@ -1591,6 +1591,7 @@ function showFinalInvoice(saleId) {
 
 // ============ CUSTOMER HISTORY / CUENTA DE COBRO ============
 let _custHistoryCustomerId = null;
+let _mergeSelection = [];
 
 function showCustomerHistory(custId) {
     const cust = posCustomers.find(c => c.id === custId);
@@ -1599,11 +1600,12 @@ function showCustomerHistory(custId) {
     const sales = filterSalesByScope(posSales.filter(s => s.customerId === custId));
     const creditSales = sales.filter(s => s.creditInfo);
     const totalOwedGlobal = creditSales.reduce((sum, s) => {
+        if (s.creditInfo.merged) return sum;
         if (s.creditInfo.tipo === 'abono') {
             const pagado = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
-            return sum + (s.creditInfo.balance - pagado);
+            return sum + Math.max(0, s.creditInfo.balance - pagado);
         }
-        return sum + ((s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor);
+        return sum + Math.max(0, (s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor);
     }, 0);
     let html = '';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--hover);border-radius:10px;margin-bottom:16px;">';
@@ -1643,9 +1645,17 @@ function showCustomerHistory(custId) {
                     isPaid = pending <= 0;
                     label = isPaid ? 'Pagado' : 'Pendiente: ' + formatPrice(pending);
                 }
-                html += '<div style="border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden;">';
+                const checked = _mergeSelection.includes(s.id) ? ' checked' : '';
+                const disabled = isPaid ? ' disabled' : '';
+                const mergedInto = s.creditInfo.merged ? s.creditInfo.mergedInto : null;
+                html += '<div style="border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden;' + (checked && !isPaid ? 'border-color:var(--primary);box-shadow:0 0 0 2px rgba(37,99,235,0.2);' : '') + '">';
                 html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:' + (isPaid ? '#f0fdf4' : '#fffbe6') + ';border-bottom:1px solid var(--border);">';
+                html += '<div style="display:flex;align-items:center;gap:8px;">';
+                if (!isPaid) {
+                    html += '<input type="checkbox" class="merge-check" data-sale="' + s.id + '" onchange="toggleMergeSelect(' + s.id + ', this.checked)"' + checked + ' style="width:16px;height:16px;cursor:pointer;">';
+                }
                 html += '<div><strong>#' + s.id + '</strong> <span style="color:var(--text-muted);font-size:12px;">' + shortDate(s.date) + '</span></div>';
+                html += '</div>';
                 html += '<div style="font-weight:600;font-size:15px;">' + formatPrice(s.total) + '</div>';
                 html += '</div>';
                 if (s.items && s.items.length > 0) {
@@ -1666,21 +1676,155 @@ function showCustomerHistory(custId) {
                 html += '<div><span style="font-size:12px;color:var(--text-muted);">' + label + '</span></div>';
                 if (!isPaid) {
                     html += '<div style="display:flex;gap:6px;align-items:center;"><button class="btn btn-sm btn-primary" onclick="openPaymentModalCust(' + s.id + ')">Registrar ' + (s.creditInfo.tipo === 'abono' ? 'Abono' : 'Pago') + '</button>' + (typeof showFinalInvoice === 'function' ? '<button class="btn btn-sm btn-outline" onclick="showFinalInvoice(' + s.id + ')">Ver Factura</button>' : '') + '</div>';
+                } else if (mergedInto) {
+                    html += '<div style="display:flex;gap:6px;align-items:center;"><span style="font-size:12px;color:var(--text-muted);font-weight:500;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:var(--text-muted);vertical-align:middle;margin-right:2px;"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z"/></svg> Unida en #' + mergedInto + '</span>' + (typeof showFinalInvoice === 'function' ? '<button class="btn btn-sm btn-outline" onclick="showFinalInvoice(' + s.id + ')">Factura</button>' : '') + '</div>';
                 } else {
                     html += '<div style="display:flex;gap:6px;align-items:center;"><span style="font-size:12px;color:var(--success);font-weight:600;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:var(--success);vertical-align:middle;margin-right:2px;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Pagado</span>' + (typeof showFinalInvoice === 'function' ? '<button class="btn btn-sm btn-primary" onclick="showFinalInvoice(' + s.id + ')">Factura</button>' : '') + '</div>';
                 }
                 html += '</div></div>';
             });
         }
+        // Merge action bar
+        const unpaidCount = creditSales.filter(s => {
+            let pending = 0;
+            if (s.creditInfo.tipo === 'abono') {
+                pending = s.creditInfo.balance - s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
+            } else {
+                pending = (s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor;
+            }
+            return pending > 0;
+        }).length;
+        if (unpaidCount >= 2) {
+            html += '<div id="mergeBar" style="display:none;margin-top:16px;padding:12px 16px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+            html += '<div><span style="font-weight:600;font-size:14px;" id="mergeCount">0 seleccionadas</span><span style="font-size:12px;color:var(--text-muted);margin-left:8px;">Selecciona las facturas que deseas unir</span></div>';
+            html += '<button class="btn btn-primary" id="mergeBtn" disabled onclick="mergeSelectedSales()" style="font-size:13px;padding:8px 16px;">Unir seleccionadas</button>';
+            html += '</div></div>';
+        }
     }
     document.getElementById('custHistoryContent').innerHTML = html;
     document.getElementById('custHistoryModal').classList.add('open');
     _custHistoryCustomerId = custId;
+    updateMergeBar();
+}
+
+function toggleMergeSelect(saleId, checked) {
+    const idx = _mergeSelection.indexOf(saleId);
+    if (checked && idx === -1) {
+        _mergeSelection.push(saleId);
+    } else if (!checked && idx >= 0) {
+        _mergeSelection.splice(idx, 1);
+    }
+    updateMergeBar();
+}
+
+function updateMergeBar() {
+    const bar = document.getElementById('mergeBar');
+    const btn = document.getElementById('mergeBtn');
+    const count = document.getElementById('mergeCount');
+    if (bar) bar.style.display = _mergeSelection.length > 0 ? '' : 'none';
+    if (btn) btn.disabled = _mergeSelection.length < 2;
+    if (count) count.textContent = _mergeSelection.length + ' seleccionada' + (_mergeSelection.length !== 1 ? 's' : '');
+}
+
+async function mergeSelectedSales() {
+    if (_mergeSelection.length < 2) return;
+    const custId = _custHistoryCustomerId;
+    const cust = posCustomers.find(c => c.id === custId);
+    if (!cust) return;
+
+    const sales = filterSalesByScope(posSales.filter(s => _mergeSelection.includes(s.id)));
+    if (sales.length < 2) return;
+
+    if (!confirm('Se unirán ' + sales.length + ' facturas de ' + cust.name + ' en una sola. Las originales quedaran con saldo $0 y la deuda total se trasladara a la nueva factura.\n\nContinuar?')) return;
+
+    try {
+        const combinedTotal = sales.reduce((sum, s) => sum + s.total, 0);
+        const allItems = [];
+        sales.forEach(s => {
+            if (s.items) {
+                s.items.forEach(item => allItems.push({ ...item }));
+            }
+        });
+
+        let combinedBalance = 0;
+        let combinedPayments = [];
+        sales.forEach(s => {
+            if (s.creditInfo) {
+                if (s.creditInfo.tipo === 'abono') {
+                    const pagado = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
+                    combinedBalance += s.creditInfo.balance - pagado;
+                } else {
+                    combinedBalance += (s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor;
+                }
+                if (s.creditInfo.payments) {
+                    combinedPayments = combinedPayments.concat(s.creditInfo.payments);
+                }
+            }
+        });
+
+        const nextSaleId = posSales.length > 0 ? Math.max(...posSales.map(s => s.id)) + 1 : 1;
+        const mergedFromIds = sales.map(s => s.id);
+        const mergedSale = {
+            id: nextSaleId,
+            customerId: custId,
+            customer: cust.name,
+            items: allItems,
+            total: combinedTotal,
+            excedente: 0,
+            method: 'Credito',
+            methodKey: 'credito',
+            creditInfo: {
+                tipo: 'abono',
+                totalCuotas: 0,
+                cuotaValor: 0,
+                pagadas: 0,
+                payments: combinedPayments,
+                balance: combinedBalance > 0 ? combinedTotal : 0,
+                mergedFrom: mergedFromIds
+            },
+            ventaPorFuera: sales[0].ventaPorFuera || false,
+            date: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            status: 'completada'
+        };
+
+        if (API.isAvailable) {
+            const savedSale = await API.saveSale({
+                customer_id: parseInt(cust.id.replace('c', '')),
+                customer_name: cust.name,
+                total: combinedTotal,
+                excedente: 0,
+                method: 'Credito',
+                method_key: 'credito',
+                credit_info: mergedSale.creditInfo,
+                venta_por_fuera: mergedSale.ventaPorFuera,
+                created_at: mergedSale.created_at
+            });
+            mergedSale.id = savedSale.id;
+
+            for (const s of sales) {
+                const newCreditInfo = { ...s.creditInfo, merged: true, mergedInto: savedSale.id, balance: 0, payments: s.creditInfo.payments || [] };
+                await API.updateSale(s.id, { credit_info: newCreditInfo });
+                s.creditInfo = newCreditInfo;
+            }
+        }
+
+        posSales.push(mergedSale);
+        saveSales();
+        showToast('Facturas unidas exitosamente como #' + mergedSale.id);
+        _mergeSelection = [];
+        showCustomerHistory(custId);
+    } catch (e) {
+        showToast('Error al unir facturas: ' + e.message);
+        console.error(e);
+    }
 }
 
 function closeCustHistory() {
     document.getElementById('custHistoryModal').classList.remove('open');
     _custHistoryCustomerId = null;
+    _mergeSelection = [];
 }
 
 function openPaymentModalCust(saleId) {
