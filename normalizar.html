@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Normalizar Datos</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="js/api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; padding: 20px; max-width: 800px; margin: auto; background: #f5f5f5; }
+h1 { margin-bottom: 20px; }
+.card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
+th { background: #f9f9f9; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+.badge-ok { background: #d4edda; color: #155724; }
+.badge-err { background: #f8d7da; color: #721c24; }
+.badge-warn { background: #fff3cd; color: #856404; }
+button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+.btn-primary { background: #007bff; color: #fff; }
+.btn-primary:hover { background: #0056b3; }
+.btn-danger { background: #dc3545; color: #fff; }
+.btn-danger:hover { background: #c82333; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+#result { margin-top: 16px; white-space: pre-wrap; font-family: monospace; font-size: 13px; }
+.log { padding: 4px 0; }
+.log-ok { color: #155724; }
+.log-err { color: #721c24; }
+.log-info { color: #004085; }
+</style>
+</head>
+<body>
+<h1>Normalizar Categorias y Productos</h1>
+<div class="card">
+    <p style="margin-bottom:12px;">Esta herramienta revisa y normaliza las categorias de productos para que coincidan con las categorias reales en la base de datos.</p>
+    <button id="btnAnalyze" class="btn-primary" onclick="analyze()">Analizar Base de Datos</button>
+    <button id="btnFix" class="btn-danger" disabled onclick="fixData()">Aplicar Normalizacion</button>
+    <div id="result"></div>
+</div>
+
+<script>
+let _analysis = null;
+
+async function _sbQuery(table, select, filters) {
+    const q = _sb.from(table).select(select);
+    (filters || []).forEach(f => q[f.method](f.column, f.value));
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+}
+
+function log(msg, type) {
+    const el = document.getElementById('result');
+    el.innerHTML += `<div class="log log-${type}">${msg}</div>`;
+}
+
+async function analyze() {
+    document.getElementById('result').innerHTML = '<div class="log log-info">Analizando...</div>';
+    document.getElementById('btnAnalyze').disabled = true;
+    document.getElementById('btnFix').disabled = true;
+    try {
+        await API.check();
+        if (!API.isAvailable) { log('API no disponible', 'err'); return; }
+
+        const categories = await API.getCategories();
+        const products = await _sbQuery('products', 'id,name,category,subcategory,active', []);
+
+        log(`--- CATEGORIAS (${categories.length}) ---`, 'info');
+        categories.forEach(c => log(`  key="${c.key}" label="${c.label}" parent_key="${c.parent_key || ''}" id=${c.id}`, 'info'));
+
+        const prodCats = {};
+        products.forEach(p => {
+            const cat = p.category || '(vacio)';
+            if (!prodCats[cat]) prodCats[cat] = [];
+            prodCats[cat].push(p);
+        });
+
+        log(`--- PRODUCTOS POR CATEGORIA (${products.length} total) ---`, 'info');
+        Object.entries(prodCats).forEach(([cat, prods]) => {
+            const match = categories.some(c => c.key === cat);
+            const status = match ? 'ok' : 'err';
+            log(`  "${cat}" (${prods.length} productos) ${match ? 'OK' : 'SIN CATEGORIA'}` + (prods[0].active === false ? ' [inactivos]' : ''), status);
+        });
+
+        const fixes = [];
+        const catMap = {}; // product category → canonical category key
+        categories.forEach(c => { catMap[c.key] = c.key; });
+        // Add manual mappings for known mismatches
+        catMap['salud-y-bienestar'] = 'salud_y_bienestar';
+        catMap['vitaminas-y-minerales'] = 'vitaminas';
+        catMap['salud'] = 'salud_y_bienestar';
+        catMap['belleza-y-bienestar'] = 'belleza-y-bienestar';
+
+        const toUpdate = products.filter(p => {
+            const correct = catMap[p.category];
+            return correct && correct !== p.category;
+        });
+
+        if (toUpdate.length > 0) {
+            log(`--- PRODUCTOS A NORMALIZAR (${toUpdate.length}) ---`, 'warn');
+            toUpdate.forEach(p => log(`  #${p.id} "${p.name}" : "${p.category}" → "${catMap[p.category]}"`, 'warn'));
+        } else {
+            log('No hay productos que normalizar', 'ok');
+        }
+
+        _analysis = { categories, products, catMap, toUpdate };
+        log('---', 'info');
+        if (toUpdate.length > 0) {
+            document.getElementById('btnFix').disabled = false;
+            log('Listo. Revisa los resultados y haz clic en "Aplicar Normalizacion" si todo se ve correcto.', 'info');
+        } else {
+            log('Todo en orden! No se requieren cambios.', 'ok');
+        }
+    } catch (e) {
+        log('Error: ' + e.message, 'err');
+        console.error(e);
+    } finally {
+        document.getElementById('btnAnalyze').disabled = false;
+    }
+}
+
+async function fixData() {
+    if (!_analysis || _analysis.toUpdate.length === 0) return;
+    if (!confirm('Vas a actualizar ' + _analysis.toUpdate.length + ' productos. Continuar?')) return;
+
+    document.getElementById('btnFix').disabled = true;
+    document.getElementById('btnAnalyze').disabled = true;
+    let ok = 0, err = 0;
+
+    for (const p of _analysis.toUpdate) {
+        const correctCat = _analysis.catMap[p.category];
+        try {
+            await API.saveProduct({
+                id: p.id,
+                name: p.name,
+                category: correctCat,
+                barcode: '',
+                brand: '',
+                price: 0,
+                stock: 0,
+                active: true
+            });
+            log(`  ✓ #${p.id} "${p.name}" actualizado: "${p.category}" → "${correctCat}"`, 'ok');
+            ok++;
+        } catch (e) {
+            log(`  ✗ #${p.id} "${p.name}" ERROR: ${e.message}`, 'err');
+            err++;
+        }
+    }
+
+    log(`--- FIN: ${ok} OK, ${err} errores ---`, ok > 0 ? 'ok' : 'err');
+    document.getElementById('btnAnalyze').disabled = false;
+    _analysis = null;
+}
+</script>
+</body>
+</html>
