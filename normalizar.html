@@ -87,6 +87,36 @@ async function analyze() {
         });
         const dupSubCats = Object.values(subDupLabels).filter(arr => arr.length > 1);
 
+        // --- Detect cross-category duplicate subcategory labels ---
+        const subByLabel = {};
+        subCats.forEach(c => {
+            if (!subByLabel[c.label]) subByLabel[c.label] = [];
+            subByLabel[c.label].push(c);
+        });
+        const crossDupSubs = Object.values(subByLabel).filter(arr => {
+            const parents = new Set(arr.map(c => c.parent_key));
+            return parents.size > 1;
+        });
+        const CROSS_DUP_CANONICAL = {
+            'Articulaciones': 'salud_y_bienestar',
+            'Calendula': 'belleza_y_bienestar',
+            'Glucosamina': 'salud_y_bienestar',
+            'Resveratrol': 'suplementos',
+            'Limpieza intestinal': 'suplementos',
+            'Pérdida de peso': 'salud_y_bienestar'
+        };
+        const crossDupFix = {};
+        crossDupSubs.forEach(group => {
+            const label = group[0].label;
+            const preferredParent = CROSS_DUP_CANONICAL[label];
+            if (!preferredParent) return;
+            const keep = group.find(c => c.parent_key === preferredParent);
+            if (!keep) return;
+            const toRemove = group.filter(c => c.parent_key !== preferredParent);
+            if (toRemove.length === 0) return;
+            crossDupFix[label] = { keep, toRemove };
+        });
+
         // --- Products with no matching category ---
         const catKeys = new Set(categories.map(c => c.key));
         const prodCatMap = {};
@@ -132,6 +162,18 @@ async function analyze() {
             });
         }
 
+        if (Object.keys(crossDupFix).length > 0) {
+            const totalCross = Object.values(crossDupFix).reduce((s, f) => s + f.toRemove.length, 0);
+            log(`\n--- SUBCATEGORIAS DUPLICADAS ENTRE CATEGORIAS (${totalCross} a eliminar) ---`, 'warn');
+            Object.entries(crossDupFix).forEach(([label, fix]) => {
+                log(`  "${label}": se queda "${fix.keep.key}" (${fix.keep.parent_key}), se eliminan: ${fix.toRemove.map(r => '"' + r.key + '" (' + r.parent_key + ')').join(', ')}`, 'warn');
+                const affectedProds = products.filter(p => p.subcategory === fix.toRemove.map(r => r.key).find(k => k === p.subcategory));
+                if (affectedProds.length > 0) {
+                    log(`    → ${affectedProds.length} productos seran reasignados a "${fix.keep.key}"`, 'warn');
+                }
+            });
+        }
+
         if (orphanProds.length > 0) {
             log(`\n--- PRODUCTOS CON CATEGORIA INEXISTENTE (${orphanProds.reduce((s, [,ps]) => s + ps.length, 0)}) ---`, 'warn');
             orphanProds.forEach(([cat, prods]) => {
@@ -163,7 +205,7 @@ async function analyze() {
             log('Revisa los resultados arriba y haz clic en "Aplicar Normalizacion Completa" para corregir todo.', 'info');
         }
 
-        _analysis = { categories, products, canonical, dupTopCats, dupSubCats, orphanSubProds: orphanSubProds || [] };
+        _analysis = { categories, products, canonical, dupTopCats, dupSubCats, orphanSubProds: orphanSubProds || [], crossDupFix };
     } catch (e) {
         log('ERROR: ' + e.message, 'err');
         console.error(e);
@@ -179,7 +221,12 @@ async function fixData() {
         .reduce((sum, [cat]) => sum + _analysis.products.filter(p => p.category === cat).length, 0);
     const orphanSubCount = _analysis.orphanSubProds.length;
     const dupCount = _analysis.dupTopCats.reduce((s, g) => s + g.length - 1, 0) + _analysis.dupSubCats.reduce((s, g) => s + g.length - 1, 0);
-    if (!confirm(`Se realizaran estos cambios:\n- Actualizar categoria de ${totalProducts} productos\n- Limpiar subcategoria de ${orphanSubCount} productos\n- Eliminar ${dupCount} categorias duplicadas\n- Reasignar subcategorias\n\nContinuar?`)) return;
+    const crossDupCount = Object.values(_analysis.crossDupFix || {}).reduce((s, f) => s + f.toRemove.length, 0);
+    const crossReassign = Object.values(_analysis.crossDupFix || {}).reduce((s, f) => {
+        const removeKeys = f.toRemove.map(r => r.key);
+        return s + _analysis.products.filter(p => removeKeys.includes(p.subcategory)).length;
+    }, 0);
+    if (!confirm(`Se realizaran estos cambios:\n- Actualizar categoria de ${totalProducts} productos\n- Limpiar subcategoria de ${orphanSubCount} productos\n- Eliminar ${dupCount} categorias duplicadas\n- Eliminar ${crossDupCount} subcats duplicadas entre categorias y reasignar ${crossReassign} productos\n- Reasignar subcategorias\n\nContinuar?`)) return;
 
     document.getElementById('btnFix').disabled = true;
     document.getElementById('btnAnalyze').disabled = true;
@@ -256,6 +303,34 @@ async function fixData() {
             try {
                 await API.deleteCategory(dup.id);
                 log(`  SUBCAT ✓ eliminada duplicada "${dup.key}"`, 'ok');
+                ok++;
+            } catch (e) {
+                log(`  SUBCAT ✗ eliminar "${dup.key}": ${e.message}`, 'err');
+                err++;
+            }
+        }
+    }
+
+    // Step 5: Eliminar subcategorias duplicadas entre categorias y reasignar productos
+    for (const [label, fix] of Object.entries(_analysis.crossDupFix || {})) {
+        const removeKeys = fix.toRemove.map(r => r.key);
+        // Reassign products using the wrong subcategory key
+        const toReassign = _analysis.products.filter(p => removeKeys.includes(p.subcategory));
+        for (const p of toReassign) {
+            try {
+                await API.saveProduct({ ...p, subcategory: fix.keep.key });
+                log(`  PRODUCTO ✓ #${p.id} "${p.name}": subcategoria "${p.subcategory}" → "${fix.keep.key}"`, 'ok');
+                ok++;
+            } catch (e) {
+                log(`  PRODUCTO ✗ #${p.id} "${p.name}": ${e.message}`, 'err');
+                err++;
+            }
+        }
+        // Delete the wrong subcategories
+        for (const dup of fix.toRemove) {
+            try {
+                await API.deleteCategory(dup.id);
+                log(`  SUBCAT ✓ eliminada "${dup.key}" (${dup.parent_key})`, 'ok');
                 ok++;
             } catch (e) {
                 log(`  SUBCAT ✗ eliminar "${dup.key}": ${e.message}`, 'err');
