@@ -36,6 +36,11 @@ const CATEGORY_NORMALIZE = {
     'belleza_y_bienestar': 'belleza-y-bienestar',
     'salud_y_bienestar': 'salud_y_bienestar'
 };
+// Limpia subcategoria si no existe en la lista de categorias (ej: despues de borrarla en POS)
+function cleanOrphanSubcategory(subKey, allCats) {
+    if (!subKey || !allCats || allCats.length === 0) return '';
+    return allCats.some(c => c.key === subKey) ? subKey : '';
+}
 
 const CATEGORY_ICONS = {
     suplementos: '<svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z"/></svg>',
@@ -170,7 +175,7 @@ function getFilteredProducts() {
         filtered = filtered.filter(p => (p.category || '').trim() === activeFilter.trim());
     }
     if (activeSubcategory) {
-        filtered = filtered.filter(p => p.subcategory === activeSubcategory);
+        filtered = filtered.filter(p => (p.subcategory || '').trim() === activeSubcategory.trim());
     }
     if (searchQuery) {
         filtered = filtered.filter(p =>
@@ -467,9 +472,8 @@ function showToast(msg) {
     if (apiCategories.length > 0) {
         const seen = new Set();
         allApiCategories = apiCategories.filter(c => {
-            const key = (c.parent_key || '') + '|' + c.label;
-            if (seen.has(key)) return false;
-            seen.add(key);
+            if (seen.has(c.key)) return false;
+            seen.add(c.key);
             return true;
         });
         const topCats = allApiCategories.filter(c => !c.parent_key);
@@ -490,7 +494,7 @@ function showToast(msg) {
             name: p.name,
             brand: p.brand || '',
             category: CATEGORY_NORMALIZE[p.category] || p.category,
-            subcategory: p.subcategory || '',
+            subcategory: cleanOrphanSubcategory(p.subcategory || '', allApiCategories),
             price: parseFloat(p.price),
             oldPrice: 0,
             img: p.img || '',
@@ -499,6 +503,7 @@ function showToast(msg) {
             desc: p.description || ''
         }));
         console.log('[DEBUG] Categories from API:', JSON.stringify(categories.map(c => c.key)));
+        console.log('[DEBUG] All categories + subcats:', JSON.stringify(allApiCategories.map(c => ({ key: c.key, parent_key: c.parent_key, label: c.label }))));
         console.log('[DEBUG] Unique product categories:', JSON.stringify([...new Set(products.map(p => p.category))]));
         console.log('[DEBUG] Products with no/invalid category:', JSON.stringify(products.filter(p => !p.category || p.category.trim() === '').map(p => ({ id: p.id, name: p.name, category: p.category }))));
     } else {
