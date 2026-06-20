@@ -183,21 +183,27 @@ function clearCart() {
 let _tempProductCounter = 0;
 
 function openTempProductModal() {
-    const m = document.getElementById('tempProductModal');
-    if (!m) { console.error('[POS-FUERA] tempProductModal not found'); return; }
-    document.getElementById('tempProdName').value = '';
-    document.getElementById('tempProdPrice').value = '';
-    document.getElementById('tempProdQty').value = '1';
-    m.style.display = 'flex';
-    m.classList.add('open');
-    setTimeout(() => document.getElementById('tempProdName').focus(), 100);
+    const modal = document.getElementById('tempProductModal');
+    const nameInput = document.getElementById('tempProdName');
+    const priceInput = document.getElementById('tempProdPrice');
+    const qtyInput = document.getElementById('tempProdQty');
+    
+    if (!modal || !nameInput || !priceInput || !qtyInput) {
+        console.error('[POS-FUERA] tempProductModal elements not found');
+        return;
+    }
+    
+    nameInput.value = '';
+    priceInput.value = '';
+    qtyInput.value = '1';
+    modal.classList.add('open');
+    setTimeout(() => nameInput.focus(), 100);
 }
 
 function closeTempProductModal() {
-    const m = document.getElementById('tempProductModal');
-    if (!m) return;
-    m.style.display = '';
-    m.classList.remove('open');
+    const modal = document.getElementById('tempProductModal');
+    if (!modal) return;
+    modal.classList.remove('open');
 }
 
 function addTempProductToCart() {
