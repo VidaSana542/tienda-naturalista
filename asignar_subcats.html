@@ -11,91 +11,285 @@
 body { font-family: system-ui, sans-serif; padding: 20px; max-width: 900px; margin: auto; background: #f5f5f5; }
 h1 { margin-bottom: 20px; }
 .card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; }
+button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-right: 8px; margin-bottom: 8px; }
 .btn-primary { background: #007bff; color: #fff; }
 .btn-primary:hover { background: #0056b3; }
 .btn-success { background: #28a745; color: #fff; }
 .btn-success:hover { background: #218838; }
+.btn-warning { background: #ffc107; color: #000; }
+.btn-warning:hover { background: #e0a800; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 #result { margin-top: 16px; font-family: monospace; font-size: 13px; line-height: 1.6; }
 .log { padding: 3px 0; }
 .log-ok { color: #155724; }
 .log-err { color: #721c24; }
 .log-info { color: #004085; }
+.log-warn { color: #856404; }
 .summary-box { background: #e8f4f8; border-left: 4px solid #007bff; padding: 12px; margin: 10px 0; border-radius: 4px; }
+.batch-bar { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px; margin: 12px 0; display: none; }
+.batch-bar select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; margin: 0 8px; }
 </style>
 </head>
 <body>
 <h1>Asignar Subcategorias Automaticamente</h1>
 <div class="card">
     <div class="summary-box">
-        Esta herramienta analiza el nombre de cada producto y le asigna automaticamente la subcategoria que mejor coincida segun palabras clave.
+        Asigna subcategorias a productos segun su nombre. El mapa incluye nombres exactos de Supabase (con y sin sufijo de marca). Los que no coincidan se asignan por palabras clave o en lote manual.
     </div>
     <p style="margin:12px 0;">
         <button id="btnRun" class="btn-success" onclick="run()">Auto-Asignar Subcategorias</button>
+        <button id="btnBatch" class="btn-warning" style="display:none;" onclick="showBatchBar()">Asignar Restantes Manualmente</button>
     </p>
+    <div id="batchBar" class="batch-bar"></div>
     <div id="result"></div>
 </div>
 
 <script>
+// Mapa: nombre EXACTO del producto (como aparece en Supabase) → subcategoria key canónica
+// Incluye TODOS los nombres que pueden fallar incluyendo los que tienen _Brand pegados
+const PRODUCT_SUBCAT_MAP = {
+    // Belleza y Bienestar
+    'Colage': 'belleza_y_bienestar_colageno',
+    'Colageno Complex': 'belleza_y_bienestar_colageno',
+    'Colageno-Pastilla': 'belleza_y_bienestar_colageno',
+    'Colageno Hidrolizado': 'belleza_y_bienestar_colageno',
+    'Peptidos de Colageno Hidrolizado': 'belleza_y_bienestar_colageno',
+    'Péptidos de Colágeno Hidrolizado': 'belleza_y_bienestar_colageno',
+    'Xero Fit': 'belleza_y_bienestar_articulaciones',
+
+    // Vitaminas
+    'Ashwagandha + Magnesium Glycinate': 'vitaminas_magnesio',
+    'B-12 Methylcobalamin 5000 mcg': 'vitaminas_vitaminas_b',
+    'Biotin 10000 mcg': 'vitaminas_biotina',
+    'Citrato De Magnesio': 'vitaminas_magnesio',
+    'Complejo B': 'vitaminas_vitaminas_b',
+    'Magnesium Citrate Gummies': 'vitaminas_magnesio',
+    'Magnesium Glycinate 550mg + D3': 'vitaminas_magnesio',
+    'Magpro Magnesium Malate 500mg': 'vitaminas_magnesio',
+    'Melatonin 10000 mcg': 'salud_y_bienestar_salud_sueno',
+    'Niacinamide Vitamin B3 500mg': 'vitaminas_vitaminas_b',
+    'Vitamina A 600mg': 'vitaminas_vitamina_a',
+    'Vitamina D3 + Calcio 600mg': 'vitaminas_calcio',
+    'Vitamina E 1000IU': 'vitaminas_vitamina_e',
+    'Zinc Gluconate 120 mg': 'vitaminas_zinc',
+
+    // Salud y Bienestar
+    'Antax': 'salud_y_bienestar_desparasitacion',
+    'Antax 170ml': 'salud_y_bienestar_desparasitacion',
+    'Antax 3600ml': 'salud_y_bienestar_desparasitacion',
+    'Apetifort 240g': 'salud_y_bienestar_laxante',
+    'Apetifort 300g': 'salud_y_bienestar_laxante',
+    'Cardo Mariano Higado Vesicula': 'salud_y_bienestar_higado',
+    'Cardo Mariano Hígado Vesícula': 'salud_y_bienestar_higado',
+    'Chanca Piedra': 'salud_y_bienestar_rinones',
+    'Chupa Panza': 'salud_y_bienestar_laxante',
+    'Ciruelfort Jalea Laxante': 'salud_y_bienestar_laxante',
+    'Co-enzyme Q-10 150mg': 'salud_y_bienestar_omega',
+    'CortiLip Fitoesteroles': 'salud_y_bienestar_circulacion',
+    'Curcuma': 'salud_y_bienestar_digestion',
+    'Diabcontrol': 'salud_y_bienestar_diabetes',
+    'Digestar Jalea Laxante 190g': 'salud_y_bienestar_laxante',
+    'Fibaxil Laxante de Fibra': 'salud_y_bienestar_laxante',
+    'GASGEN': 'salud_y_bienestar_gastritis',
+    'Garlic Oil® 1500 mg': 'salud_y_bienestar_digestion',
+    'Ginkgo Biloba': 'salud_y_bienestar_rendimiento_mental',
+    'Ginkgo Biloba 60mg': 'salud_y_bienestar_rendimiento_mental',
+    'Healthy Life Zarzaparrilla 500mg': 'salud_y_bienestar_rinones',
+    'Jarabe Totumo': 'salud_y_bienestar_inflamacion',
+    'Jengibre Ice': 'salud_y_bienestar_digestion',
+    'LASSACOL': 'salud_y_bienestar_circulacion',
+    'Milk Thistle': 'salud_y_bienestar_higado',
+    'Max Forte 500 mg': 'salud_y_bienestar_circulacion',
+    'NEURO-STRESS HC': 'salud_y_bienestar_rendimiento_mental',
+    'Omega 3 1000mg': 'salud_y_bienestar_omega',
+    'Omega 3, 6, 9': 'salud_y_bienestar_omega',
+    'Omega Plus 30 Softgels': 'salud_y_bienestar_omega',
+    'Oregano 1000mg': 'salud_y_bienestar_digestion',
+    'Ortiga Diuretico': 'salud_y_bienestar_rinones',
+    'PIP3R4SIN Bebida Naranja 60mL': 'salud_y_bienestar_inflamacion',
+    'Pasuchaca Diabetisan': 'salud_y_bienestar_diabetes',
+    'Pipi Loco': 'salud_y_bienestar_rinones',
+    'Prostasan': 'salud_y_bienestar_prostata',
+    'Purgante La Escobita + Zarzaparrilla': 'salud_y_bienestar_rinones',
+    'R-13-Sabor Uva': 'salud_y_bienestar_inflamacion',
+    'R-QMAZ': 'salud_y_bienestar_inflamacion',
+    'Remartrin': 'salud_y_bienestar_inflamacion',
+    'Sinhemorroidas': 'salud_y_bienestar_circulacion',
+    'The Moon Dream Maker': 'salud_y_bienestar_salud_sueno',
+    'Ulsn': 'salud_y_bienestar_gastritis',
+    'Urovital': 'salud_y_bienestar_rinones',
+    'Venasfull Max Forte 500 mg': 'salud_y_bienestar_circulacion',
+    'Zarzaparrilla': 'salud_y_bienestar_rinones',
+
+    // Suplementos
+    '180 K.L.G': 'suplementos_energia',
+    'Aguaje': 'suplementos_potencia_masculina',
+    'Aguaje Hinogo-Maca Triple': 'suplementos_potencia_masculina',
+    'Alcachofa': 'suplementos_digestion',
+    'B-Chotta': 'suplementos_energia',
+    'Biocros': 'suplementos_energia',
+    'ColMax': 'suplementos_proteina',
+    'Cranberry 400 mg.': 'salud_y_bienestar_rinones',
+    'Diente de León': 'salud_y_bienestar_higado',
+    'Dura Mas': 'suplementos_potencia_masculina',
+    'Echinacea 250mg': 'suplementos_sistema_inmunologico',
+    'El Matador': 'suplementos_potencia_masculina',
+    'Famel': 'suplementos_balance_hormonal',
+    'Fenogreco Aleluya': 'suplementos_balance_hormonal',
+    'Freshlypausia Complex': 'suplementos_balance_hormonal',
+    'G4-STR1': 'suplementos_energia',
+    'GHR-15 Plus': 'suplementos_energia',
+    'King-s': 'suplementos_potencia_masculina',
+    'LIMPLUS': 'suplementos_digestion',
+    'Leche de Higuerón con Casigua': 'salud_y_bienestar_laxante',
+    'Leche de Higueron con Casigua': 'salud_y_bienestar_laxante',
+    'Maca': 'suplementos_potencia_masculina',
+    'MegaSex 20 tabletas': 'suplementos_potencia_masculina',
+    'Mero Macho': 'suplementos_potencia_masculina',
+    'Mieltertos 4 Porciones': 'suplementos_sistema_inmunologico',
+    'Miletertos Max Forte': 'suplementos_energia',
+    'Nerozin': 'suplementos_energia',
+    'Ovarmex': 'suplementos_balance_hormonal',
+    'PROPOLEO® KIDS': 'suplementos_sistema_inmunologico',
+    'Resveratrol 3000 + NAD Ultra': 'suplementos_resveratrol',
+    'Retardex': 'suplementos_potencia_masculina',
+    'Sex Love-Gel intimo': 'suplementos_potencia_masculina',
+    'Shilajit 10000mg': 'suplementos_energia',
+    'Shilajit-Papeleta': 'suplementos_energia',
+    'shilajit': 'suplementos_energia',
+    'TestoUltra': 'suplementos_potencia_masculina',
+    'TiraKtira': 'suplementos_perdida_peso',
+    'Triple Maca': 'suplementos_potencia_masculina',
+    'Vinagre de manzana': 'suplementos_digestion',
+    'Vitafer-L': 'suplementos_salud_sanguinea',
+    'Vitalfer-Papeleta': 'suplementos_salud_sanguinea',
+    'Vitalfer': 'suplementos_salud_sanguinea',
+
+    // === PRODUCTOS CON SUFIJO DE MARCA (_Brand) ===
+    // Ginkgo/NutriPlan
+    'Ginkgo biloba_NutriPlan': 'salud_y_bienestar_rendimiento_mental',
+    // Ginkgo/Americano (con typo Bilboa)
+    'Ginkgo Bilboa 80mg_AMERICANO': 'salud_y_bienestar_rendimiento_mental',
+    'Ginkgo Bilboa 60mg_AMERICANO': 'salud_y_bienestar_rendimiento_mental',
+    // Varices/NutriPlan
+    'VARIZAN_NutriPlan': 'salud_y_bienestar_circulacion',
+    // Vita fancesa/Vitalim (varias presentaciones)
+    'Vita fancesa_Vitalim': 'vitaminas_vitaminas_b',
+    'Vita Francesa_Vitalim Jalea': 'vitaminas_vitaminas_b',
+    'Vita Fancesa_Vitalim Pastillas': 'vitaminas_vitaminas_b',
+    // Factor de Transferencia/NutriPluss
+    'Factor de Transferencia_Nutri Pluss': 'suplementos_sistema_inmunologico',
+    // Granulada/Vitalim
+    'Granulada (Sabor Fresa)_Vitalim': 'suplementos_proteina',
+    // Sure/Polvo
+    'Sure_Polvo': 'suplementos_proteina',
+    // Memorex/Macel
+    'Memorex_Macel': 'salud_y_bienestar_rendimiento_mental',
+    // FERROVIN/VITALIM
+    'FERROVIN-VITALIM': 'suplementos_salud_sanguinea',
+    // Otros sin marca pero no en import
+    'Jarabe de concreto': 'salud_y_bienestar_digestion',
+    'Barrido Arterial': 'salud_y_bienestar_circulacion',
+    'Aceite de ricino': 'salud_y_bienestar_laxante',
+};
+
+// Keywords de respaldo para productos no cubiertos en el mapa exacto
 const SUBCAT_KEYWORDS = {
-    'belleza_y_bienestar': {
-        'belleza_y_bienestar_colageno': ['colageno','colágeno','colagen'],
-        'belleza_y_bienestar_calendula': ['calendula','caléndula'],
-        'belleza_y_bienestar_articulaciones': ['articulacion','articulación','glucosamina','cartilago'],
-        'belleza_y_bienestar_glucosamina': ['glucosamina']
+    'suplementos': {
+        'suplementos_energia': ['energía','energia','energy','ginseng','guarana','shilajit','b-chotta','bchotta','miletertos','g4-str1','g4str1','ghr-15','ghr15','nerozi','180 k.l.g','180klg'],
+        'suplementos_potencia_masculina': ['potencia','masculina','testo','maca','horny','sex','macho','king','retardex','dura mas','mega','triple','aguaje'],
+        'suplementos_balance_hormonal': ['hormonal','hormona','tiroides','cortisol','famel','freshlypausia','ovarmex','fenogreco'],
+        'suplementos_proteina': ['proteina','proteína','protein','whey','colmax','granulada','sure'],
+        'suplementos_creatina': ['creatina'],
+        'suplementos_perdida_peso': ['peso','dieta','quema','carnitina','tiraktira'],
+        'suplementos_salud_sanguinea': ['sanguinea','sanguínea','hierro','iron','vitafer','ferrovi'],
+        'suplementos_sistema_inmunologico': ['inmuno','defensas','equinacea','echinacea','propoleo','factor de transferencia','transferencia'],
+        'suplementos_resveratrol': ['resveratrol'],
+        'suplementos_digestion': ['alcachofa','vinagre','digest','limplus','limpieza','alcacho']
     },
     'salud_y_bienestar': {
-        'salud_y_bienestar_laxante': ['laxante','fibra','ciruelfort','lassacol','digestar'],
-        'salud_y_bienestar_desparasitacion': ['desparasitante','desparasit','parasitos'],
-        'salud_y_bienestar_diabetes': ['diabetes','diab','diabetisan'],
-        'salud_y_bienestar_digestion': ['digestión','digest','gasgen','gastritis','acidez','enzimas','probiótico','probiotico'],
-        'salud_y_bienestar_gastritis': ['gastritis','acidez','antiacido'],
-        'salud_y_bienestar_higado': ['hígado','higado','vesícula','vesicula','cardo','milk thistle','silimarina','cardo mariano'],
-        'salud_y_bienestar_inflamacion': ['inflamación','inflamacion','antiinflam'],
-        'salud_y_bienestar_circulacion': ['circulación','circulacion','venas','varices','coenzima'],
-        'salud_y_bienestar_salud_sueno': ['sueño','sueno','melatonina','sleep'],
-        'salud_y_bienestar_rendimiento_mental': ['mental','memoria','concentración','concentracion','ginkgo','coenzyme','q10','co-enzima'],
-        'salud_y_bienestar_omega': ['omega','aceite de pescado','epa','dha'],
+        'salud_y_bienestar_laxante': ['laxante','fibra','ciruelfort','lassacol','digestar','apetifort','chupa panza','higuerón','higueron','ricino','leche de higuer'],
+        'salud_y_bienestar_desparasitacion': ['desparasitante','desparasit','antax'],
+        'salud_y_bienestar_diabetes': ['diabetes','diab','diabetisan','pasuchaca'],
+        'salud_y_bienestar_digestion': ['digestión','digest','gasgen','jengibre','oregano','curcuma','garlic','jarabe de'],
+        'salud_y_bienestar_gastritis': ['gastritis','acidez','ulcera','ulsn'],
+        'salud_y_bienestar_higado': ['hígado','higado','vesícula','vesicula','cardo','milk thistle','silimarina','diente de león','diente de leon'],
+        'salud_y_bienestar_inflamacion': ['inflamación','inflamacion','antiinflam','jarabe totumo','pip3r4sin','remartrin','r-qmaz'],
+        'salud_y_bienestar_circulacion': ['circulación','circulacion','venas','varices','lassacol','cortilip','max forte','venasfull','sinhemorroidas','varizan','barrido arterial'],
+        'salud_y_bienestar_salud_sueno': ['sueño','sueno','melatonina','melatonin','moon dream'],
+        'salud_y_bienestar_rendimiento_mental': ['mental','memoria','concentración','concentracion','ginkgo','neuro-stress','memorex'],
+        'salud_y_bienestar_omega': ['omega','coenzyme','co-enzima','q10'],
         'salud_y_bienestar_prostata': ['próstata','prostata','prostasan'],
-        'salud_y_bienestar_rinones': ['riñon','riñones','rinones','uva ursi','renal'],
-        'salud_y_bienestar_perdida_peso': ['peso','dieta','quema','chupa panza','carnitina','carnitine']
+        'salud_y_bienestar_rinones': ['riñon','riñones','rinones','uva ursi','renal','ortiga','zarzaparrilla','chanca piedra','cranberry','urovital','pipi loco']
     },
-    'suplementos': {
-        'suplementos_complejo_b': ['complejo b','vitamina b','complex b'],
-        'suplementos_creatina': ['creatina'],
-        'suplementos_proteina': ['proteina','proteína','protein','whey'],
-        'suplementos_energia': ['energía','energia','energy','ginseng','macá','maca','guarana'],
-        'suplementos_perdida_peso': ['peso','dieta','quema','carnitina','carnitine','carnitin'],
-        'suplementos_potencia_masculina': ['potencia','masculina','testo','maca','horny goat'],
-        'suplementos_resveratrol': ['resveratrol'],
-        'suplementos_salud_sanguinea': ['sanguinea','sanguínea','hierro','iron','hemoglobina'],
-        'suplementos_sistema_inmunologico': ['inmuno','defensas','equinacea','echnacea','propoléo','propoleo'],
-        'suplementos_balance_hormonal': ['hormonal','hormona','tiroides','cortisol']
+    'belleza_y_bienestar': {
+        'belleza_y_bienestar_colageno': ['colageno','colágeno','colagen','colage','péptidos','peptidos'],
+        'belleza_y_bienestar_calendula': ['calendula','caléndula'],
+        'belleza_y_bienestar_articulaciones': ['articulacion','articulación','xero fit'],
+        'belleza_y_bienestar_glucosamina': ['glucosamina']
     },
     'vitaminas': {
-        'vitaminas_vitamina_c': ['vitamina c','vitamin c','ácido ascórbico','acido ascorbico','ascorbic'],
-        'vitaminas_vitamina_a': ['vitamina a','vitamin a','retinol','beta caroteno'],
-        'vitaminas_vitamina_e': ['vitamina e','vitamin e','tocoferol'],
-        'vitaminas_vitaminas_b': ['complejo b','vitamina b','vitamin b','vitaminas b'],
-        'vitaminas_vitamina_d': ['vitamina d','vitamin d','colecalciferol'],
+        'vitaminas_magnesio': ['magnesio','magnesium','ashwagandha','magpro','citrato de magnesio'],
         'vitaminas_calcio': ['calcio','calcium'],
-        'vitaminas_magnesio': ['magnesio','magnesium','mg'],
         'vitaminas_zinc': ['zinc'],
-        'vitaminas_biotina': ['biotina'],
-        'vitaminas_multivitaminicos': ['multivitamin','multi-vitamin','multivitam'],
+        'vitaminas_biotina': ['biotina','biotin'],
+        'vitaminas_vitamina_a': ['vitamina a','vitamin a','retinol'],
+        'vitaminas_vitamina_c': ['vitamina c','vitamin c','ascórbico','ascorbico'],
+        'vitaminas_vitamina_e': ['vitamina e','vitamin e','tocoferol'],
+        'vitaminas_vitamina_d': ['vitamina d','vitamin d','colecalciferol'],
+        'vitaminas_vitaminas_b': ['vitamina b','vitamin b','complejo b','niacinamide','methylcobalamin','vita fancesa','vita francesa','vitafancesa'],
+        'vitaminas_multivitaminicos': ['multivitamin','multi-vitamin'],
         'vitaminas_antioxidantes': ['antioxidante','antioxidant']
     }
 };
 
-function autoSuggest(name, category) {
+// --- Normalized lookup ---
+function normalizeName(name) {
+    return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+function cleanName(name) {
+    let n = name
+        .replace(/[_–-][A-Za-zÁÉÍÓÚáéíóúÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÑñ]+)*(?=\s*$)/, '')
+        .trim();
+    if (n === '') return name;
+    return n;
+}
+
+const NORM_MAP = {};
+(function buildNormMap() {
+    for (const [name, sub] of Object.entries(PRODUCT_SUBCAT_MAP)) {
+        NORM_MAP[normalizeName(name).toLowerCase()] = sub;
+    }
+})();
+
+function findByName(name) {
+    const norm = normalizeName(name).toLowerCase();
+
+    // 1. Exact match on full normalized name
+    if (NORM_MAP[norm]) return NORM_MAP[norm];
+
+    // 2. Strip brand suffix and try again
+    const cleaned = normalizeName(cleanName(name)).toLowerCase();
+    if (cleaned !== norm && NORM_MAP[cleaned]) return NORM_MAP[cleaned];
+
+    // 3. Partial: map key is a substring of cleaned name (longest key first)
+    const keys = Object.keys(NORM_MAP).sort((a, b) => b.length - a.length);
+    for (const key of keys) {
+        if (key.length >= 4 && cleaned.includes(key)) return NORM_MAP[key];
+    }
+
+    return '';
+}
+
+function findByKeywords(name, category) {
     const catMap = SUBCAT_KEYWORDS[category];
     if (!catMap) return '';
     const lower = name.toLowerCase();
     let best = '', bestScore = 0;
     for (const [subKey, keywords] of Object.entries(catMap)) {
         for (const kw of keywords) {
-            if (lower.includes(kw) && kw.length > bestScore) {
+            if (lower.includes(kw.toLowerCase()) && kw.length > bestScore) {
                 bestScore = kw.length;
                 best = subKey;
             }
@@ -107,6 +301,8 @@ function autoSuggest(name, category) {
 async function run() {
     document.getElementById('result').innerHTML = '<div class="log log-info">Cargando productos y categorias...</div>';
     document.getElementById('btnRun').disabled = true;
+    document.getElementById('btnBatch').style.display = 'none';
+    document.getElementById('batchBar').style.display = 'none';
     try {
         await API.check();
         if (!API.isAvailable) { log('ERROR: API no disponible', 'err'); return; }
@@ -118,15 +314,21 @@ async function run() {
         const sinSub = (products || []).filter(p => !p.subcategory || p.subcategory.trim() === '');
         if (sinSub.length === 0) { log('Todos los productos ya tienen subcategoria!', 'ok'); return; }
 
-        log(`Encontrados ${sinSub.length} productos sin subcategoria. Asignando...`, 'info');
+        log(`Encontrados ${sinSub.length} productos sin subcategoria.`, 'info');
+        log('---', 'info');
 
-        let asignados = 0, errors = 0;
+        let asignados = 0, errors = 0, noMatch = [];
+
         for (const p of sinSub) {
-            const suggested = autoSuggest(p.name, p.category);
+            let suggested = findByName(p.name);
+            if (!suggested) suggested = findByKeywords(p.name, p.category);
+
             if (!suggested) {
-                log(`  - #${p.id} "${p.name}": no se encontró coincidencia`, 'warn');
+                noMatch.push(p);
+                log(`  ? #${p.id} "${p.name}" (${p.category}) — sin coincidencia`, 'warn');
                 continue;
             }
+
             const subLabel = categories.find(c => c.key === suggested)?.label || suggested;
             try {
                 await API.saveProduct({
@@ -142,12 +344,77 @@ async function run() {
             }
         }
 
-        log(`\n=== FIN: ${asignados} asignados, ${errors} errores, ${sinSub.length - asignados - errors} sin coincidencia ===`, errors === 0 ? 'ok' : 'warn');
+        log('---', 'info');
+        log(`Asignados: ${asignados}, Errores: ${errors}, Sin coincidencia: ${noMatch.length}`, errors === 0 ? 'ok' : 'warn');
+
+        if (noMatch.length > 0) {
+            window._noMatch = noMatch;
+            window._categories = categories;
+            document.getElementById('btnBatch').style.display = 'inline-block';
+            log(`\nQuedan ${noMatch.length} productos sin coincidencia. Usa "Asignar Restantes Manualmente" para asignarlos en lote.`, 'warn');
+        }
     } catch (e) {
         log('ERROR: ' + e.message, 'err');
         console.error(e);
     } finally {
         document.getElementById('btnRun').disabled = false;
+    }
+}
+
+function showBatchBar() {
+    const bar = document.getElementById('batchBar');
+    const nm = window._noMatch || [];
+    if (nm.length === 0) return;
+    const cats = [...new Set(nm.map(p => p.category))];
+    let html = `<strong>${nm.length} productos sin asignar.</strong><br><br>`;
+    cats.forEach(catKey => {
+        const catLabel = (window._categories || []).find(c => c.key === catKey)?.label || catKey;
+        const subs = (window._categories || []).filter(c => c.parent_key === catKey);
+        html += `<div style="margin:8px 0;">
+            <label><strong>${catLabel}</strong> (${nm.filter(p => p.category === catKey).length} prod):
+            <select id="batch_${catKey}">
+                <option value="">(saltar)</option>
+                ${subs.map(s => `<option value="${s.key}">${s.label}</option>`).join('')}
+            </select>
+            <button onclick="assignBatch('${catKey}')" style="padding:4px 12px;font-size:12px;">Asignar</button>
+        </div>`;
+    });
+    bar.innerHTML = html;
+    bar.style.display = 'block';
+}
+
+async function assignBatch(catKey) {
+    const sel = document.getElementById('batch_' + catKey);
+    const subKey = sel.value;
+    if (!subKey) return;
+    const nm = window._noMatch || [];
+    const toAssign = nm.filter(p => p.category === catKey);
+    if (toAssign.length === 0) return;
+
+    document.getElementById('btnBatch').disabled = true;
+    let ok = 0, err = 0;
+    for (const p of toAssign) {
+        try {
+            await API.saveProduct({
+                id: p.id, name: p.name, category: p.category,
+                subcategory: subKey,
+                barcode: '', brand: p.brand || '', price: 0, stock: 0, active: true
+            });
+            log(`  ✓ #${p.id} "${p.name}" → ${(window._categories||[]).find(c=>c.key===subKey)?.label||subKey}`, 'ok');
+            ok++;
+        } catch (e) {
+            log(`  ✗ #${p.id} "${p.name}": ${e.message}`, 'err');
+            err++;
+        }
+    }
+    log(`\nLote ${catKey}: ${ok} OK, ${err} errores`, err === 0 ? 'ok' : 'warn');
+    window._noMatch = nm.filter(p => p.category !== catKey);
+    document.getElementById('btnBatch').disabled = false;
+    if (window._noMatch.length === 0) {
+        document.getElementById('btnBatch').style.display = 'none';
+        document.getElementById('batchBar').style.display = 'none';
+    } else {
+        showBatchBar();
     }
 }
 
