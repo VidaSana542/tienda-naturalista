@@ -183,26 +183,15 @@ function clearCart() {
 let _tempProductCounter = 0;
 
 function openTempProductModal() {
-    const modal = document.getElementById('tempProductModal');
-    const nameInput = document.getElementById('tempProdName');
-    const priceInput = document.getElementById('tempProdPrice');
-    const qtyInput = document.getElementById('tempProdQty');
-    
-    if (!modal || !nameInput || !priceInput || !qtyInput) {
-        return;
-    }
-    
-    nameInput.value = '';
-    priceInput.value = '';
-    qtyInput.value = '1';
-    modal.classList.add('open');
-    setTimeout(() => nameInput.focus(), 100);
+    document.getElementById('tempProdName').value = '';
+    document.getElementById('tempProdPrice').value = '';
+    document.getElementById('tempProdQty').value = '1';
+    document.getElementById('tempProductModal').classList.add('open');
+    setTimeout(() => document.getElementById('tempProdName').focus(), 100);
 }
 
 function closeTempProductModal() {
-    const modal = document.getElementById('tempProductModal');
-    if (!modal) return;
-    modal.classList.remove('open');
+    document.getElementById('tempProductModal').classList.remove('open');
 }
 
 function addTempProductToCart() {
