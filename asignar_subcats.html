@@ -306,6 +306,23 @@ async function run() {
         const { data: products, error } = await _sb.from('products').select('*').eq('active', true);
         if (error) throw error;
 
+        // Clean orphan subcategories (key no existe en DB) para que sean reasignados
+        const validSubKeys = new Set(categories.filter(c => c.parent_key).map(c => c.key));
+        let cleanedOrphans = 0;
+        for (const p of products || []) {
+            if (p.subcategory && !validSubKeys.has(p.subcategory)) {
+                try {
+                    await API.saveProduct({ ...p, subcategory: '' });
+                    log(`  ORFANO ✓ #${p.id} "${p.name}": subcategoria "${p.subcategory}" limpiada`, 'ok');
+                    p.subcategory = ''; // Update in-memory for sinSub filter below
+                    cleanedOrphans++;
+                } catch (e) {
+                    log(`  ORFANO ✗ #${p.id} "${p.name}": ${e.message}`, 'err');
+                }
+            }
+        }
+        if (cleanedOrphans > 0) log(`---\nLimpiadas ${cleanedOrphans} subcategorias huerfanas.\n---`, 'info');
+
         const sinSub = (products || []).filter(p => !p.subcategory || p.subcategory.trim() === '');
         if (sinSub.length === 0) { log('Todos los productos ya tienen subcategoria!', 'ok'); return; }
 

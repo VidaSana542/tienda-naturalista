@@ -37,7 +37,7 @@ const CATEGORY_NORMALIZE = {
 // Limpia subcategoria si no existe en la lista de categorias (ej: despues de borrarla en POS)
 function cleanOrphanSubcategory(subKey, allCats) {
     if (!subKey || !allCats || allCats.length === 0) return '';
-    return allCats.some(c => c.key === subKey) ? subKey : '';
+    return allCats.some(c => c.key === subKey.trim()) ? subKey.trim() : '';
 }
 
 const CATEGORY_ICONS = {

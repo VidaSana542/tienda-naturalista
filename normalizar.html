@@ -290,7 +290,7 @@ async function fixData() {
         }
     }
 
-    // Step 4: Delete duplicate subcategories
+    // Step 4: Delete duplicate subcategories (same parent + label, different key)
     const subCats = _analysis.categories.filter(c => c.parent_key);
     const subDupLabels = {};
     subCats.forEach(c => {
@@ -300,8 +300,21 @@ async function fixData() {
     });
     const dupSubCats = Object.values(subDupLabels).filter(arr => arr.length > 1);
     for (const group of dupSubCats) {
+        const keep = group[0];
         const toRemove = group.slice(1);
         for (const dup of toRemove) {
+            // Reassign products from the deleted subcat key to the surviving one
+            const toReassign = _analysis.products.filter(p => p.subcategory === dup.key);
+            for (const p of toReassign) {
+                try {
+                    await API.saveProduct({ ...p, subcategory: keep.key });
+                    log(`  PRODUCTO ✓ #${p.id} "${p.name}": subcategoria "${dup.key}" → "${keep.key}"`, 'ok');
+                    ok++;
+                } catch (e) {
+                    log(`  PRODUCTO ✗ #${p.id} "${p.name}": ${e.message}`, 'err');
+                    err++;
+                }
+            }
             try {
                 await API.deleteCategory(dup.id);
                 log(`  SUBCAT ✓ eliminada duplicada "${dup.key}"`, 'ok');
