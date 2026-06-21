@@ -1012,7 +1012,22 @@ function confirmCheckout() {
         const p = posProducts.find(pr => pr.id === ci.id);
         if (p) {
             let remaining = ci.qty;
-            if (openSalida) {
+            if (ci._fromSalida) {
+                const salida = posSalidas.find(s => s.id === ci._fromSalida);
+                if (salida) {
+                    const si = salida.items.find(it => it.productId === ci.id);
+                    if (si) {
+                        const availableOnRoute = Math.max(0, si.sentQty - si.soldQty - si.returnedQty);
+                        const fromRoute = Math.min(availableOnRoute, remaining);
+                        if (fromRoute > 0) {
+                            salida._synced = false;
+                            si.soldQty += fromRoute;
+                            remaining -= fromRoute;
+                            addInvLog(ci.id, p.name, 'venta_ruta', -fromRoute, p.stock, p.stock, 'Venta desde Salida #' + salida.id, sale.id, true);
+                        }
+                    }
+                }
+            } else if (openSalida) {
                 const si = openSalida.items.find(it => it.productId === ci.id);
                 if (si) {
                     const availableOnRoute = Math.max(0, si.sentQty - si.soldQty - si.returnedQty);
@@ -1021,7 +1036,6 @@ function confirmCheckout() {
                         openSalida._synced = false;
                         si.soldQty += fromRoute;
                         remaining -= fromRoute;
-                        // log venta desde salida (no main stock change)
                         addInvLog(ci.id, p.name, 'venta_ruta', -fromRoute, p.stock, p.stock, 'Venta desde Salida #' + openSalida.id, sale.id, true);
                     }
                 }
@@ -1033,10 +1047,10 @@ function confirmCheckout() {
             }
         }
     });
-    if (openSalida) {
-        if (openSalida.items.every(i => i.sentQty <= (i.soldQty + i.returnedQty))) openSalida.status = 'closed';
-        saveSalidas();
-    }
+    posSalidas.forEach(s => {
+        if (s.items.every(i => i.sentQty <= (i.soldQty + i.returnedQty))) s.status = 'closed';
+    });
+    saveSalidas();
     saveSales();
     saveProducts();
     posCart.filter(ci => ci.isTemp).forEach(ci => {
