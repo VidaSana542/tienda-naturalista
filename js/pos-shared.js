@@ -1219,8 +1219,8 @@ function renderInvLog() {
     if (cat !== 'all') filtered = filtered.filter(l => l.category === cat);
     if (type !== 'all') filtered = filtered.filter(l => l.type === type);
     if (!getPosScope()) {
-        if (ventaFilter === 'local') filtered = filtered.filter(l => l.type === 'salida' && !l.ventaPorFuera);
-        else if (ventaFilter === 'fuera') filtered = filtered.filter(l => l.type === 'salida' && l.ventaPorFuera);
+        if (ventaFilter === 'local') filtered = filtered.filter(l => (l.type === 'salida' || l.type === 'salida_temp' || l.type === 'venta_ruta') && !l.ventaPorFuera);
+        else if (ventaFilter === 'fuera') filtered = filtered.filter(l => (l.type === 'salida' || l.type === 'salida_temp' || l.type === 'venta_ruta') && l.ventaPorFuera);
     }
     if (dateFrom) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) >= dateFrom);
     if (dateTo) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) <= dateTo);
@@ -1229,7 +1229,9 @@ function renderInvLog() {
         return;
     }
     tbody.innerHTML = (_invLogSortDesc ? filtered.slice().reverse() : filtered).slice(0, 200).map(l => {
-        const typeLabel = l.type === 'entrada' ? '<span style="color:var(--success);font-weight:600;">Entrada</span>' : l.type === 'salida' ? '<span style="color:var(--danger);font-weight:600;">Salida</span>' : '<span style="color:var(--warning);font-weight:600;">Ajuste</span>';
+        const typeLabels = { entrada: 'Entrada', salida: 'Salida', salida_temp: 'Salida Temp.', venta_ruta: 'Venta Ruta', ajuste: 'Ajuste', retorno: 'Retorno' };
+        const typeColors = { entrada: 'var(--success)', salida: 'var(--danger)', salida_temp: '#e65100', venta_ruta: '#1565c0', ajuste: 'var(--warning)', retorno: '#7b1fa2' };
+        const typeLabel = '<span style="color:' + (typeColors[l.type] || 'var(--warning)') + ';font-weight:600;">' + (typeLabels[l.type] || l.type) + '</span>';
         const vpfTag = l.ventaPorFuera ? ' <span class="tag tag-warning" style="font-size:10px;">Por fuera</span>' : '';
         return '<tr>' +
             '<td>' + shortDate(l.date) + '</td>' +
