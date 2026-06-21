@@ -228,7 +228,7 @@ function saveReturnSalida() {
     });
     if (!any) { showToast('Ingresa cantidades a devolver'); return; }
     if (s.items.every(i=>i.sentQty <= (i.soldQty + i.returnedQty))) s.status = 'closed';
-    saveSalidas(); saveProducts(); renderSalidas(); closeReturnSalidaModal(); showToast('Devolucion registrada');
+    saveSalidas(); saveProducts(); saveInvLog(); renderSalidas(); renderInventory(); closeReturnSalidaModal(); showToast('Devolucion registrada');
 }
 
 function saveDirectSale() {
@@ -1053,6 +1053,7 @@ function confirmCheckout() {
     saveSalidas();
     saveSales();
     saveProducts();
+    saveInvLog();
     posCart.filter(ci => ci.isTemp).forEach(ci => {
         API.saveTempProduct({ name: ci.tempName, price: ci.price, qty: ci.qty, sale_id: sale.id }).catch(e => console.error('[POS-FUERA] saveTempProduct error:', e));
     });
