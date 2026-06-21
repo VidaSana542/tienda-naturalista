@@ -1232,6 +1232,7 @@ function renderInvLog() {
     }
     if (dateFrom) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) >= dateFrom);
     if (dateTo) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) <= dateTo);
+    filtered.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">Sin movimientos registrados</td></tr>';
         return;
