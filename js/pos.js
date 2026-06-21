@@ -967,7 +967,7 @@ function renderDashPayMethods(periodSales) {
         methods[m].total += s.total;
     });
     const total = Object.values(methods).reduce((sum, m) => sum + m.total, 0);
-    const colors = { 'Efectivo': '#4caf50', 'Nequi': '#00c853', 'Daviplata': '#f44336', 'Tarjeta': '#2196f3', 'Transferencia': '#9c27b0', 'Credito': '#ff9800' };
+    const colors = { 'Efectivo': '#4caf50', 'Nequi': '#00c853', 'Daviplata': '#f44336', 'Tarjeta': '#2196f3', 'Transferencia': '#9c27b0', 'Bolt': '#ff6d00', 'Credito': '#ff9800' };
     const el = document.getElementById('dashPayMethods');
     const entries = Object.entries(methods).sort((a,b) => b[1].total - a[1].total);
     if (entries.length === 0) {

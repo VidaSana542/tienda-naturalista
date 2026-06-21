@@ -318,6 +318,12 @@ const PAY_OPTS = [
     { key: 'mixed', label: 'Mixto', icon: 'M4 6h18V4H4c-1.1 0-2 .9-2 2v11H0v3h14v-3H4V6zm19 2h-6c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h6c.55 0 1-.45 1-1V9c0-.55-.45-1-1-1zm-1 9h-4v-7h4v7z' },
     { key: 'credito', label: 'Credito', icon: 'M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h12v2H6v-2zm0 4h8v2H6v-2z' }
 ];
+const TRANSFER_OPTS = [
+    { key: 'transferencia', label: 'Transferencia' },
+    { key: 'nequi', label: 'Nequi' },
+    { key: 'daviplata', label: 'Daviplata' },
+    { key: 'bolt', label: 'Bolt' }
+];
 let chkPayMethod = 'cash';
 let chkCreditType = 'fijo';
 
@@ -365,10 +371,19 @@ function pickCheckoutCustomer(id) {
 }
 function renderCheckoutPayGrid() {
     const grid = document.getElementById('chkPayGrid');
-    grid.innerHTML = PAY_OPTS.map(p => '<div class="checkout-pay-opt' + (p.key === chkPayMethod ? ' selected' : '') + '" onclick="pickCheckoutPay(\'' + p.key + '\')">' +
-        '<svg viewBox="0 0 24 24"><path d="' + p.icon + '"/></svg>' +
-        '<span class="p-label">' + p.label + '</span>' +
-        '</div>').join('');
+    const isTransfer = chkPayMethod === 'transfer' || ['transferencia','nequi','daviplata','bolt'].includes(chkPayMethod);
+    grid.innerHTML =
+        '<div style="display:flex;flex-direction:column;gap:6px;">' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">' +
+        PAY_OPTS.map(p => '<div class="checkout-pay-opt' + ((p.key === chkPayMethod || (p.key === 'transfer' && isTransfer)) ? ' selected' : '') + '" onclick="pickCheckoutPay(\'' + p.key + '\')">' +
+            '<svg viewBox="0 0 24 24"><path d="' + p.icon + '"/></svg>' +
+            '<span class="p-label">' + p.label + '</span>' +
+            '</div>').join('') +
+        '</div>' +
+        (isTransfer ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:8px;background:var(--hover);border-radius:8px;">' +
+            TRANSFER_OPTS.map(t => '<div class="checkout-pay-subopt' + (t.key === chkPayMethod ? ' selected' : '') + '" onclick="pickCheckoutSubPay(\'' + t.key + '\', \'' + t.label + '\')" style="display:flex;align-items:center;justify-content:center;padding:8px;border:2px solid ' + (t.key === chkPayMethod ? 'var(--primary)' : 'var(--border)') + ';border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;transition:all 0.15s;background:' + (t.key === chkPayMethod ? 'rgba(11,81,59,0.06)' : '#fff') + ';">' + t.label + '</div>').join('') +
+            '</div>' : '') +
+        '</div>';
 }
 function pickCheckoutPay(key) {
     if (key === 'credito' && !document.getElementById('chkCustomerId').value) {
@@ -376,6 +391,9 @@ function pickCheckoutPay(key) {
         return;
     }
     chkPayMethod = key;
+    if (key !== 'transfer') {
+        chkPayMethod = key;
+    }
     renderCheckoutPayGrid();
     const cfg = document.getElementById('chkCreditConfig');
     if (key === 'credito') {
@@ -384,6 +402,11 @@ function pickCheckoutPay(key) {
     } else {
         cfg.classList.remove('open');
     }
+    renderCheckoutResumen();
+}
+function pickCheckoutSubPay(key, label) {
+    chkPayMethod = key;
+    renderCheckoutPayGrid();
     renderCheckoutResumen();
 }
 function switchCreditType(type) {
@@ -451,7 +474,7 @@ function confirmCheckout() {
     const subtotal = posCart.reduce((s, i) => s + i.price * i.qty, 0);
     const excedente = parseFloat(document.getElementById('tpvExcedente').value) || 0;
     const total = subtotal + excedente;
-    const methods = { cash: 'Efectivo', card: 'Tarjeta', transfer: 'Transferencia', mixed: 'Mixto', credito: 'Credito' };
+    const methods = { cash: 'Efectivo', card: 'Tarjeta', transferencia: 'Transferencia', nequi: 'Nequi', daviplata: 'Daviplata', bolt: 'Bolt', mixed: 'Mixto', credito: 'Credito' };
     const custId = document.getElementById('chkCustomerId').value;
     let customerName = 'Cliente mostrador';
     let customerId = '';
@@ -709,7 +732,10 @@ function renderDashPayMethods(periodSales) {
         methods[m].total += s.total;
     });
     const total = Object.values(methods).reduce((sum, m) => sum + m.total, 0);
-    const colors = { 'Efectivo': '#4caf50', 'Nequi': '#00c853', 'Daviplata': '#f44336', 'Tarjeta': '#2196f3', 'Transferencia': '#9c27b0', 'Credito': '#ff9800' };
+    const colors = {
+        'Efectivo': '#4caf50', 'Nequi': '#00c853', 'Daviplata': '#f44336',
+        'Tarjeta': '#2196f3', 'Transferencia': '#9c27b0', 'Bolt': '#ff6d00', 'Credito': '#ff9800'
+    };
     const el = document.getElementById('dashPayMethods');
     const entries = Object.entries(methods).sort((a,b) => b[1].total - a[1].total);
     if (entries.length === 0) {

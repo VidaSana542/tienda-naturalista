@@ -371,7 +371,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
 .checkout-customer-item .ck-check.selected svg { fill:#fff;width:10px;height:10px; }
 
 /* Payment grid */
-.checkout-pay-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.checkout-pay-grid { display:flex; flex-direction:column; gap:6px; }
 .checkout-pay-opt { display:flex; align-items:center; gap:8px; padding:10px; border:2px solid var(--border); border-radius:8px; cursor:pointer; transition:all 0.15s; background:var(--bg); }
 .checkout-pay-opt:hover { border-color:var(--primary); background:var(--hover); }
 .checkout-pay-opt.selected { border-color:var(--primary); background:rgba(11,81,59,0.06); }
@@ -847,7 +847,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
     .checkout-customer-body { flex-direction: column; }
     .checkout-customer-left { flex: none; }
     .checkout-resumen { border-left: none; border-top: 1px solid var(--border); padding-left: 0; padding-top: 12px; }
-    .checkout-pay-grid { grid-template-columns: 1fr 1fr; }
+    .checkout-pay-grid { /* flex column - layout handled by JS */ }
 
     /* Inventory */
     .inv-tabs { flex-wrap: wrap; }
@@ -993,7 +993,7 @@ table .actions button.del:hover svg { fill: var(--danger); }
     .receipt-modal .modal { max-width: 100%; padding: 16px; }
 
     /* Checkout */
-    .checkout-pay-grid { grid-template-columns: 1fr; }
+    .checkout-pay-grid { /* flex column */ }
     .checkout-customer-list { max-height: 200px; }
 
     /* Category modal */
