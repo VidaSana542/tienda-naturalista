@@ -557,6 +557,7 @@ async function syncFromApi() {
             const localInvLog = JSON.parse(localStorage.getItem('invLog')) || [];
             localInvLog.forEach(ll => {
                 if (!ll.synced && !invLog.some(l => l.id === ll.id)) {
+                    delete ll._sending;
                     invLog.push(ll);
                 }
             });
@@ -590,7 +591,8 @@ function saveInvLog() {
     localStorage.setItem('invLog', json);
     if (API.isAvailable) {
         invLog.forEach(l => {
-            if (!l.synced) {
+            if (!l.synced && !l._sending) {
+                l._sending = true;
                 API.addInventoryLog({
                     product_id: l.productId,
                     product_name: l.productName,
@@ -601,7 +603,12 @@ function saveInvLog() {
                     reason: l.reason || '',
                     sale_id: l.saleId || null,
                     venta_por_fuera: l.ventaPorFuera || false
-                }).then(() => { l.synced = true; }).catch(e => {
+                }).then(() => {
+                    l.synced = true;
+                    l._sending = false;
+                    localStorage.setItem('invLog', JSON.stringify(invLog));
+                }).catch(e => {
+                    l._sending = false;
                     if (e && (e.code === '23505' || (e.message && e.message.includes('duplicate')))) {
                         l.synced = true;
                     } else {
