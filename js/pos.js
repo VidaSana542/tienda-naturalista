@@ -1583,7 +1583,7 @@ function openProductModal(id) {
     document.getElementById('prodModalTitle').textContent = id ? 'Editar Producto' : 'Nuevo Producto';
     document.getElementById('prodName').oninput = function() {
         const catEl = document.getElementById('prodCatalogName');
-        if (catEl && !catEl.value) catEl.value = this.value;
+        if (catEl && !catEl.value) catEl.value = this.value.split('_')[0].trim();
     };
     const catSelect = document.getElementById('prodCategory');
     catSelect.innerHTML = catOptsHtml();
@@ -1599,7 +1599,7 @@ function openProductModal(id) {
         if (p) {
             _prodImages = (p.images && p.images.length > 0) ? [...p.images] : [];
             document.getElementById('prodName').value = p.name;
-            document.getElementById('prodCatalogName').value = p.catalogName || p.name;
+            document.getElementById('prodCatalogName').value = p.catalogName || p.name.split('_')[0].trim();
             document.getElementById('prodBarcode').value = p.barcode || '';
             document.getElementById('prodBrand').value = p.brand;
             document.getElementById('prodCategory').value = p.category;
