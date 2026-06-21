@@ -604,7 +604,8 @@ function saveInvLog() {
 function addInvLog(productId, productName, type, quantity, previousStock, newStock, reason, saleId, ventaPorFuera) {
     const prod = posProducts.find(p => p.id === productId);
     const category = prod ? prod.category : '';
-    invLog.push({ id: invNextLogId++, date: now(), productId, productName, type, quantity, previousStock, newStock, reason, saleId: saleId || null, category, ventaPorFuera: ventaPorFuera || false, synced: false });
+    const validSaleId = (saleId && posSales.some(s => s.id === saleId)) ? saleId : null;
+    invLog.push({ id: invNextLogId++, date: now(), productId, productName, type, quantity, previousStock, newStock, reason, saleId: validSaleId, category, ventaPorFuera: ventaPorFuera || false, synced: false });
     saveInvLog();
 }
 

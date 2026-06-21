@@ -399,8 +399,7 @@ const API = {
         previous_stock: entry.previous_stock,
         new_stock: entry.new_stock,
         reason: entry.reason || '',
-        sale_id: entry.sale_id || null,
-        venta_por_fuera: entry.venta_por_fuera || false
+        sale_id: entry.sale_id || null
       })
       .select()
       .single();
