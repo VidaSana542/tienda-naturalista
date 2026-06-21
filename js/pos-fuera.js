@@ -237,10 +237,11 @@ function saveDirectSale() {
     const s = posSalidas.find(x=>x.id===id);
     if (!s) return;
     const inputs = Array.from(document.querySelectorAll('#directSaleItems .sale-qty-input'));
-    const payMethod = document.getElementById('directSalePayMethod').value;
+    const payKey = document.getElementById('directSalePayMethod').value;
+    const methods = { efectivo:'Efectivo', nequi:'Nequi', daviplata:'Daviplata', transferencia:'Transferencia', datafono:'Datafono', bolt:'Bolt', credito:'Credito' };
     let any = false;
-    let totalVenta = 0;
     const saleItems = [];
+    let subtotal = 0;
     inputs.forEach(inp => {
         const prodId = inp.dataset.prod;
         const v = parseInt(inp.value) || 0;
@@ -254,33 +255,37 @@ function saveDirectSale() {
             it.soldQty += toSell;
             const prod = posProducts.find(p => p.id === prodId);
             if (prod) {
-                totalVenta += (prod.price || 0) * toSell;
+                subtotal += (prod.price || 0) * toSell;
                 saleItems.push({ id: prodId, name: prod.name, qty: toSell, price: prod.price });
             }
         }
     });
     if (!any) { showToast('Ingresa cantidades vendidas'); return; }
+    const total = subtotal;
     const sale = {
-        id: posSalesNextId++,
-        created_at: now(),
-        customerId: '',
-        customerName: 'Salida #' + s.id,
+        id: posNextSaleId++,
+        date: now(),
         items: saleItems,
-        total: totalVenta,
-        payMethod: payMethod,
-        paid: payMethod !== 'credito' ? totalVenta : 0,
-        notes: 'Venta desde Salida #' + s.id + ' - ' + s.userName,
-        status: payMethod === 'credito' ? 'pendiente' : 'pagado',
-        userId: s.userId,
-        userName: s.userName
+        subtotal,
+        excedente: 0,
+        total,
+        method: methods[payKey] || 'Efectivo',
+        methodKey: payKey,
+        customer: 'Salida #' + s.id + ' - ' + s.userName,
+        customerId: '',
+        creditInfo: payKey === 'credito' ? { tipo: 'abono', totalCuotas: 0, cuotaValor: 0, pagadas: 0, payments: [], balance: total } : null,
+        ventaPorFuera: true
     };
     posSales.push(sale);
     if (s.items.every(i => i.sentQty <= (i.soldQty + i.returnedQty))) s.status = 'closed';
     saveSalidas();
     saveSales();
     renderSalidas();
+    renderOrders();
+    renderSalesTable();
     closeReturnSalidaModal();
-    showToast('Venta registrada: $' + totalVenta.toLocaleString());
+    showReceipt(sale);
+    showToast('Venta #' + sale.id + ' registrada: ' + formatPrice(total));
 }
 
 function loadSalidaToTpv() {
@@ -296,9 +301,8 @@ function loadSalidaToTpv() {
         const available = Math.max(0, it.sentQty - it.soldQty - it.returnedQty);
         if (available > 0) {
             const prod = posProducts.find(p => p.id === it.productId);
-            if (prod && prod.stock > 0) {
-                const qty = Math.min(available, prod.stock);
-                posCart.push({ id: prod.id, qty, price: prod.price, salidaId: s.id });
+            if (prod) {
+                posCart.push({ id: prod.id, qty: available, price: prod.price });
                 loaded++;
             }
         }
@@ -308,7 +312,7 @@ function loadSalidaToTpv() {
     renderTpvCart();
     closeReturnSalidaModal();
     switchPanel('tpv');
-    showToast(loaded + ' producto(s) cargado(s) al carrito desde Salida #' + s.id);
+    showToast(loaded + ' producto(s) cargado(s) desde Salida #' + s.id + ' - Confirma el cobro en TPV');
 }
 
 function handleBarcodeScan() {
