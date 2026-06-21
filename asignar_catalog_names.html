@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asignar Nombres de Catálogo</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="js/api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; padding: 20px; max-width: 1000px; margin: auto; background: #f5f5f5; }
+h1 { margin-bottom: 20px; }
+.card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #ddd; font-size: 14px; }
+th { background: #f8f9fa; font-weight: 600; }
+tr:hover { background: #f1f1f1; }
+input[type="text"] { width: 100%; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-right: 8px; margin-bottom: 8px; }
+.btn-primary { background: #007bff; color: #fff; }
+.btn-primary:hover { background: #0056b3; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-success { background: #28a745; color: #fff; }
+.btn-success:hover { background: #218838; }
+.btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-warning { background: #ffc107; color: #000; }
+.btn-warning:hover { background: #e0a800; }
+.bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+#result { margin-top: 16px; font-family: monospace; font-size: 13px; line-height: 1.6; max-height: 400px; overflow-y: auto; }
+.log { padding: 3px 0; }
+.log-ok { color: #155724; }
+.log-err { color: #721c24; }
+.log-info { color: #004085; }
+.log-warn { color: #856404; }
+.summary-box { background: #e8f4f8; border-left: 4px solid #007bff; padding: 12px; margin: 10px 0; border-radius: 4px; }
+.count { font-weight: 600; padding: 2px 10px; border-radius: 12px; font-size: 13px; }
+.count-total { background: #e2e3e5; }
+.count-pending { background: #fff3cd; color: #856404; }
+.count-ok { background: #d4edda; color: #155724; }
+</style>
+</head>
+<body>
+<h1>Asignar Nombres de Catálogo</h1>
+<div class="card">
+    <div class="summary-box">
+        Auto-asigna <strong>catalog_name</strong> a productos. El nombre de catálogo se obtiene tomando la parte del nombre antes del primer <code>_</code> (ej: <code>"BIOSUR_macel"</code> → <code>"BIOSUR"</code>).
+        Si el nombre no contiene <code>_</code> se usa el nombre completo. Puedes editar cada sugerencia antes de aplicar.
+    </div>
+    <div class="bar">
+        <button id="btnLoad" class="btn-primary" onclick="loadProducts()">Cargar Productos</button>
+        <button id="btnApply" class="btn-success" onclick="applyAll()" disabled>Aplicar Seleccionados</button>
+        <span id="countDisplay"></span>
+    </div>
+    <div id="tableContainer"></div>
+    <div id="result"></div>
+</div>
+
+<script>
+let _products = [];
+let _dirty = false;
+
+function suggestCatalogName(name) {
+    const idx = name.indexOf('_');
+    if (idx > 0) return name.substring(0, idx).trim();
+    return name.trim();
+}
+
+async function loadProducts() {
+    const el = document.getElementById('result');
+    el.innerHTML = '<div class="log log-info">Cargando productos...</div>';
+    document.getElementById('btnLoad').disabled = true;
+    try {
+        await API.check();
+        if (!API.isAvailable) { log('ERROR: API no disponible', 'err'); return; }
+
+        const { data: products, error } = await _sb.from('products').select('*').eq('active', true);
+        if (error) throw error;
+
+        _products = (products || []).map(p => {
+            const suggested = suggestCatalogName(p.name);
+            const current = (p.catalog_name || '').trim();
+            const needsUpdate = suggested !== current;
+            return {
+                id: p.id,
+                name: p.name,
+                currentName: current,
+                suggestedName: suggested,
+                selected: needsUpdate && suggested.length > 0,
+                editedName: suggested
+            };
+        });
+
+        renderTable();
+        updateCounts();
+        log(`Cargados ${_products.length} productos activos.`, 'info');
+    } catch (e) {
+        log('ERROR: ' + e.message, 'err');
+        console.error(e);
+    } finally {
+        document.getElementById('btnLoad').disabled = false;
+    }
+}
+
+function renderTable() {
+    const container = document.getElementById('tableContainer');
+    if (_products.length === 0) {
+        container.innerHTML = '<p style="color:#666;margin:12px 0;">No hay productos cargados.</p>';
+        return;
+    }
+
+    let html = `
+    <div style="margin:8px 0;">
+        <label><input type="checkbox" id="checkAll" onchange="toggleAll()" checked> Seleccionar/Deseleccionar todo</label>
+    </div>
+    <div style="overflow-x:auto;">
+    <table>
+        <thead>
+            <tr><th style="width:40px;"></th><th>ID</th><th>Nombre</th><th>Nombre Catálogo Actual</th><th>Sugerido</th></tr>
+        </thead>
+        <tbody>`;
+    for (const p of _products) {
+        const status = p.selected ? '🔄' : (p.currentName ? '✓' : '—');
+        html += `<tr>
+            <td><input type="checkbox" data-id="${p.id}" ${p.selected ? 'checked' : ''} onchange="toggleProduct(${p.id}, this.checked)"></td>
+            <td>${p.id}</td>
+            <td>${escHtml(p.name)}</td>
+            <td>${escHtml(p.currentName) || '<span style="color:#999;">(vacio)</span>'}</td>
+            <td><input type="text" value="${escHtml(p.editedName)}" onchange="editName(${p.id}, this.value)" style="width:250px;"></td>
+        </tr>`;
+    }
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function toggleAll() {
+    const checked = document.getElementById('checkAll').checked;
+    for (const p of _products) {
+        p.selected = checked;
+    }
+    renderTable();
+    updateCounts();
+}
+
+function toggleProduct(id, checked) {
+    const p = _products.find(x => x.id === id);
+    if (p) p.selected = checked;
+    updateCounts();
+}
+
+function editName(id, value) {
+    const p = _products.find(x => x.id === id);
+    if (p) p.editedName = value.trim();
+}
+
+function updateCounts() {
+    const total = _products.length;
+    const selected = _products.filter(p => p.selected).length;
+    const ok = _products.filter(p => p.currentName && !p.selected).length;
+    document.getElementById('countDisplay').innerHTML = `
+        <span class="count count-total">Total: ${total}</span>
+        <span class="count count-pending">Pendientes: ${selected}</span>
+        <span class="count count-ok">Ya tienen nombre: ${ok}</span>`;
+    document.getElementById('btnApply').disabled = selected === 0;
+}
+
+async function applyAll() {
+    const toApply = _products.filter(p => p.selected && p.editedName.length > 0);
+    if (toApply.length === 0) { log('Nada que aplicar.', 'warn'); return; }
+
+    document.getElementById('btnApply').disabled = true;
+    document.getElementById('btnLoad').disabled = true;
+    let ok = 0, err = 0;
+
+    for (const p of toApply) {
+        try {
+            await API.saveProduct({
+                id: p.id,
+                name: p.name,
+                catalog_name: p.editedName
+            });
+            p.currentName = p.editedName;
+            p.selected = false;
+            log(`  ✓ #${p.id} "${p.name}" → "${p.editedName}"`, 'ok');
+            ok++;
+        } catch (e) {
+            log(`  ✗ #${p.id} "${p.name}": ${e.message}`, 'err');
+            err++;
+        }
+    }
+
+    log(`---\nAplicados: ${ok}, Errores: ${err}`, err === 0 ? 'ok' : 'warn');
+    renderTable();
+    updateCounts();
+    document.getElementById('btnApply').disabled = (_products.filter(x => x.selected).length) === 0;
+    document.getElementById('btnLoad').disabled = false;
+}
+
+function escHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function log(msg, type) {
+    const el = document.getElementById('result');
+    el.innerHTML += `<div class="log log-${type}">${msg}</div>`;
+}
+</script>
+</body>
+</html>
