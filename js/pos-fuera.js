@@ -464,10 +464,19 @@ function updateCartQty(idx, delta) {
     const newQty = posCart[idx].qty + delta;
     if (newQty <= 0) { posCart.splice(idx, 1); }
     else {
-        if (!posCart[idx]._fromSalida) {
-            const prod = posProducts.find(p => p.id === posCart[idx].id);
-            if (prod && newQty > prod.stock) { showToast('Stock maximo: ' + prod.stock); return; }
+        const prod = posProducts.find(p => p.id === posCart[idx].id);
+        let maxQty = prod ? prod.stock : 999;
+        if (posCart[idx]._fromSalida && currentUser) {
+            const openSalida = getOpenSalidaForUser(currentUser.user);
+            if (openSalida) {
+                const si = openSalida.items.find(it => it.productId === posCart[idx].id);
+                if (si) {
+                    const salidaAvail = Math.max(0, si.sentQty - si.soldQty - si.returnedQty);
+                    maxQty = salidaAvail + (prod ? prod.stock : 0);
+                }
+            }
         }
+        if (newQty > maxQty) { showToast('Maximo disponible: ' + maxQty); return; }
         posCart[idx].qty = newQty;
     }
     saveCart();
