@@ -580,7 +580,9 @@ async function syncFromApi() {
 }
 function saveCart() { localStorage.setItem('posCart', JSON.stringify(posCart)); }
 function saveInvLog() {
-    localStorage.setItem('invLog', JSON.stringify(invLog));
+    const json = JSON.stringify(invLog);
+    localStorage.setItem('invLog', json);
+    console.log('[INVLOG] saveInvLog: saved', invLog.length, 'entries to localStorage, json length:', json.length);
     if (API.isAvailable) {
         invLog.forEach(l => {
             if (!l.synced) {
