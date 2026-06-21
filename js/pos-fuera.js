@@ -11,7 +11,19 @@ let _barcodeTimer = null;
 let posSalidas = []; // persisted list of salidas
 let posSalidasNextId = 1;
 
-function loadSalidas() {
+async function loadSalidas() {
+    if (API.isAvailable) {
+        try {
+            const apiSalidas = await API.getSalidas();
+            if (apiSalidas && apiSalidas.length > 0) {
+                posSalidas = apiSalidas.map(s => ({ ...s, _synced: true }));
+                posSalidasNextId = Math.max(posSalidasNextId, ...posSalidas.map(s => s.id + 1));
+                localStorage.setItem('posSalidas', JSON.stringify(posSalidas));
+                if (typeof renderSalidas === 'function') renderSalidas();
+                return;
+            }
+        } catch(e) { console.error('[POS] loadSalidas API error:', e); }
+    }
     try {
         const raw = localStorage.getItem('posSalidas');
         if (raw) {
@@ -21,29 +33,6 @@ function loadSalidas() {
             posSalidas = [];
         }
     } catch (e) { console.error('loadSalidas error', e); posSalidas = []; }
-    if (API.isAvailable) {
-        API.getSalidas().then(apiSalidas => {
-            if (apiSalidas && apiSalidas.length > 0) {
-                const apiMap = {};
-                apiSalidas.forEach(s => { apiMap[s.id] = s; });
-                apiSalidas.forEach(as => {
-                    as._synced = true;
-                    const existing = posSalidas.find(ls => ls.id === as.id);
-                    if (existing) {
-                        existing.status = as.status;
-                        existing.items = as.items;
-                        existing.notes = as.notes;
-                    } else {
-                        posSalidas.push(as);
-                    }
-                });
-                posSalidas = posSalidas.filter(s => apiMap[s.id] || !s._synced);
-                posSalidasNextId = Math.max(posSalidasNextId, ...posSalidas.map(s => s.id + 1));
-                localStorage.setItem('posSalidas', JSON.stringify(posSalidas));
-                if (typeof renderSalidas === 'function') renderSalidas();
-            }
-        }).catch(e => { console.error('[POS] loadSalidas API error:', e); });
-    }
 }
 
 function saveSalidas() {
@@ -1905,12 +1894,13 @@ function initPOS() {
             });
         }
 
-        loadData();
         const available = await API.check();
         if (available) {
             await syncFromApi();
+        } else {
+            loadData();
         }
-        loadSalidas();
+        await loadSalidas();
         applyPosScopeUI();
         initCatFilter();
         migrateProductSubcats();
