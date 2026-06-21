@@ -164,15 +164,6 @@ function openSalidaDetail(id) {
     document.getElementById('returnSalidaModal').dataset.status = s.status;
     document.body.style.overflow = 'hidden';
     switchSalidaTab('devolver');
-    updateSalidaModalButtons(s.status);
-}
-
-function updateSalidaModalButtons(status) {
-    const isOpen = status !== 'closed';
-    const btnSave = document.getElementById('salidaModalSaveBtn');
-    const btnReturn = document.getElementById('salidaModalReturnBtn');
-    if (btnSave) btnSave.style.display = isOpen ? '' : 'none';
-    if (btnReturn) btnReturn.style.display = isOpen ? '' : 'none';
 }
 
 function switchSalidaTab(tab) {
@@ -183,9 +174,18 @@ function switchSalidaTab(tab) {
     });
     document.getElementById('salidaTabDevolver').style.display = tab === 'devolver' ? '' : 'none';
     document.getElementById('salidaTabVender').style.display = tab === 'vender' ? '' : 'none';
-    document.getElementById('salidaModalSaveBtn').style.display = tab === 'vender' ? '' : 'none';
-    document.getElementById('salidaModalReturnBtn').style.display = tab === 'devolver' ? '' : 'none';
+    updateSalidaModalButtons(document.getElementById('returnSalidaModal').dataset.status);
     if (tab === 'vender') calcDirectSaleTotal();
+}
+
+function updateSalidaModalButtons(status) {
+    const isOpen = status !== 'closed';
+    const activeTab = document.querySelector('.salida-tab.active');
+    const tab = activeTab ? activeTab.dataset.stab : 'devolver';
+    const btnSave = document.getElementById('salidaModalSaveBtn');
+    const btnReturn = document.getElementById('salidaModalReturnBtn');
+    if (btnSave) btnSave.style.display = (isOpen && tab === 'vender') ? '' : 'none';
+    if (btnReturn) btnReturn.style.display = (isOpen && tab === 'devolver') ? '' : 'none';
 }
 
 function calcDirectSaleTotal() {
