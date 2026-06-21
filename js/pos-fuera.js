@@ -216,6 +216,7 @@ function saveReturnSalida() {
         const canReturn = Math.max(0, it.sentQty - it.soldQty - it.returnedQty);
         const toReturn = Math.min(canReturn, v);
         if (toReturn>0) {
+            s._synced = false;
             it.returnedQty += toReturn;
             const prod = posProducts.find(p=>p.id===prodId);
             if (prod) {
@@ -252,6 +253,7 @@ function saveDirectSale() {
         const available = Math.max(0, it.sentQty - it.soldQty - it.returnedQty);
         const toSell = Math.min(available, v);
         if (toSell > 0) {
+            s._synced = false;
             it.soldQty += toSell;
             const prod = posProducts.find(p => p.id === prodId);
             if (prod) {
@@ -1008,6 +1010,7 @@ function confirmCheckout() {
                     const availableOnRoute = Math.max(0, si.sentQty - si.soldQty - si.returnedQty);
                     const fromRoute = Math.min(availableOnRoute, remaining);
                     if (fromRoute > 0) {
+                        openSalida._synced = false;
                         si.soldQty += fromRoute;
                         remaining -= fromRoute;
                         // log venta desde salida (no main stock change)
