@@ -434,6 +434,8 @@ const API = {
     const { data, error } = await _sb
       .from('categories')
       .select('*')
+      .eq('active', true)
+      .order('sort_order')
       .order('label');
 
     if (error) throw error;
@@ -446,7 +448,11 @@ const API = {
         .from('categories')
         .update({
           label: cat.label,
-          parent_key: cat.parent_key || null
+          parent_key: cat.parent_key || null,
+          icon: cat.icon || '',
+          image: cat.image || '',
+          sort_order: cat.sort_order || 0,
+          active: cat.active !== false
         })
         .eq('id', cat.id)
         .select()
@@ -459,7 +465,11 @@ const API = {
         .insert({
           key: cat.key,
           label: cat.label,
-          parent_key: cat.parent_key || null
+          parent_key: cat.parent_key || null,
+          icon: cat.icon || '',
+          image: cat.image || '',
+          sort_order: cat.sort_order || 0,
+          active: true
         })
         .select()
         .single();

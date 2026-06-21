@@ -612,6 +612,7 @@
                                     <tr>
                                         <th>Categoria</th>
                                         <th>Productos</th>
+                                        <th>Orden</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
@@ -633,6 +634,7 @@
                                         <th>Subcategoria</th>
                                         <th>Categoria padre</th>
                                         <th>Productos</th>
+                                        <th>Orden</th>
                                         <th>Acciones</th>
                                     </tr>
                                 </thead>
@@ -913,6 +915,18 @@
             <select id="catParentSelect">
                 <option value="">Selecciona una categoria</option>
             </select>
+        </div>
+        <div class="form-group">
+            <label>Icono (emoji o texto)</label>
+            <input type="text" id="catIconInput" placeholder="Ej: 💊, 🌿, 🧴, ⚡" style="width:100%;">
+        </div>
+        <div class="form-group">
+            <label>URL de imagen (opcional)</label>
+            <input type="text" id="catImageInput" placeholder="https://..." style="width:100%;">
+        </div>
+        <div class="form-group">
+            <label>Orden de visualizacion</label>
+            <input type="number" id="catSortOrderInput" value="0" min="0" style="width:100%;">
         </div>
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeCategoryModal()">Cancelar</button>

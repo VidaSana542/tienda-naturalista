@@ -122,7 +122,7 @@ function saveCategories() {
         POS_CATEGORIES.forEach(c => {
             if (c._synced) return;
             const apiId = c.id || null;
-            API.saveCategory({ id: apiId, key: c.key, label: c.label, parent_key: c.parent_key || null }).then(res => {
+            API.saveCategory({ id: apiId, key: c.key, label: c.label, parent_key: c.parent_key || null, icon: c.icon || '', image: c.image || '', sort_order: c.sort_order || 0, active: c.active !== false }).then(res => {
                 if (!c.id && res && res.id) c.id = res.id;
                 c._synced = true;
                 localStorage.setItem('posCategories', JSON.stringify(POS_CATEGORIES));
@@ -130,17 +130,18 @@ function saveCategories() {
         });
     }
 }
-function addCategory(key, label, parent_key) {
+function addCategory(key, label, parent_key, extra) {
     if (!key || !label || POS_CATEGORIES.find(c => c.key === key)) return false;
-    POS_CATEGORIES.push({ key, label, parent_key: parent_key || null, _synced: false });
+    const maxSort = POS_CATEGORIES.filter(c => (c.parent_key || null) === (parent_key || null)).reduce((m, c) => Math.max(m, c.sort_order || 0), 0);
+    POS_CATEGORIES.push({ key, label, parent_key: parent_key || null, icon: (extra && extra.icon) || '', image: (extra && extra.image) || '', sort_order: (extra && extra.sort_order) || (maxSort + 1), active: true, _synced: false });
     saveCategories();
     return true;
 }
 function getTopLevelCats() {
-    return POS_CATEGORIES.filter(c => !c.parent_key);
+    return POS_CATEGORIES.filter(c => !c.parent_key && c.active !== false).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 }
 function getSubCats(parentKey) {
-    return POS_CATEGORIES.filter(c => c.parent_key === parentKey);
+    return POS_CATEGORIES.filter(c => c.parent_key === parentKey && c.active !== false).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 }
 function getCatLabel(key) {
     const c = POS_CATEGORIES.find(cat => cat.key === key);
@@ -167,6 +168,12 @@ function openCategoryModal(key, asSub) {
         POS_CATEGORIES.filter(t => !t.parent_key && t.key !== editingSelf).map(t => `<option value="${t.key}">${t.label}</option>`).join('');
     parentSel.value = c && c.parent_key ? c.parent_key : '';
     document.getElementById('catParentGroup').style.display = isSub ? '' : 'none';
+    const iconInput = document.getElementById('catIconInput');
+    if (iconInput) iconInput.value = c ? (c.icon || '') : '';
+    const imageInput = document.getElementById('catImageInput');
+    if (imageInput) imageInput.value = c ? (c.image || '') : '';
+    const sortOrderInput = document.getElementById('catSortOrderInput');
+    if (sortOrderInput) sortOrderInput.value = c ? (c.sort_order || 0) : 0;
     modal.classList.add('open');
     setTimeout(() => document.getElementById('catNameInput').focus(), 100);
 }
@@ -175,6 +182,12 @@ function saveCategoryModal() {
     const nameInput = document.getElementById('catNameInput');
     const label = nameInput.value.trim();
     const parentKey = document.getElementById('catParentSelect').value || null;
+    const iconEl = document.getElementById('catIconInput');
+    const imageEl = document.getElementById('catImageInput');
+    const sortOrderEl = document.getElementById('catSortOrderInput');
+    const icon = iconEl ? iconEl.value.trim() : '';
+    const image = imageEl ? imageEl.value.trim() : '';
+    const sortOrder = sortOrderEl ? parseInt(sortOrderEl.value) || 0 : 0;
     if (!label) { showToast('Ingresa un nombre para la categoria'); nameInput.focus(); return; }
     if (key) {
         const c = POS_CATEGORIES.find(cat => cat.key === key);
@@ -185,6 +198,9 @@ function saveCategoryModal() {
             if (hasSubs && parentKey) { showToast('No puedes mover una categoria que tiene subcategorias'); return; }
         }
         c.parent_key = parentKey;
+        c.icon = icon;
+        c.image = image;
+        c.sort_order = sortOrder;
         c._synced = false;
         saveCategories();
         refreshCategorySelect();
@@ -201,7 +217,7 @@ function saveCategoryModal() {
         if (POS_CATEGORIES.find(c => c.key === newKey)) { showToast('Ya existe ' + (parentKey ? 'una subcategoria' : 'una categoria') + ' con ese nombre'); return; }
         if (document.getElementById('catParentGroup').style.display !== 'none' && !parentKey) { showToast('Selecciona la categoria padre'); return; }
         if (parentKey && POS_CATEGORIES.find(c => c.key === parentKey && c.parent_key)) { showToast('No puedes crear subcategorias de una subcategoria'); return; }
-        addCategory(newKey, label, parentKey);
+        addCategory(newKey, label, parentKey, { icon, image, sort_order: sortOrder });
         refreshCategorySelect();
         refreshProdCatFilter();
         if (typeof _invStockCatInit !== 'undefined') _invStockCatInit = false;
@@ -456,7 +472,7 @@ async function syncFromApi() {
             const apiKeys = apiCategories.map(c => c.key);
             POS_CATEGORIES = POS_CATEGORIES.filter(c => c._synced === false || apiKeys.includes(c.key));
             apiCategories.forEach(c => {
-                const fc = { id: c.id, key: c.key, label: c.label, parent_key: c.parent_key || null, _synced: true };
+                const fc = { id: c.id, key: c.key, label: c.label, parent_key: c.parent_key || null, icon: c.icon || '', image: c.image || '', sort_order: c.sort_order || 0, active: c.active !== false, _synced: true };
                 const idx = POS_CATEGORIES.findIndex(lc => lc.key === fc.key);
                 if (idx >= 0) {
                     POS_CATEGORIES[idx] = fc;
@@ -1074,14 +1090,16 @@ function renderCategoriesTable() {
     if (!tbody) return;
     const top = getTopLevelCats();
     if (top.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:30px;">No hay categorias creadas</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:30px;">No hay categorias creadas</td></tr>';
         return;
     }
     tbody.innerHTML = top.map(c => {
         const productCount = posProducts.filter(p => p.category === c.key).length;
+        const iconHtml = c.icon ? '<span style="margin-right:4px;">' + c.icon + '</span>' : '';
         return '<tr>' +
-            '<td><strong>' + c.label + '</strong></td>' +
+            '<td><strong>' + iconHtml + c.label + '</strong></td>' +
             '<td>' + productCount + '</td>' +
+            '<td>' + (c.sort_order || 0) + '</td>' +
             '<td class="actions">' +
                 '<button class="edit" onclick="editCategory(\'' + c.key + '\')"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>' +
                 '<button class="del" onclick="deleteCategory(\'' + c.key + '\')"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>' +
@@ -1101,16 +1119,18 @@ function renderSubcategoriesTable() {
     const filterVal = filterSel ? filterSel.value : '';
     const subs = POS_CATEGORIES.filter(c => c.parent_key && (!filterVal || c.parent_key === filterVal));
     if (subs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:30px;">No hay subcategorias creadas</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:30px;">No hay subcategorias creadas</td></tr>';
         return;
     }
     tbody.innerHTML = subs.map(s => {
         const parent = POS_CATEGORIES.find(c => c.key === s.parent_key);
         const productCount = posProducts.filter(p => p.subcategory === s.key).length;
+        const iconHtml = s.icon ? '<span style="margin-right:4px;">' + s.icon + '</span>' : '';
         return '<tr>' +
-            '<td>' + s.label + '</td>' +
+            '<td>' + iconHtml + s.label + '</td>' +
             '<td>' + (parent ? parent.label : '-') + '</td>' +
             '<td>' + productCount + '</td>' +
+            '<td>' + (s.sort_order || 0) + '</td>' +
             '<td class="actions">' +
                 '<button class="edit" onclick="editCategory(\'' + s.key + '\')"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>' +
                 '<button class="del" onclick="deleteCategory(\'' + s.key + '\')"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>' +
