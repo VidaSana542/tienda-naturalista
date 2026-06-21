@@ -276,6 +276,7 @@ function loadData() {
         posCustomers = JSON.parse(localStorage.getItem('posCustomers')) || [];
         posCart = JSON.parse(localStorage.getItem('posCart')) || [];
         invLog = JSON.parse(localStorage.getItem('invLog')) || [];
+        console.log('[INVLOG] Loaded from localStorage:', invLog.length, 'entries');
         posSuppliers = JSON.parse(localStorage.getItem('posSuppliers')) || [];
         const savedCats = JSON.parse(localStorage.getItem('posCategories'));
         if (savedCats && savedCats.length > 0) POS_CATEGORIES = savedCats;
@@ -526,10 +527,12 @@ async function syncFromApi() {
         }
         try {
             const apiInvLog = await API.getInventoryLog();
+            console.log('[INVLOG] API returned:', apiInvLog ? apiInvLog.length : 0, 'entries');
             if (apiInvLog && apiInvLog.length > 0) {
                 const apiLogMap = {};
                 apiInvLog.forEach(l => { apiLogMap[l.id] = l; });
                 const localIds = new Set(invLog.map(l => l.id));
+                console.log('[INVLOG] Local entries before merge:', invLog.length, 'Local IDs:', [...localIds]);
                 apiInvLog.forEach(al => {
                     if (!localIds.has(al.id)) {
                         invLog.push({
@@ -551,9 +554,10 @@ async function syncFromApi() {
                 });
                 invLog.forEach(l => { l.synced = true; });
                 localStorage.setItem('invLog', JSON.stringify(invLog));
+                console.log('[INVLOG] After merge:', invLog.length, 'entries');
             }
             saveInvLog();
-        } catch(e) {}
+        } catch(e) { console.error('[INVLOG] Sync error:', e.message || e); }
         if (typeof loadCashLocal === 'function') loadCashLocal();
         if (typeof syncCashFromApi === 'function') await syncCashFromApi();
         try {
@@ -606,6 +610,7 @@ function addInvLog(productId, productName, type, quantity, previousStock, newSto
     const category = prod ? prod.category : '';
     const validSaleId = (saleId && posSales.some(s => s.id === saleId)) ? saleId : null;
     invLog.push({ id: invNextLogId++, date: now(), productId, productName, type, quantity, previousStock, newStock, reason, saleId: validSaleId, category, ventaPorFuera: ventaPorFuera || false, synced: false });
+    console.log('[INVLOG] Added entry:', type, productName, 'Total now:', invLog.length);
     saveInvLog();
 }
 
