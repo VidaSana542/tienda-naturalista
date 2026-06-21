@@ -1193,6 +1193,8 @@ function renderInvLog() {
     const searchEl = document.getElementById('invLogSearch');
     const typeFilter = document.getElementById('invLogTypeFilter');
     const ventaFilterEl = document.getElementById('invLogVentaFilter');
+    const dateFromEl = document.getElementById('invLogDateFrom');
+    const dateToEl = document.getElementById('invLogDateTo');
     const tbody = document.getElementById('invLogBody');
     if (!tbody) return;
     if (catFilter && !_invLogCatInit) {
@@ -1203,6 +1205,8 @@ function renderInvLog() {
     const cat = catFilter ? catFilter.value : 'all';
     const type = typeFilter ? typeFilter.value : 'all';
     const ventaFilter = ventaFilterEl ? ventaFilterEl.value : 'all';
+    const dateFrom = dateFromEl ? dateFromEl.value : '';
+    const dateTo = dateToEl ? dateToEl.value : '';
     let filtered = filterInvLogByScope(invLog);
     if (q) filtered = filtered.filter(l => l.productName.toLowerCase().includes(q));
     if (cat !== 'all') filtered = filtered.filter(l => l.category === cat);
@@ -1211,6 +1215,8 @@ function renderInvLog() {
         if (ventaFilter === 'local') filtered = filtered.filter(l => l.type === 'salida' && !l.ventaPorFuera);
         else if (ventaFilter === 'fuera') filtered = filtered.filter(l => l.type === 'salida' && l.ventaPorFuera);
     }
+    if (dateFrom) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) >= dateFrom);
+    if (dateTo) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) <= dateTo);
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">Sin movimientos registrados</td></tr>';
         return;

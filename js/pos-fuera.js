@@ -1448,7 +1448,12 @@ function renderDashRecent(periodSales) {
 // ============ SALES TABLE ============
 function renderSalesTable() {
     const q = document.getElementById('salesSearch').value.toLowerCase().trim();
+    const dateFrom = document.getElementById('salesDateFrom').value;
+    const dateTo = document.getElementById('salesDateTo').value;
     let filtered = posSales.filter(s => s.ventaPorFuera).reverse();
+    if (q) filtered = filtered.filter(s => s.id.toString().includes(q) || (s.customer && s.customer.toLowerCase().includes(q)));
+    if (dateFrom) filtered = filtered.filter(s => s.date && s.date.substring(0, 10) >= dateFrom);
+    if (dateTo) filtered = filtered.filter(s => s.date && s.date.substring(0, 10) <= dateTo);
     if (q) filtered = filtered.filter(s => s.id.toString().includes(q) || (s.customer && s.customer.toLowerCase().includes(q)));
     const tbody = document.getElementById('salesTableBody');
     if (filtered.length === 0) {
