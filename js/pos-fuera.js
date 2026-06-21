@@ -1905,11 +1905,10 @@ function initPOS() {
             });
         }
 
+        loadData();
         const available = await API.check();
         if (available) {
             await syncFromApi();
-        } else {
-            loadData();
         }
         loadSalidas();
         applyPosScopeUI();
