@@ -1188,6 +1188,13 @@ function deleteCategory(key) {
 
 // ============ INVENTORY LOG ============
 let _invLogCatInit = false;
+let _invLogSortDesc = true;
+function toggleInvLogSort() {
+    _invLogSortDesc = !_invLogSortDesc;
+    const btn = document.getElementById('invLogSortBtn');
+    if (btn) btn.textContent = _invLogSortDesc ? '⬇ Más reciente' : '⬆ Más antiguo';
+    renderInvLog();
+}
 function renderInvLog() {
     const catFilter = document.getElementById('invLogCatFilter');
     const searchEl = document.getElementById('invLogSearch');
@@ -1221,7 +1228,7 @@ function renderInvLog() {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">Sin movimientos registrados</td></tr>';
         return;
     }
-    tbody.innerHTML = filtered.slice().reverse().slice(0, 200).map(l => {
+    tbody.innerHTML = (_invLogSortDesc ? filtered.slice().reverse() : filtered).slice(0, 200).map(l => {
         const typeLabel = l.type === 'entrada' ? '<span style="color:var(--success);font-weight:600;">Entrada</span>' : l.type === 'salida' ? '<span style="color:var(--danger);font-weight:600;">Salida</span>' : '<span style="color:var(--warning);font-weight:600;">Ajuste</span>';
         const vpfTag = l.ventaPorFuera ? ' <span class="tag tag-warning" style="font-size:10px;">Por fuera</span>' : '';
         return '<tr>' +

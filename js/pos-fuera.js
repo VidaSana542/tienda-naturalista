@@ -1446,14 +1446,22 @@ function renderDashRecent(periodSales) {
 }
 
 // ============ SALES TABLE ============
+let _salesSortDesc = true;
+function toggleSalesSort() {
+    _salesSortDesc = !_salesSortDesc;
+    const btn = document.getElementById('salesSortBtn');
+    if (btn) btn.textContent = _salesSortDesc ? '⬇ Más reciente' : '⬆ Más antiguo';
+    renderSalesTable();
+}
 function renderSalesTable() {
     const q = document.getElementById('salesSearch').value.toLowerCase().trim();
     const dateFrom = document.getElementById('salesDateFrom').value;
     const dateTo = document.getElementById('salesDateTo').value;
-    let filtered = posSales.filter(s => s.ventaPorFuera).reverse();
+    let filtered = posSales.filter(s => s.ventaPorFuera);
     if (q) filtered = filtered.filter(s => s.id.toString().includes(q) || (s.customer && s.customer.toLowerCase().includes(q)));
     if (dateFrom) filtered = filtered.filter(s => s.date && s.date.substring(0, 10) >= dateFrom);
     if (dateTo) filtered = filtered.filter(s => s.date && s.date.substring(0, 10) <= dateTo);
+    filtered = _salesSortDesc ? filtered.slice().reverse() : filtered;
     if (q) filtered = filtered.filter(s => s.id.toString().includes(q) || (s.customer && s.customer.toLowerCase().includes(q)));
     const tbody = document.getElementById('salesTableBody');
     if (filtered.length === 0) {
