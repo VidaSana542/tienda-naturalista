@@ -21,10 +21,49 @@ function loadSalidas() {
             posSalidas = [];
         }
     } catch (e) { console.error('loadSalidas error', e); posSalidas = []; }
+    if (API.isAvailable) {
+        API.getSalidas().then(apiSalidas => {
+            if (apiSalidas && apiSalidas.length > 0) {
+                const apiMap = {};
+                apiSalidas.forEach(s => { apiMap[s.id] = s; });
+                apiSalidas.forEach(as => {
+                    as._synced = true;
+                    const existing = posSalidas.find(ls => ls.id === as.id);
+                    if (existing) {
+                        existing.status = as.status;
+                        existing.items = as.items;
+                        existing.notes = as.notes;
+                    } else {
+                        posSalidas.push(as);
+                    }
+                });
+                posSalidas = posSalidas.filter(s => apiMap[s.id] || !s._synced);
+                posSalidasNextId = Math.max(posSalidasNextId, ...posSalidas.map(s => s.id + 1));
+                localStorage.setItem('posSalidas', JSON.stringify(posSalidas));
+                if (typeof renderSalidas === 'function') renderSalidas();
+            }
+        }).catch(e => { console.error('[POS] loadSalidas API error:', e); });
+    }
 }
 
 function saveSalidas() {
     try { localStorage.setItem('posSalidas', JSON.stringify(posSalidas)); } catch (e) { console.error('saveSalidas error', e); }
+    if (API.isAvailable) {
+        posSalidas.forEach(s => {
+            if (s._synced) return;
+            API.saveSalida({
+                id: s.id,
+                userId: s.userId,
+                userName: s.userName,
+                items: s.items,
+                notes: s.notes,
+                status: s.status,
+                created_at: s.created_at
+            }).then(res => {
+                if (res && res.id) { s.id = res.id; s._synced = true; localStorage.setItem('posSalidas', JSON.stringify(posSalidas)); }
+            }).catch(e => { console.error('[POS] saveSalida API error:', e); });
+        });
+    }
 }
 
 function createSalidaObject(userId, userName, items, notes) {

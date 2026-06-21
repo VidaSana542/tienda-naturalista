@@ -573,5 +573,74 @@ const API = {
       .eq('sale_id', saleId);
     if (error) throw error;
     return data || [];
+  },
+
+  // ---- Salidas Temporales ----
+  async getSalidas() {
+    const { data: salidas, error: err1 } = await _sb
+      .from('salidas')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (err1) throw err1;
+    if (!salidas || salidas.length === 0) return [];
+    const { data: items, error: err2 } = await _sb
+      .from('salida_items')
+      .select('*');
+    if (err2) throw err2;
+    const itemsBySalida = {};
+    (items || []).forEach(it => {
+      if (!itemsBySalida[it.salida_id]) itemsBySalida[it.salida_id] = [];
+      itemsBySalida[it.salida_id].push({
+        productId: it.product_id,
+        sentQty: it.sent_qty,
+        soldQty: it.sold_qty,
+        returnedQty: it.returned_qty
+      });
+    });
+    return salidas.map(s => ({
+      id: s.id,
+      created_at: s.created_at,
+      userId: s.user_id,
+      userName: s.user_name,
+      items: itemsBySalida[s.id] || [],
+      notes: s.notes,
+      status: s.status
+    }));
+  },
+
+  async saveSalida(salida) {
+    const { data: salData, error: salErr } = await _sb
+      .from('salidas')
+      .upsert({
+        id: salida.id || undefined,
+        user_id: salida.userId || '',
+        user_name: salida.userName || '',
+        notes: salida.notes || '',
+        status: salida.status || 'open',
+        created_at: salida.created_at || undefined
+      }, { onConflict: 'id' })
+      .select()
+      .single();
+    if (salErr) throw salErr;
+    const sid = salData.id;
+    await _sb.from('salida_items').delete().eq('salida_id', sid);
+    if (salida.items && salida.items.length > 0) {
+      const itemsToInsert = salida.items.map(it => ({
+        salida_id: sid,
+        product_id: it.productId,
+        sent_qty: it.sentQty || 0,
+        sold_qty: it.soldQty || 0,
+        returned_qty: it.returnedQty || 0
+      }));
+      const { error: itemsErr } = await _sb.from('salida_items').insert(itemsToInsert);
+      if (itemsErr) throw itemsErr;
+    }
+    return salData;
+  },
+
+  async deleteSalida(id) {
+    const { error } = await _sb.from('salidas').delete().eq('id', id);
+    if (error) throw error;
+    return { success: true };
   }
 };
