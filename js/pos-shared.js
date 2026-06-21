@@ -551,6 +551,7 @@ async function syncFromApi() {
                 });
                 invLog.forEach(l => { l.synced = true; });
                 localStorage.setItem('invLog', JSON.stringify(invLog));
+                invNextLogId = invLog.reduce((m, l) => Math.max(m, l.id), 0) + 1;
             }
             saveInvLog();
         } catch(e) { console.error('InvLog sync error:', e.message || e); }
