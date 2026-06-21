@@ -535,7 +535,7 @@ async function syncFromApi() {
                         invLog.push({
                             id: al.id,
                             date: al.created_at,
-                            productId: al.product_id,
+                            productId: (String(al.product_id).startsWith('p') ? al.product_id : 'p' + al.product_id).toString(),
                             productName: al.product_name,
                             type: al.type,
                             quantity: al.quantity,
@@ -554,6 +554,15 @@ async function syncFromApi() {
                 invNextLogId = invLog.reduce((m, l) => Math.max(m, l.id), 0) + 1;
             }
             saveInvLog();
+            const localInvLog = JSON.parse(localStorage.getItem('invLog')) || [];
+            localInvLog.forEach(ll => {
+                if (!ll.synced && !invLog.some(l => l.id === ll.id)) {
+                    invLog.push(ll);
+                }
+            });
+            if (localInvLog.some(ll => !ll.synced)) {
+                localStorage.setItem('invLog', JSON.stringify(invLog));
+            }
         } catch(e) { console.error('InvLog sync error:', e.message || e); }
         if (typeof loadCashLocal === 'function') loadCashLocal();
         if (typeof syncCashFromApi === 'function') await syncCashFromApi();

@@ -389,17 +389,19 @@ const API = {
   },
 
   async addInventoryLog(entry) {
+    const productIdNum = parseInt(String(entry.product_id).replace(/^p/i, ''));
     const { data, error } = await _sb
       .from('inventory_log')
       .insert({
-        product_id: String(entry.product_id),
+        product_id: productIdNum,
         product_name: entry.product_name,
         type: entry.type,
         quantity: entry.quantity,
         previous_stock: entry.previous_stock,
         new_stock: entry.new_stock,
         reason: entry.reason || '',
-        sale_id: entry.sale_id || null
+        sale_id: entry.sale_id || null,
+        venta_por_fuera: entry.venta_por_fuera || false
       })
       .select()
       .single();
