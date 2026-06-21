@@ -27,6 +27,8 @@ let searchQuery = '';
 let allApiCategories = [];
 let navStack = [];
 
+function dn(p) { return p.catalogName || p.name; }
+
 // Normaliza categorias de productos para que coincidan con las keys reales de categorias
 const CATEGORY_NORMALIZE = {
     'belleza-y-bienestar': 'belleza_y_bienestar',
@@ -177,6 +179,7 @@ function getFilteredProducts() {
     }
     if (searchQuery) {
         filtered = filtered.filter(p =>
+            dn(p).toLowerCase().includes(searchQuery) ||
             p.name.toLowerCase().includes(searchQuery) ||
             p.brand.toLowerCase().includes(searchQuery) ||
             p.category.toLowerCase().includes(searchQuery)
@@ -190,8 +193,8 @@ function sortProducts(list, sortBy) {
     switch (sortBy) {
         case 'price-asc': return sorted.sort((a, b) => a.price - b.price);
         case 'price-desc': return sorted.sort((a, b) => b.price - a.price);
-        case 'name-asc': return sorted.sort((a, b) => a.name.localeCompare(b.name));
-        case 'name-desc': return sorted.sort((a, b) => b.name.localeCompare(a.name));
+        case 'name-asc': return sorted.sort((a, b) => dn(a).localeCompare(dn(b)));
+        case 'name-desc': return sorted.sort((a, b) => dn(b).localeCompare(dn(a)));
         default: return sorted;
     }
 }
@@ -235,11 +238,11 @@ function renderProducts() {
         <div class="prod-card">
             ${badgeHtml}
             <div class="prod-img-wrap">
-                <img src="${p.img}" alt="${p.name}" loading="lazy">
+                <img src="${p.img}" alt="${dn(p)}" loading="lazy">
             </div>
             <div class="prod-body">
                 <div class="prod-brand">${p.brand}</div>
-                <div class="prod-name" onclick="openModal(${p.id})">${p.name}</div>
+                <div class="prod-name" onclick="openModal(${p.id})">${dn(p)}</div>
                 <div>${stockLabel(p.stock)}</div>
                 <div class="prod-actions">
                     <button class="prod-btn-wa" onclick="${waClick}" ${cartDisabled}>
@@ -291,7 +294,7 @@ function addToCart(id) {
     else { cart.push({ ...product, qty: 1 }); }
     localStorage.setItem('ltnCart', JSON.stringify(cart));
     updateCartUI();
-    showToast(`${product.name} agregado al carrito`);
+    showToast(`${dn(product)} agregado al carrito`);
 }
 
 function removeFromCart(id) {
@@ -342,9 +345,9 @@ function renderCartPanel() {
     }
     container.innerHTML = cart.map(c => `
         <div class="cart-item">
-            <div class="cart-item-img"><img src="${c.img}" alt="${c.name}" loading="lazy"></div>
+            <div class="cart-item-img"><img src="${c.img}" alt="${dn(c)}" loading="lazy"></div>
             <div class="cart-item-info">
-                <div class="cart-item-name">${c.name}</div>
+                <div class="cart-item-name">${dn(c)}</div>
                 <div class="cart-item-brand">${c.brand}</div>
                 <div class="cart-item-row2">
                     <div class="cart-item-qty">
@@ -367,7 +370,7 @@ function openCheckout() {
     const summary = document.getElementById('orderSummary');
     summary.innerHTML = `
         <h3>Mi pedido</h3>
-        ${cart.map(c => `<div><span>${c.name} x${c.qty}</span></div>`).join('')}
+        ${cart.map(c => `<div><span>${dn(c)} x${c.qty}</span></div>`).join('')}
     `;
     document.getElementById('checkName').value = '';
     document.getElementById('checkPhone').value = '';
@@ -398,7 +401,7 @@ function submitOrder() {
     if (deliveryType === 'domicilio' && !address) { showToast('Ingresa la direccion de envio'); return; }
     let lines = ['*Nuevo pedido*'];
     cart.forEach((c, i) => {
-        lines.push((i + 1) + '. ' + c.name + ' x' + c.qty);
+        lines.push((i + 1) + '. ' + dn(c) + ' x' + c.qty);
     });
     lines.push('');
     lines.push('*Datos del cliente:*');
@@ -420,9 +423,9 @@ function openModal(id) {
     const p = products.find(x => x.id === id);
     if (!p) return;
     document.getElementById('modalImg').src = p.img;
-    document.getElementById('modalImg').alt = p.name;
+    document.getElementById('modalImg').alt = dn(p);
     document.getElementById('modalBrand').textContent = p.brand;
-    document.getElementById('modalName').textContent = p.name;
+    document.getElementById('modalName').textContent = dn(p);
     document.getElementById('modalDesc').textContent = p.desc;
     const waBtn = document.getElementById('modalWaBtn');
     waBtn.onclick = (e) => { e.preventDefault(); addToCart(p.id); closeModal(); openCheckout(); };
@@ -490,6 +493,7 @@ function showToast(msg) {
         products = apiProducts.filter(p => p.visible !== false).map(p => ({
             id: parseInt(p.id),
             name: p.name,
+            catalogName: p.catalog_name || '',
             brand: p.brand || '',
             category: CATEGORY_NORMALIZE[p.category] || p.category,
             subcategory: cleanOrphanSubcategory(p.subcategory || '', allApiCategories),

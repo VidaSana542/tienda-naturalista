@@ -65,6 +65,7 @@ const API = {
   async saveProduct(product) {
     const payload = {
       name: product.name,
+      catalog_name: product.catalog_name || '',
       barcode: product.barcode && product.barcode.trim() ? product.barcode.trim() : null,
       brand: product.brand && product.brand.trim() ? product.brand.trim() : null,
       category: product.category || 'suplementos',

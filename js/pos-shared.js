@@ -324,7 +324,7 @@ function saveProducts() {
             if (apiId === null) return;
             const payload = {
                 id: apiId,
-                name: p.name, barcode: p.barcode || '', brand: p.brand || '', category: p.category,
+                name: p.name, catalog_name: p.catalogName || '', barcode: p.barcode || '', brand: p.brand || '', category: p.category,
                 price: p.price, cost: p.cost || 0, stock: p.stock,
                 img: p.img || '', images: p.images || [],
                 description: p.desc || '',
@@ -403,9 +403,10 @@ async function syncFromApi() {
             apiProducts.forEach(p => { apiMap['p' + p.id] = p; });
             posProducts.forEach(lp => {
                 const ap = apiMap[lp.id];
-                if (ap) {
+                    if (ap) {
                     lp.subcategory = ap.subcategory || '';
                     lp.name = ap.name;
+                    lp.catalogName = ap.catalog_name || '';
                     lp.price = parseFloat(ap.price) || lp.price;
                     lp.stock = parseInt(ap.stock) ?? lp.stock;
                     if (ap.img && ap.img !== lp.img) lp.img = ap.img;
@@ -417,6 +418,7 @@ async function syncFromApi() {
                     posProducts.push({
                         id: 'p' + ap.id,
                         name: ap.name,
+                        catalogName: ap.catalog_name || '',
                         barcode: ap.barcode || '',
                         brand: ap.brand || '',
                         category: ap.category || 'suplementos',
@@ -709,6 +711,7 @@ function openProductModal(id) {
         if (p) {
             _prodImages = (p.images && p.images.length > 0) ? [...p.images] : [];
             document.getElementById('prodName').value = p.name;
+            document.getElementById('prodCatalogName').value = p.catalogName || '';
             document.getElementById('prodBarcode').value = p.barcode || '';
             document.getElementById('prodBrand').value = p.brand;
             document.getElementById('prodCategory').value = p.category;
@@ -726,6 +729,7 @@ function openProductModal(id) {
     } else {
         _prodImages = [];
         document.getElementById('prodName').value = '';
+        document.getElementById('prodCatalogName').value = '';
         document.getElementById('prodBarcode').value = '';
         document.getElementById('prodBrand').value = '';
         document.getElementById('prodCategory').value = getTopLevelCats().length > 0 ? getTopLevelCats()[0].key : '';
@@ -821,6 +825,7 @@ function closeProductModal() {
 function saveProduct() {
     const id = document.getElementById('prodEditId').value;
     const name = document.getElementById('prodName').value.trim();
+    const catalogName = document.getElementById('prodCatalogName').value.trim();
     const barcode = document.getElementById('prodBarcode').value.trim();
     const brand = document.getElementById('prodBrand').value.trim();
     const category = document.getElementById('prodCategory').value;
@@ -845,14 +850,14 @@ function saveProduct() {
                 if (!confirm('Estas a punto de quitar la subcategoria "' + (POS_CATEGORIES.find(c => c.key === p.subcategory)?.label || p.subcategory) + '" del producto. Continuar?')) { closeProductModal(); return; }
             }
             const prevStock = p.stock;
-            Object.assign(p, { name, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, visible, subcategory });
+            Object.assign(p, { name, catalogName, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, visible, subcategory });
             if (stock !== prevStock) {
                 const diff = stock - prevStock;
                 addInvLog(p.id, p.name, diff > 0 ? 'entrada' : 'salida', diff, prevStock, stock, 'Ajuste manual desde productos');
             }
         }
     } else {
-        posProducts.push({ id: 'p' + posNextProductId++, name, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, visible, subcategory, _synced: false });
+        posProducts.push({ id: 'p' + posNextProductId++, name, catalogName, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, visible, subcategory, _synced: false });
     }
     saveProducts();
     closeProductModal();
