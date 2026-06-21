@@ -118,7 +118,9 @@ function openSalidaDetail(id) {
     const s = posSalidas.find(x=>x.id===id);
     if (!s) return;
     const el = document.getElementById('returnSalidaItems');
-    if (!el) return;
+    const elSale = document.getElementById('directSaleItems');
+    if (!el || !elSale) return;
+    const isActive = s.status !== 'closed';
     el.innerHTML = s.items.map(it => {
         const prod = posProducts.find(p=>p.id===it.productId) || { name: 'Producto' };
         const available = Math.max(0, it.sentQty - it.soldQty - it.returnedQty);
@@ -138,10 +140,63 @@ function openSalidaDetail(id) {
             </div>
         </div>`;
     }).join('');
+    elSale.innerHTML = s.items.map(it => {
+        const prod = posProducts.find(p=>p.id===it.productId) || { name: 'Producto', price: 0 };
+        const available = Math.max(0, it.sentQty - it.soldQty - it.returnedQty);
+        return `<div style="background:#f9fafb;border:1px solid var(--border);border-radius:6px;padding:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                <div><strong>${prod.name}</strong><br><small style="color:var(--text-muted);">$${(prod.price||0).toLocaleString()}</small></div>
+                <div style="text-align:right;font-size:12px;color:var(--text-muted);">
+                    <div>Enviados: <strong>${it.sentQty}</strong></div>
+                    <div>Vendidos: <strong style="color:#16a34a;">${it.soldQty}</strong></div>
+                    <div>Disponible: <strong style="color:#2563eb;">${available}</strong></div>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+                <label style="font-size:12px;flex:1;">¿Cuántos vendidos?</label>
+                <input type="number" min="0" max="${available}" value="0" data-prod="${it.productId}" data-price="${prod.price||0}" class="sale-qty-input" onchange="calcDirectSaleTotal()" oninput="calcDirectSaleTotal()" style="width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:center;">
+            </div>
+        </div>`;
+    }).join('');
     (document.getElementById('returnSalidaModal')||{}).style.display = 'flex';
     (document.getElementById('returnSalidaModal')||{}).classList.add('open');
     document.getElementById('returnSalidaModal').dataset.salidaId = id;
+    document.getElementById('returnSalidaModal').dataset.status = s.status;
     document.body.style.overflow = 'hidden';
+    switchSalidaTab('devolver');
+    updateSalidaModalButtons(s.status);
+}
+
+function updateSalidaModalButtons(status) {
+    const isOpen = status !== 'closed';
+    const btnSave = document.getElementById('salidaModalSaveBtn');
+    const btnReturn = document.getElementById('salidaModalReturnBtn');
+    if (btnSave) btnSave.style.display = isOpen ? '' : 'none';
+    if (btnReturn) btnReturn.style.display = isOpen ? '' : 'none';
+}
+
+function switchSalidaTab(tab) {
+    document.querySelectorAll('.salida-tab').forEach(b => {
+        b.classList.toggle('active', b.dataset.stab === tab);
+        b.style.borderBottomColor = b.dataset.stab === tab ? 'var(--primary)' : 'transparent';
+        b.style.color = b.dataset.stab === tab ? 'var(--primary)' : 'var(--text-muted)';
+    });
+    document.getElementById('salidaTabDevolver').style.display = tab === 'devolver' ? '' : 'none';
+    document.getElementById('salidaTabVender').style.display = tab === 'vender' ? '' : 'none';
+    document.getElementById('salidaModalSaveBtn').style.display = tab === 'vender' ? '' : 'none';
+    document.getElementById('salidaModalReturnBtn').style.display = tab === 'devolver' ? '' : 'none';
+    if (tab === 'vender') calcDirectSaleTotal();
+}
+
+function calcDirectSaleTotal() {
+    let total = 0;
+    document.querySelectorAll('#directSaleItems .sale-qty-input').forEach(inp => {
+        const qty = parseInt(inp.value) || 0;
+        const price = parseFloat(inp.dataset.price) || 0;
+        total += qty * price;
+    });
+    const el = document.getElementById('directSaleTotal');
+    if (el) el.textContent = '$' + total.toLocaleString();
 }
 
 function closeReturnSalidaModal() {
@@ -173,6 +228,87 @@ function saveReturnSalida() {
     if (!any) { showToast('Ingresa cantidades a devolver'); return; }
     if (s.items.every(i=>i.sentQty <= (i.soldQty + i.returnedQty))) s.status = 'closed';
     saveSalidas(); saveProducts(); renderSalidas(); closeReturnSalidaModal(); showToast('Devolucion registrada');
+}
+
+function saveDirectSale() {
+    const m = document.getElementById('returnSalidaModal');
+    if (!m) return;
+    const id = parseInt(m.dataset.salidaId);
+    const s = posSalidas.find(x=>x.id===id);
+    if (!s) return;
+    const inputs = Array.from(document.querySelectorAll('#directSaleItems .sale-qty-input'));
+    const payMethod = document.getElementById('directSalePayMethod').value;
+    let any = false;
+    let totalVenta = 0;
+    const saleItems = [];
+    inputs.forEach(inp => {
+        const prodId = inp.dataset.prod;
+        const v = parseInt(inp.value) || 0;
+        if (v <= 0) return;
+        any = true;
+        const it = s.items.find(i => i.productId === prodId);
+        if (!it) return;
+        const available = Math.max(0, it.sentQty - it.soldQty - it.returnedQty);
+        const toSell = Math.min(available, v);
+        if (toSell > 0) {
+            it.soldQty += toSell;
+            const prod = posProducts.find(p => p.id === prodId);
+            if (prod) {
+                totalVenta += (prod.price || 0) * toSell;
+                saleItems.push({ id: prodId, name: prod.name, qty: toSell, price: prod.price });
+            }
+        }
+    });
+    if (!any) { showToast('Ingresa cantidades vendidas'); return; }
+    const sale = {
+        id: posSalesNextId++,
+        created_at: now(),
+        customerId: '',
+        customerName: 'Salida #' + s.id,
+        items: saleItems,
+        total: totalVenta,
+        payMethod: payMethod,
+        paid: payMethod !== 'credito' ? totalVenta : 0,
+        notes: 'Venta desde Salida #' + s.id + ' - ' + s.userName,
+        status: payMethod === 'credito' ? 'pendiente' : 'pagado',
+        userId: s.userId,
+        userName: s.userName
+    };
+    posSales.push(sale);
+    if (s.items.every(i => i.sentQty <= (i.soldQty + i.returnedQty))) s.status = 'closed';
+    saveSalidas();
+    saveSales();
+    renderSalidas();
+    closeReturnSalidaModal();
+    showToast('Venta registrada: $' + totalVenta.toLocaleString());
+}
+
+function loadSalidaToTpv() {
+    const m = document.getElementById('returnSalidaModal');
+    if (!m) return;
+    const id = parseInt(m.dataset.salidaId);
+    const s = posSalidas.find(x => x.id === id);
+    if (!s) return;
+    if (s.status === 'closed') { showToast('Esta salida ya esta cerrada'); return; }
+    posCart = [];
+    let loaded = 0;
+    s.items.forEach(it => {
+        const available = Math.max(0, it.sentQty - it.soldQty - it.returnedQty);
+        if (available > 0) {
+            const prod = posProducts.find(p => p.id === it.productId);
+            if (prod && prod.stock > 0) {
+                const qty = Math.min(available, prod.stock);
+                posCart.push({ id: prod.id, qty, price: prod.price, salidaId: s.id });
+                loaded++;
+            }
+        }
+    });
+    if (loaded === 0) { showToast('No hay productos disponibles para vender'); return; }
+    saveCart();
+    renderTpvCart();
+    closeReturnSalidaModal();
+    switchPanel('tpv');
+    showToast(loaded + ' producto(s) cargado(s) al carrito desde Salida #' + s.id);
 }
 
 function handleBarcodeScan() {
