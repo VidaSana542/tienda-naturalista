@@ -788,11 +788,16 @@
                 <label>Descripcion</label>
                 <textarea id="prodDesc" placeholder="Descripcion del producto"></textarea>
             </div>
-            <div class="form-group" style="grid-column:1/-1;">
+            <div class="form-group" style="grid-column:1/-1;display:flex;gap:20px;flex-wrap:wrap;">
                 <label class="form-checkbox">
                     <input type="checkbox" id="prodFeatured">
                     <span class="ck-box"></span>
                     Producto destacado
+                </label>
+                <label class="form-checkbox">
+                    <input type="checkbox" id="prodVisible" checked>
+                    <span class="ck-box"></span>
+                    Visible en tienda
                 </label>
             </div>
         </div>

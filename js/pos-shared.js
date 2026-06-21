@@ -328,7 +328,8 @@ function saveProducts() {
                 price: p.price, cost: p.cost || 0, stock: p.stock,
                 img: p.img || '', images: p.images || [],
                 description: p.desc || '',
-                featured: p.featured || false
+                featured: p.featured || false,
+                visible: p.visible !== false
             };
             payload.subcategory = p.subcategory || '';
             API.saveProduct(payload).then(res => {
@@ -426,6 +427,7 @@ async function syncFromApi() {
                         images: ap.images || [],
                         desc: ap.description || '',
                         featured: ap.featured || false,
+                        visible: ap.visible !== false,
                         subcategory: ap.subcategory || '',
                         _synced: true
                     });
@@ -698,6 +700,7 @@ function openProductModal(id) {
             document.getElementById('prodDesc').value = p.desc || '';
             document.getElementById('prodSupplier').value = p.supplier || '';
             document.getElementById('prodFeatured').checked = p.featured || false;
+            document.getElementById('prodVisible').checked = p.visible !== false;
             updateSubcatSelect(p.subcategory);
             renderProdImagesPreview(_prodImages);
         }
@@ -713,6 +716,7 @@ function openProductModal(id) {
         document.getElementById('prodImg').value = '';
         document.getElementById('prodDesc').value = '';
         document.getElementById('prodFeatured').checked = false;
+        document.getElementById('prodVisible').checked = true;
         document.getElementById('prodSupplier').value = '';
         document.getElementById('prodMainPreview').style.display = 'none';
         document.getElementById('prodMainUploadStatus').textContent = '';
@@ -808,6 +812,7 @@ function saveProduct() {
     const desc = document.getElementById('prodDesc').value.trim();
     const supplier = document.getElementById('prodSupplier').value;
     const featured = document.getElementById('prodFeatured').checked;
+    const visible = document.getElementById('prodVisible').checked;
     const subcategory = document.getElementById('prodSubcategory').value;
 
     if (!name || !price || price <= 0) { showToast('Nombre y precio requeridos'); return; }
@@ -821,14 +826,14 @@ function saveProduct() {
                 if (!confirm('Estas a punto de quitar la subcategoria "' + (POS_CATEGORIES.find(c => c.key === p.subcategory)?.label || p.subcategory) + '" del producto. Continuar?')) { closeProductModal(); return; }
             }
             const prevStock = p.stock;
-            Object.assign(p, { name, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, subcategory });
+            Object.assign(p, { name, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, visible, subcategory });
             if (stock !== prevStock) {
                 const diff = stock - prevStock;
                 addInvLog(p.id, p.name, diff > 0 ? 'entrada' : 'salida', diff, prevStock, stock, 'Ajuste manual desde productos');
             }
         }
     } else {
-        posProducts.push({ id: 'p' + posNextProductId++, name, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, subcategory, _synced: false });
+        posProducts.push({ id: 'p' + posNextProductId++, name, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, visible, subcategory, _synced: false });
     }
     saveProducts();
     closeProductModal();

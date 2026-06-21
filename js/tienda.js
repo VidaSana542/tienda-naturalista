@@ -487,7 +487,7 @@ function showToast(msg) {
         }
     }
     if (apiProducts.length > 0) {
-        products = apiProducts.map(p => ({
+        products = apiProducts.filter(p => p.visible !== false).map(p => ({
             id: parseInt(p.id),
             name: p.name,
             brand: p.brand || '',
