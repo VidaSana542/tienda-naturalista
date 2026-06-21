@@ -70,7 +70,7 @@ const API = {
       brand: product.brand && product.brand.trim() ? product.brand.trim() : null,
       category: product.category || 'suplementos',
       subcategory: product.subcategory || '',
-      price: product.price,
+      price: product.price || 0,
       cost: product.cost || 0,
       stock: product.stock || 0,
       img: product.img || '',

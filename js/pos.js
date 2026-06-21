@@ -1725,7 +1725,7 @@ function saveProduct() {
     const featured = document.getElementById('prodFeatured').checked;
     const subcategory = document.getElementById('prodSubcategory').value;
 
-    if (!name || !price || price <= 0) { showToast('Nombre y precio requeridos'); return; }
+    if (!name) { showToast('Nombre requerido'); return; }
     const images = _prodImages.length > 0 ? _prodImages : undefined;
     const finalImg = _prodMainImg || img || (images && images.length > 0 ? images[0] : '');
 
