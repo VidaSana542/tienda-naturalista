@@ -1302,6 +1302,7 @@ function openInvMovModal(type) {
         if (titleText) titleText.textContent = 'Registrar Entrada';
         if (confirmBtn) { confirmBtn.textContent = 'Guardar Entrada'; confirmBtn.className = 'btn btn-primary'; confirmBtn.style.cssText = ''; }
         reasonSel.innerHTML =
+            '<option value="Registro de pedido">Registro de pedido</option>' +
             '<option value="Compra a proveedor">Compra a proveedor</option>' +
             '<option value="Devolucion de cliente">Devolucion de cliente</option>' +
             '<option value="Transferencia entrante">Transferencia entrante</option>' +
