@@ -304,7 +304,7 @@ function loadSalidaToTpv() {
         if (available > 0) {
             const prod = posProducts.find(p => p.id === it.productId);
             if (prod) {
-                posCart.push({ id: prod.id, qty: available, price: prod.price });
+                posCart.push({ id: prod.id, qty: available, price: prod.price, _fromSalida: s.id });
                 loaded++;
             }
         }
@@ -464,8 +464,10 @@ function updateCartQty(idx, delta) {
     const newQty = posCart[idx].qty + delta;
     if (newQty <= 0) { posCart.splice(idx, 1); }
     else {
-        const prod = posProducts.find(p => p.id === posCart[idx].id);
-        if (prod && newQty > prod.stock) { showToast('Stock maximo: ' + prod.stock); return; }
+        if (!posCart[idx]._fromSalida) {
+            const prod = posProducts.find(p => p.id === posCart[idx].id);
+            if (prod && newQty > prod.stock) { showToast('Stock maximo: ' + prod.stock); return; }
+        }
         posCart[idx].qty = newQty;
     }
     saveCart();
