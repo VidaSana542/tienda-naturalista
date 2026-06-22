@@ -144,13 +144,20 @@ async function loadExistingProducts() {
     }
 }
 
-function findExisting(name, brand) {
+function findExisting(name, brand, catalogName) {
     const n = name.toLowerCase().trim();
     const b = (brand || '').toLowerCase().trim();
-    return _existingProducts.find(p =>
-        p.name.toLowerCase().trim() === n &&
-        (!b || (p.brand || '').toLowerCase().trim() === b)
-    );
+    const c = (catalogName || '').toLowerCase().trim();
+    return _existingProducts.find(p => {
+        const pn = (p.name || '').toLowerCase().trim();
+        const pb = (p.brand || '').toLowerCase().trim();
+        const pc = (p.catalog_name || '').toLowerCase().trim();
+        // Match by name + brand + catalog_name to avoid mixing different products
+        if (pn !== n) return false;
+        if (b && pb !== b) return false;
+        if (c && pc && pc !== c) return false;
+        return true;
+    });
 }
 
 // ---- File handling ----
@@ -279,7 +286,7 @@ async function saveRow(rowId) {
 
     try {
         // Check if product already exists by name+brand
-        const existing = findExisting(row.name, row.brand);
+        const existing = findExisting(row.name, row.brand, row.catalogName);
         if (existing) {
             log(`"${row.name}" ya existe (ID ${existing.id}), actualizando...`, 'info');
         } else {

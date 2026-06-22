@@ -80,7 +80,7 @@ async function loadAndDetect() {
 
         const groups = {};
         for (const p of products) {
-            const key = (p.name || '').trim().toLowerCase() + '|' + (p.brand || '').trim().toLowerCase();
+            const key = (p.name || '').trim().toLowerCase() + '|' + (p.brand || '').trim().toLowerCase() + '|' + (p.catalog_name || '').trim().toLowerCase();
             if (!groups[key]) groups[key] = [];
             groups[key].push(p);
         }
