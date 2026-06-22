@@ -107,8 +107,7 @@ function openSalidaDetail(id) {
     const s = posSalidas.find(x=>x.id===id);
     if (!s) return;
     const el = document.getElementById('returnSalidaItems');
-    const elSale = document.getElementById('directSaleItems');
-    if (!el || !elSale) return;
+    if (!el) return;
     const isActive = s.status !== 'closed';
     el.innerHTML = s.items.map(it => {
         const prod = posProducts.find(p=>p.id===it.productId) || { name: 'Producto' };
@@ -129,24 +128,6 @@ function openSalidaDetail(id) {
             </div>
         </div>`;
     }).join('');
-    elSale.innerHTML = s.items.map(it => {
-        const prod = posProducts.find(p=>p.id===it.productId) || { name: 'Producto', price: 0 };
-        const available = Math.max(0, it.sentQty - it.soldQty - it.returnedQty);
-        return `<div style="background:#f9fafb;border:1px solid var(--border);border-radius:6px;padding:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-                <div><strong>${prod.name}</strong><br><small style="color:var(--text-muted);">$${(prod.price||0).toLocaleString()}</small></div>
-                <div style="text-align:right;font-size:12px;color:var(--text-muted);">
-                    <div>Enviados: <strong>${it.sentQty}</strong></div>
-                    <div>Vendidos: <strong style="color:#16a34a;">${it.soldQty}</strong></div>
-                    <div>Disponible: <strong style="color:#2563eb;">${available}</strong></div>
-                </div>
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
-                <label style="font-size:12px;flex:1;">¿Cuántos vendidos?</label>
-                <input type="number" min="0" max="${available}" value="0" data-prod="${it.productId}" data-price="${prod.price||0}" class="sale-qty-input" onchange="calcDirectSaleTotal()" oninput="calcDirectSaleTotal()" style="width:80px;padding:6px 8px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:center;">
-            </div>
-        </div>`;
-    }).join('');
     (document.getElementById('returnSalidaModal')||{}).style.display = 'flex';
     (document.getElementById('returnSalidaModal')||{}).classList.add('open');
     document.getElementById('returnSalidaModal').dataset.salidaId = id;
@@ -162,30 +143,13 @@ function switchSalidaTab(tab) {
         b.style.color = b.dataset.stab === tab ? 'var(--primary)' : 'var(--text-muted)';
     });
     document.getElementById('salidaTabDevolver').style.display = tab === 'devolver' ? '' : 'none';
-    document.getElementById('salidaTabVender').style.display = tab === 'vender' ? '' : 'none';
     updateSalidaModalButtons(document.getElementById('returnSalidaModal').dataset.status);
-    if (tab === 'vender') calcDirectSaleTotal();
 }
 
 function updateSalidaModalButtons(status) {
     const isOpen = status !== 'closed';
-    const activeTab = document.querySelector('.salida-tab.active');
-    const tab = activeTab ? activeTab.dataset.stab : 'devolver';
-    const btnSave = document.getElementById('salidaModalSaveBtn');
     const btnReturn = document.getElementById('salidaModalReturnBtn');
-    if (btnSave) btnSave.style.display = (isOpen && tab === 'vender') ? '' : 'none';
-    if (btnReturn) btnReturn.style.display = (isOpen && tab === 'devolver') ? '' : 'none';
-}
-
-function calcDirectSaleTotal() {
-    let total = 0;
-    document.querySelectorAll('#directSaleItems .sale-qty-input').forEach(inp => {
-        const qty = parseInt(inp.value) || 0;
-        const price = parseFloat(inp.dataset.price) || 0;
-        total += qty * price;
-    });
-    const el = document.getElementById('directSaleTotal');
-    if (el) el.textContent = '$' + total.toLocaleString();
+    if (btnReturn) btnReturn.style.display = isOpen ? '' : 'none';
 }
 
 function closeReturnSalidaModal() {
@@ -218,65 +182,6 @@ function saveReturnSalida() {
     if (!any) { showToast('Ingresa cantidades a devolver'); return; }
     if (s.items.every(i=>i.sentQty <= (i.soldQty + i.returnedQty))) s.status = 'closed';
     saveSalidas(); saveProducts(); saveInvLog(); renderSalidas(); renderInventory(); closeReturnSalidaModal(); showToast('Devolucion registrada');
-}
-
-function saveDirectSale() {
-    const m = document.getElementById('returnSalidaModal');
-    if (!m) return;
-    const id = parseInt(m.dataset.salidaId);
-    const s = posSalidas.find(x=>x.id===id);
-    if (!s) return;
-    const inputs = Array.from(document.querySelectorAll('#directSaleItems .sale-qty-input'));
-    const payKey = document.getElementById('directSalePayMethod').value;
-    const methods = { efectivo:'Efectivo', nequi:'Nequi', daviplata:'Daviplata', transferencia:'Transferencia', datafono:'Datafono', bolt:'Bolt', credito:'Credito' };
-    let any = false;
-    const saleItems = [];
-    let subtotal = 0;
-    inputs.forEach(inp => {
-        const prodId = inp.dataset.prod;
-        const v = parseInt(inp.value) || 0;
-        if (v <= 0) return;
-        any = true;
-        const it = s.items.find(i => i.productId === prodId);
-        if (!it) return;
-        const available = Math.max(0, it.sentQty - it.soldQty - it.returnedQty);
-        const toSell = Math.min(available, v);
-        if (toSell > 0) {
-            s._synced = false;
-            it.soldQty += toSell;
-            const prod = posProducts.find(p => p.id === prodId);
-            if (prod) {
-                subtotal += (prod.price || 0) * toSell;
-                saleItems.push({ id: prodId, name: prod.name, qty: toSell, price: prod.price });
-            }
-        }
-    });
-    if (!any) { showToast('Ingresa cantidades vendidas'); return; }
-    const total = subtotal;
-    const sale = {
-        id: posNextSaleId++,
-        date: now(),
-        items: saleItems,
-        subtotal,
-        excedente: 0,
-        total,
-        method: methods[payKey] || 'Efectivo',
-        methodKey: payKey,
-        customer: 'Salida #' + s.id + ' - ' + s.userName,
-        customerId: '',
-        creditInfo: payKey === 'credito' ? { tipo: 'abono', totalCuotas: 0, cuotaValor: 0, pagadas: 0, payments: [], balance: total } : null,
-        ventaPorFuera: true
-    };
-    posSales.push(sale);
-    if (s.items.every(i => i.sentQty <= (i.soldQty + i.returnedQty))) s.status = 'closed';
-    saveSalidas();
-    saveSales();
-    renderSalidas();
-    renderOrders();
-    renderSalesTable();
-    closeReturnSalidaModal();
-    showReceipt(sale);
-    showToast('Venta #' + sale.id + ' registrada: ' + formatPrice(total));
 }
 
 function loadSalidaToTpv() {
