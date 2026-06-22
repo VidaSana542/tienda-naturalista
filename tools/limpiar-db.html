@@ -124,9 +124,15 @@ async function loadCounts() {
   counts = {};
   for (const t of TABLES) {
     try {
-      const { count, error } = await sb.from(t.key).select('*', { count: 'exact', head: true });
-      counts[t.key] = error ? -1 : (count || 0);
+      const { data, error, count } = await sb.from(t.key).select('id', { count: 'exact' });
+      if (error) {
+        console.error(t.key, error);
+        counts[t.key] = -1;
+      } else {
+        counts[t.key] = count || 0;
+      }
     } catch(e) {
+      console.error(t.key, e);
       counts[t.key] = -1;
     }
   }
