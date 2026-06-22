@@ -137,7 +137,10 @@ async function loadExistingProducts() {
     try {
         await API.check();
         if (!API.isAvailable) return;
-        _existingProducts = await API.getProducts();
+        // Load ALL products including inactive ones to avoid re-creating deactivated products
+        const { data, error } = await _sb.from('products').select('*');
+        if (error) throw error;
+        _existingProducts = data || [];
         _existingLoaded = true;
     } catch(e) {
         console.error('Error cargando productos existentes:', e);
@@ -285,13 +288,18 @@ async function saveRow(rowId) {
     if (!row.name.trim()) { log(`"${row.fileName}": nombre requerido`, 'err'); return; }
 
     try {
-        // Check if product already exists by name+brand
+        // Check if product already exists by name+brand+catalogName
         const existing = findExisting(row.name, row.brand, row.catalogName);
         if (existing) {
-            log(`"${row.name}" ya existe (ID ${existing.id}), actualizando...`, 'info');
-        } else {
-            log(`Subiendo "${row.name}" como nuevo...`, 'info');
+            row.saved = true;
+            row.imgUrl = existing.img || '';
+            renderTable();
+            updateCounts();
+            log(`  - "${row.name}" ya existe (#${existing.id}), saltando`, 'ok');
+            return;
         }
+
+        log(`Subiendo "${row.name}" como nuevo...`, 'info');
 
         // Upload image
         const ext = row.file.name.split('.').pop();
@@ -301,33 +309,24 @@ async function saveRow(rowId) {
         const { data: urlData } = _sb.storage.from('product-images').getPublicUrl(filename);
         const imgUrl = urlData.publicUrl;
 
-        // Save product (with existing ID if found)
-        const payload = {
+        // Save new product
+        await API.saveProduct({
             name: row.name.trim(),
             catalog_name: row.catalogName.trim() || row.name.trim(),
             brand: row.brand.trim() || '',
             category: row.category,
             subcategory: row.subcategory,
-            price: existing ? parseFloat(existing.price) || 0 : 0,
-            stock: existing ? parseInt(existing.stock) || 0 : 0,
+            price: 0,
+            stock: 0,
             img: imgUrl,
             visible: true
-        };
-        if (existing) payload.id = existing.id;
-        await API.saveProduct(payload);
-
-        // Update local cache
-        if (existing) {
-            Object.assign(existing, payload);
-        } else {
-            _existingProducts.push(payload);
-        }
+        });
 
         row.saved = true;
         row.imgUrl = imgUrl;
         renderTable();
         updateCounts();
-        log(`  ✓ "${row.name}" ${existing ? 'actualizado' : 'creado'} con foto`, 'ok');
+        log(`  ✓ "${row.name}" creado con foto`, 'ok');
     } catch (e) {
         row.error = e.message;
         renderTable();
