@@ -158,16 +158,50 @@ function normalize(s) {
     return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
-// ---- Pureba OCR ----
+// ---- OCR con redimension y manejo de workers ----
+function resizeImageForOCR(file, maxDim) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            let w = img.width, h = img.height;
+            if (w > maxDim || h > maxDim) {
+                const ratio = Math.min(maxDim / w, maxDim / h);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            canvas.toBlob(blob => {
+                resolve(blob);
+            }, 'image/jpeg', 0.85);
+        };
+        img.onerror = () => resolve(file);
+        img.src = URL.createObjectURL(file);
+    });
+}
+
 async function runOCR(file) {
+    let worker = null;
     try {
-        const { data: { text } } = await Tesseract.recognize(file, 'spa', {
-            logger: m => { if (m.status === 'recognizing text') updateOcrStatus(file.name, Math.round(m.progress * 100)); }
+        const resized = await resizeImageForOCR(file, 1000);
+        worker = await Tesseract.createWorker('spa', 1, {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    updateOcrStatus(file.name, Math.round(m.progress * 100));
+                }
+            }
         });
+        const { data: { text } } = await worker.recognize(resized);
         return text;
     } catch (e) {
         console.error('OCR error:', e);
         return '';
+    } finally {
+        if (worker) {
+            try { await worker.terminate(); } catch(_) {}
+        }
     }
 }
 
@@ -326,24 +360,33 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
     renderTable();
     updateCounts();
 
-    // Run OCR on each file sequentially
-    for (const row of _rows.slice().filter(r => !r.ocrDone && !r.saved)) {
-        log(`OCR: ${row.fileName}...`, 'info');
-        const text = await runOCR(row.file);
-        row.ocrText = text;
-        row.ocrDone = true;
-        row.ocrProgress = 100;
+    // Run OCR on each file one at a time to avoid memory issues
+    const pending = _rows.filter(r => !r.ocrDone && !r.saved);
+    for (const row of pending) {
+        try {
+            log(`OCR: ${row.fileName}...`, 'info');
+            const text = await runOCR(row.file);
+            row.ocrText = text;
+            row.ocrDone = true;
+            row.ocrProgress = 100;
 
-        // Parse the OCR text
-        const parsed = parseOcrText(text);
-        row.name = parsed.name;
-        row.brand = parsed.brand;
-        row.category = parsed.category;
-        row.subcategory = parsed.subcategory;
+            const parsed = parseOcrText(text);
+            row.name = parsed.name;
+            row.brand = parsed.brand;
+            row.category = parsed.category;
+            row.subcategory = parsed.subcategory;
 
-        renderTable();
-        updateCounts();
-        log(`  OCR: "${text.substring(0, 120)}" → "${parsed.name}" (${parsed.brand}) [${parsed.category} / ${parsed.subcategory}]`, 'ok');
+            renderTable();
+            updateCounts();
+            log(`  ✓ "${text.substring(0, 120).replace(/\n/g, ' ')}" → "${parsed.name}"`, 'ok');
+        } catch (e) {
+            row.ocrDone = true;
+            row.error = 'OCR falló: ' + e.message;
+            log(`  ✗ ${row.fileName}: ${e.message}`, 'err');
+            renderTable();
+        }
+        // Pequeña pausa para liberar memoria
+        await new Promise(r => setTimeout(r, 500));
     }
 
     log('OCR completado. Revisa y edita antes de guardar.', 'info');
