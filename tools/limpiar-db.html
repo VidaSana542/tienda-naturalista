@@ -145,11 +145,12 @@ function renderCounts() {
   let html = '<table><thead><tr><th>Tabla</th><th>Registros</th><th>Nota</th></tr></thead><tbody>';
   for (const t of TABLES) {
     const c = counts[t.key];
-    const cls = c === -1 ? 'count-zero' : c === 0 ? 'count-zero' : c > 100 ? 'count-danger' : 'count-ok';
-    const display = c === -1 ? 'Error' : c.toLocaleString('es-CO');
+    const cls = c === -1 ? 'count-warn' : c === 0 ? 'count-zero' : c > 100 ? 'count-danger' : 'count-ok';
+    const display = c === -1 ? 'Error (ver consola)' : c.toLocaleString('es-CO');
     html += '<tr><td>' + t.label + '</td><td class="count ' + cls + '">' + display + '</td><td style="color:#666;font-size:12px;">' + (t.note || '') + '</td></tr>';
   }
   html += '</tbody></table>';
+  html += '<p style="font-size:11px;color:#555;margin-top:8px;">* Si dice "Error", abre la consola (F12) para ver el detalle</p>';
   el.innerHTML = html;
 }
 
