@@ -63,11 +63,14 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
     document.getElementById('statusText').textContent = 'Cargando productos de la BD...';
 
     try {
-        await API.check();
-        if (API.isAvailable) {
-            _bdProducts = await API.getProducts();
-        }
-    } catch(_) {}
+        if (!_sb) { document.getElementById('output').innerHTML = '<p style="color:red;">Error: Supabase no conectado</p>'; return; }
+        const { data, error } = await _sb.from('products').select('*').order('name');
+        if (error) throw error;
+        _bdProducts = data || [];
+    } catch(_) {
+        document.getElementById('output').innerHTML = '<p style="color:red;">Error cargando productos</p>';
+        return;
+    }
 
     const rows = files.map(f => {
         const p = parseNombre(f.name);
