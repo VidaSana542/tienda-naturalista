@@ -1688,7 +1688,7 @@ function showCustomerHistory(custId) {
     } else {
         const contadoSales = sales.filter(s => !s.creditInfo).sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0));
         if (contadoSales.length > 0) {
-            html += '<div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text-muted);">Compras de contado (' + contadoSales.length + ')</div>';
+            html += '<details open style="margin-bottom:12px;"><summary style="font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;user-select:none;padding:4px 0;">Compras de contado (' + contadoSales.length + ')</summary>';
             contadoSales.forEach(s => {
                 const qty = s.items.reduce((sum, i) => sum + i.qty, 0);
                 html += '<div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--bg);border-radius:6px;margin-bottom:4px;font-size:13px;">';
@@ -1696,9 +1696,10 @@ function showCustomerHistory(custId) {
                 html += '<span>' + qty + ' prod \u00b7 ' + formatPrice(s.total) + ' \u00b7 <span style="color:var(--success);">Pagado</span></span>';
                 html += '</div>';
             });
+            html += '</details>';
         }
         if (creditSales.length > 0) {
-            html += '<div style="font-size:13px;font-weight:600;margin:12px 0 8px;color:var(--text-muted);">Creditos y Cuentas de Cobro (' + creditSales.length + ')</div>';
+            html += '<details open style="margin-bottom:12px;"><summary style="font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;user-select:none;padding:4px 0;">Creditos y Cuentas de Cobro (' + creditSales.length + ')</summary>';
             creditSales.sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0)).forEach(s => {
                 let isPaid = false;
                 let pending = 0;
@@ -1753,6 +1754,7 @@ function showCustomerHistory(custId) {
                 }
                 html += '</div></div>';
             });
+            html += '</details>';
         }
         // Merge action bar
         const unpaidCount = creditSales.filter(s => {
