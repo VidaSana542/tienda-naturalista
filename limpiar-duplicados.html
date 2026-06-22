@@ -98,25 +98,15 @@ async function loadAndDetect() {
             if (items.length <= 1) continue;
             dupCount++;
 
-            // Sort by score descending, keep the best one
+            // Sort by score descending, best first
             items.sort((a, b) => score(b) - score(a));
-            const keeper = items[0];
 
             _groups.push({
                 key,
-                name: keeper.name,
-                brand: keeper.brand || '',
-                items: items.map((p, i) => ({
-                    ...p,
-                    isKeeper: i === 0,
-                    isDuplicate: i > 0
-                }))
+                name: items[0].name,
+                brand: items[0].brand || '',
+                items: items.map(p => ({ ...p, selected: false }))
             });
-
-            // Mark all but the keeper for deletion
-            for (let i = 1; i < items.length; i++) {
-                _toDelete.push(items[i].id);
-            }
         }
 
         if (dupCount === 0) {
@@ -142,9 +132,12 @@ function renderTable() {
         return;
     }
 
-    let html = `<p style="margin:8px 0;font-weight:600;">${_toDelete.length} productos marcados para eliminar</p>`;
+    let selectedCount = 0;
+    _groups.forEach(g => g.items.forEach(i => { if (i.selected) selectedCount++; }));
+    let html = `<p style="margin:8px 0;font-weight:600;">${selectedCount} seleccionados para eliminar</p>`;
     html += `<div style="overflow-x:auto;"><table>
         <thead><tr>
+            <th style="width:40px;"><input type="checkbox" id="checkAll" onchange="toggleAll(this.checked)"></th>
             <th style="width:40px;">Foto</th>
             <th>Nombre</th>
             <th>Marca</th>
@@ -152,15 +145,14 @@ function renderTable() {
             <th>Stock</th>
             <th>Subcat</th>
             <th>Score</th>
-            <th style="width:70px;">Acción</th>
         </tr></thead><tbody>`;
 
     for (const group of _groups) {
-        const firstRow = group.items.find(i => i.isKeeper);
-        html += `<tr style="background:#e8f5e9;font-weight:600;"><td colspan="8">${escHtml(group.name)}${group.brand ? ' — ' + escHtml(group.brand) : ''} (${group.items.length} copias)</td></tr>`;
+        html += `<tr style="background:#e8f5e9;font-weight:600;"><td colspan="8">${escHtml(group.name)}${group.brand ? ' — ' + escHtml(group.brand) : ''} (${group.items.length} copias) <span style="font-weight:normal;font-size:11px;color:#666;">— Conserva el de mayor score</span></td></tr>`;
         for (const item of group.items) {
-            const cls = item.isKeeper ? 'keep' : 'delete';
-            html += `<tr class="${cls}">
+            const checked = item.selected ? 'checked' : '';
+            html += `<tr class="${item.selected ? 'delete' : ''}">
+                <td><input type="checkbox" ${checked} onchange="toggleItem(${item.id}, this.checked)"></td>
                 <td>${item.img && !item.img.startsWith('/uploads/') ? `<img class="preview" src="${item.img}" alt="">` : '<span style="color:#ccc;">—</span>'}</td>
                 <td>#${item.id} ${escHtml(item.name)}</td>
                 <td>${escHtml(item.brand || '')}</td>
@@ -168,7 +160,6 @@ function renderTable() {
                 <td>${parseInt(item.stock) || 0}</td>
                 <td>${escHtml(item.subcategory || '')}</td>
                 <td>${score(item)}</td>
-                <td>${item.isKeeper ? '<span class="badge badge-keep">CONSERVAR</span>' : '<span class="badge badge-del">ELIMINAR</span>'}</td>
             </tr>`;
         }
     }
@@ -177,29 +168,50 @@ function renderTable() {
     container.innerHTML = html;
 }
 
+function getSelectedIds() {
+    const ids = [];
+    _groups.forEach(g => g.items.forEach(i => { if (i.selected) ids.push(i.id); }));
+    return ids;
+}
+
+function toggleAll(checked) {
+    _groups.forEach(g => g.items.forEach(i => { i.selected = checked; }));
+    renderTable();
+    updateCounts();
+}
+
+function toggleItem(id, checked) {
+    for (const g of _groups) {
+        const item = g.items.find(i => i.id === id);
+        if (item) { item.selected = checked; break; }
+    }
+    updateCounts();
+}
+
 function updateCounts() {
-    document.getElementById('countDisplay').textContent = `${_groups.length} grupos | ${_toDelete.length} para eliminar`;
-    document.getElementById('btnDelete').disabled = _toDelete.length === 0;
+    const sel = getSelectedIds();
+    document.getElementById('countDisplay').textContent = `${_groups.length} grupos | ${sel.length} seleccionados`;
+    document.getElementById('btnDelete').disabled = sel.length === 0;
 }
 
 async function deleteMarked() {
-    if (_toDelete.length === 0) return;
-    if (!confirm(`¿Eliminar ${_toDelete.length} productos duplicados? No se puede deshacer.`)) return;
+    const ids = getSelectedIds();
+    if (ids.length === 0) return;
+    if (!confirm(`¿Desactivar ${ids.length} productos? No se puede deshacer.`)) return;
 
     document.getElementById('btnDelete').disabled = true;
     document.getElementById('btnLoad').disabled = true;
 
-    // Delete in batches of 10 to avoid timeout
     const batchSize = 10;
     let ok = 0, err = 0;
 
-    for (let i = 0; i < _toDelete.length; i += batchSize) {
-        const batch = _toDelete.slice(i, i + batchSize);
+    for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
         try {
             const { error } = await _sb.from('products').update({ active: false }).in('id', batch);
             if (error) throw error;
             ok += batch.length;
-            log(`  ✓ Lote ${i + 1}-${Math.min(i + batchSize, _toDelete.length)}: ${batch.length} desactivados`, 'ok');
+            log(`  ✓ Lote ${i + 1}-${Math.min(i + batchSize, ids.length)}: ${batch.length} desactivados`, 'ok');
         } catch (e) {
             err += batch.length;
             log(`  ✗ Lote: ${e.message}`, 'err');
@@ -207,11 +219,9 @@ async function deleteMarked() {
     }
 
     log(`---\nTotal: ${ok} desactivados, ${err} errores`, err === 0 ? 'ok' : 'warn');
-    _toDelete = [];
     _groups = [];
+    renderTable();
     updateCounts();
-    document.getElementById('tableContainer').innerHTML = '<p style="color:#28a745;margin:12px 0;">✓ Duplicados eliminados. Vuelve a cargar para verificar.</p>';
-    document.getElementById('btnDelete').disabled = true;
     document.getElementById('btnLoad').disabled = false;
 }
 
