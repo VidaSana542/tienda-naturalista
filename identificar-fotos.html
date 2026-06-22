@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Identificar Productos desde Fotos</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="js/api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; padding: 20px; max-width: 900px; margin: auto; background: #f5f5f5; }
+h1 { margin-bottom: 16px; }
+.card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+.item { border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; background: #fafafa; }
+.item img { width: 100%; height: 140px; object-fit: cover; }
+.item-body { padding: 10px; font-size: 13px; }
+.item-body .name { font-weight: 600; }
+.item-body .match { color: #28a745; font-size: 11px; }
+.item-body .no-match { color: #dc3545; font-size: 11px; }
+.item-body .badge-id { color: #666; font-size: 10px; }
+.bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; }
+.btn-primary { background: #007bff; color: #fff; }
+.btn-primary:hover { background: #0056b3; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+#result { margin-top: 16px; font-family: monospace; font-size: 12px; line-height: 1.6; max-height: 250px; overflow-y: auto; }
+.log { padding: 2px 0; }
+.log-ok { color: #155724; }
+.log-err { color: #721c24; }
+.log-info { color: #004085; }
+.log-warn { color: #856404; }
+#countDisplay { color: #666; font-size: 14px; }
+</style>
+</head>
+<body>
+<h1>Identificar Productos desde Fotos</h1>
+<div class="card">
+    <p style="color:#555;margin-bottom:12px;">Sube las fotos y el sistema leerá el texto con OCR y buscará coincidencias en tu base de datos.</p>
+    <div class="bar">
+        <input type="file" id="fileInput" multiple accept="image/*" style="display:none;">
+        <button class="btn-primary" onclick="document.getElementById('fileInput').click()">Subir Fotos</button>
+        <span id="countDisplay"></span>
+    </div>
+    <div id="gridContainer"><p style="color:#999;margin:12px 0;">Sube fotos para identificar productos...</p></div>
+    <div id="result"></div>
+</div>
+<script>
+let _products = [];
+
+function normalize(s) {
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function matchProduct(text) {
+    const norm = normalize(text);
+    let best = null, bestScore = 0;
+    for (const p of _products) {
+        const pname = normalize(p.name);
+        const pbrand = normalize(p.brand || '');
+        let score = 0;
+        if (norm.includes(pname) || pname.includes(norm)) score += pname.length;
+        const words = norm.split(/\s+/);
+        const pwords = pname.split(/\s+/);
+        for (const w of words) {
+            if (w.length > 2 && pwords.some(pw => pw.includes(w) || w.includes(pw))) score += w.length;
+        }
+        if (pbrand && norm.includes(pbrand)) score += 3;
+        if (score > bestScore) { bestScore = score; best = p; }
+    }
+    return bestScore > 2 ? best : null;
+}
+
+async function init() {
+    await API.check();
+    if (!API.isAvailable) return;
+    _products = await API.getProducts();
+    document.getElementById('countDisplay').textContent = `${_products.length} productos en BD`;
+}
+
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    document.getElementById('result').innerHTML = '<div class="log-info">Procesando...</div>';
+
+    if (_products.length === 0) await init();
+
+    let matched = 0, unmatched = 0;
+    let html = '<div class="grid">';
+
+    for (const file of files) {
+        const url = URL.createObjectURL(file);
+        let text = '', product = null;
+
+        try {
+            if (typeof Tesseract !== 'undefined') {
+                const { data } = await Tesseract.recognize(file, 'spa');
+                text = data.text.trim();
+                product = matchProduct(text);
+            }
+        } catch(e) { text = ''; }
+
+        if (product) {
+            matched++;
+            html += `<div class="item">
+                <img src="${url}" alt="">
+                <div class="item-body">
+                    <div class="name">${escHtml(product.name)}</div>
+                    <div class="match">✓ Coincide</div>
+                    <div class="badge-id">#${product.id} | ${escHtml(product.brand || '')}</div>
+                </div>
+            </div>`;
+        } else {
+            unmatched++;
+            html += `<div class="item">
+                <img src="${url}" alt="">
+                <div class="item-body">
+                    <div class="name">${escHtml(file.name.replace(/\.[^.]+$/, ''))}</div>
+                    <div class="no-match">${text ? '✗ Sin coincidencia' : '✗ No se pudo leer'}</div>
+                    <div class="badge-id">${text ? escHtml(text.substring(0, 60)) : 'OCR no disponible'}</div>
+                </div>
+            </div>`;
+        }
+    }
+
+    html += '</div>';
+    document.getElementById('gridContainer').innerHTML = html;
+    document.getElementById('result').innerHTML = `<div class="${unmatched === 0 ? 'log-ok' : 'log-warn'}">${matched} identificados, ${unmatched} sin coincidencia</div>`;
+});
+
+function escHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
