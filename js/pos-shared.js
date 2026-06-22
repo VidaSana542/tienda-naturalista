@@ -1686,10 +1686,10 @@ function showCustomerHistory(custId) {
     if (sales.length === 0) {
         html += '<div class="empty-state" style="padding:40px;"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg><p>Sin compras registradas</p></div>';
     } else {
-        const contadoSales = sales.filter(s => !s.creditInfo);
+        const contadoSales = sales.filter(s => !s.creditInfo).sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0));
         if (contadoSales.length > 0) {
             html += '<div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text-muted);">Compras de contado (' + contadoSales.length + ')</div>';
-            contadoSales.slice(-3).reverse().forEach(s => {
+            contadoSales.forEach(s => {
                 const qty = s.items.reduce((sum, i) => sum + i.qty, 0);
                 html += '<div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--bg);border-radius:6px;margin-bottom:4px;font-size:13px;">';
                 html += '<span>#' + s.id + ' <span style="color:var(--text-muted);">' + shortDate(s.date) + '</span></span>';
@@ -1699,7 +1699,7 @@ function showCustomerHistory(custId) {
         }
         if (creditSales.length > 0) {
             html += '<div style="font-size:13px;font-weight:600;margin:12px 0 8px;color:var(--text-muted);">Creditos y Cuentas de Cobro (' + creditSales.length + ')</div>';
-            creditSales.slice().reverse().forEach(s => {
+            creditSales.sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0)).forEach(s => {
                 let isPaid = false;
                 let pending = 0;
                 let pagado = 0;

@@ -439,7 +439,7 @@ async function syncFromApi() {
                 // Merge payments: Supabase payments table is source of truth, but keep any local-only payments
                 if (ci) {
                     const supabasePayments = (s.payments || [])
-                        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
                         .map(p => ({ date: p.created_at, amount: p.amount }));
                     const localPayments = ci.payments || [];
                     // Find local payments not yet in Supabase (by checking amount + approximate time)

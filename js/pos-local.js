@@ -1312,7 +1312,7 @@ function renderAccountStatus() {
     if (q) customers = customers.filter(c => c.name.toLowerCase().includes(q) || c.phone.includes(q));
     if (filter === 'deuda') customers = customers.filter(c => getCustomerPending(c.id) > 0);
     else if (filter === 'aldia') customers = customers.filter(c => getCustomerPending(c.id) <= 0);
-    customers.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+    customers.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     if (customers.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">No hay clientes registrados</td></tr>';
         return;
