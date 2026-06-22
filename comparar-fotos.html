@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comparar Fotos vs Base de Datos</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="js/api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; padding: 20px; max-width: 900px; margin: auto; background: #f5f5f5; }
+h1 { margin-bottom: 16px; }
+.card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+button { padding: 10px 24px; border: none; border-radius: 6px; cursor: font-size: 15px; }
+button { cursor: pointer; }
+.btn-primary { background: #007bff; color: #fff; }
+.btn-primary { background: #007bff; color: #fff; }
+.btn-primary:hover { background: #0056b3; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #ddd; font-size: 13px; }
+th { background: #f8f9fa; }
+.bar { margin: 12px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.count { font-weight: 600; color: #555; margin: 8px 0; }
+.status-ok { color: #28a745; font-weight: 600; }
+.status-missing { color: #dc3545; font-weight: 600; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+.badge-existe { background: #d4edda; color: #155724; }
+.badge-falta { background: #f8d7da; color: #721c24; }
+</style>
+</head>
+<body>
+<h1>Comparar Fotos vs Base de Datos</h1>
+<div class="card">
+    <p style="color:#555;margin-bottom:12px;">Sube las fotos y te muestro cuáles productos existen en la BD y cuáles faltan.</p>
+    <div class="bar">
+        <input type="file" id="fileInput" multiple accept="image/*" style="display:none;">
+        <button class="btn-primary" onclick="document.getElementById('fileInput').click()">Subir Fotos</button>
+        <span id="statusText"></span>
+    </div>
+    <div id="output"></div>
+</div>
+<script>
+let _bdProducts = [];
+
+function normalize(s) {
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function parseNombre(name) {
+    let n = name.replace(/\.[^.]+$/, '').trim();
+    const parts = n.split('_').map(s => s.trim()).filter(s => s);
+    let pName = '', pBrand = '';
+    if (parts.length >= 2) { pName = parts[0]; pBrand = parts[1]; }
+    else { pName = parts[0] || n; }
+    return { name: pName, brand: pBrand };
+}
+
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    document.getElementById('statusText').textContent = 'Cargando productos de la BD...';
+
+    try {
+        await API.check();
+        if (API.isAvailable) {
+            _bdProducts = await API.getProducts();
+        }
+    } catch(_) {}
+
+    const rows = files.map(f => {
+        const p = parseNombre(f.name);
+        const norm = normalize(p.name);
+        let exists = false;
+        let match = null;
+        for (const bp of _bdProducts) {
+            if (normalize(bp.name) === norm ||
+                (p.brand && normalize(bp.brand || '') === normalize(p.brand) && normalize(bp.name).includes(norm)) ||
+                normalize(bp.name).includes(norm) || norm.includes(normalize(bp.name))) {
+                exists = true;
+                match = bp;
+                break;
+            }
+        }
+        return { file: f.name, name: p.name, brand: p.brand, exists, match };
+    });
+
+    const existentes = rows.filter(r => r.exists).length;
+    const faltantes = rows.filter(r => !r.exists).length;
+
+    let html = `<div class="count">${rows.length} archivos | <span class="status-ok">${existentes} existen</span> | <span class="status-missing">${faltantes} faltan</span></div>`;
+    html += `<div style="overflow-x:auto;"><table>
+        <thead><tr><th>Archivo</th><th>Nombre</th><th>Marca</th><th>Estado</th><th>ID en BD</th></tr></thead><tbody>`;
+    for (const r of rows) {
+        const badge = r.exists ? 'badge-existe' : 'badge-falta';
+        const label = r.exists ? '✓ Existe' : '✗ FALTA';
+        html += `<tr>
+            <td style="font-size:11px;word-break:break-all;">${escHtml(r.file)}</td>
+            <td>${escHtml(r.name)}</td>
+            <td>${escHtml(r.brand)}</td>
+            <td><span class="badge ${badge}">${label}</span></td>
+            <td>${r.match ? '#' + r.match.id : '-'}</td>
+        </tr>`;
+    }
+    html += '</tbody></table></div>';
+    document.getElementById('output').innerHTML = html;
+    document.getElementById('statusText').textContent = '';
+});
+
+function escHtml(s) { if (!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+</script>
+</body>
+</html>
