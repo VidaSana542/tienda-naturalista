@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OCR Productos - Asignar Fotos</title>
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="js/api.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -158,50 +158,58 @@ function normalize(s) {
     return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
-// ---- OCR con redimension y manejo de workers ----
+// ---- OCR con redimension ----
 function resizeImageForOCR(file, maxDim) {
     return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-            let w = img.width, h = img.height;
-            if (w > maxDim || h > maxDim) {
-                const ratio = Math.min(maxDim / w, maxDim / h);
-                w = Math.round(w * ratio);
-                h = Math.round(h * ratio);
-            }
-            const canvas = document.createElement('canvas');
-            canvas.width = w; canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, w, h);
-            canvas.toBlob(blob => {
-                resolve(blob);
-            }, 'image/jpeg', 0.85);
-        };
-        img.onerror = () => resolve(file);
-        img.src = URL.createObjectURL(file);
+        try {
+            const img = new Image();
+            const url = URL.createObjectURL(file);
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                let w = img.width, h = img.height;
+                if (w > maxDim || h > maxDim) {
+                    const ratio = Math.min(maxDim / w, maxDim / h);
+                    w = Math.round(w * ratio);
+                    h = Math.round(h * ratio);
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                canvas.toBlob(blob => resolve(blob || file), 'image/jpeg', 0.85);
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+            img.src = url;
+        } catch(e) { resolve(file); }
     });
 }
 
+function ocrLog(msg) {
+    const el = document.getElementById('result');
+    el.innerHTML += `<div class="log log-info">${msg}</div>`;
+}
+
 async function runOCR(file) {
-    let worker = null;
+    if (typeof Tesseract === 'undefined') {
+        ocrLog('Tesseract.js no disponible. Escribe los datos manualmente.');
+        return '';
+    }
+    ocrLog(`Preparando ${file.name}...`);
+    const resized = await resizeImageForOCR(file, 1000);
+    if (!resized) { ocrLog('Error al redimensionar'); return ''; }
+    ocrLog(`Redimensionado OK, iniciando OCR...`);
     try {
-        const resized = await resizeImageForOCR(file, 1000);
-        worker = await Tesseract.createWorker('spa', 1, {
-            logger: m => {
-                if (m.status === 'recognizing text') {
-                    updateOcrStatus(file.name, Math.round(m.progress * 100));
-                }
-            }
-        });
-        const { data: { text } } = await worker.recognize(resized);
+        const { data: { text } } = await Tesseract.recognize(
+            resized,
+            'spa',
+            { logger: m => { if (m.status === 'recognizing text') updateOcrStatus(file.name, Math.round(m.progress * 100)); } }
+        );
+        ocrLog(`OCR completado: "${text.substring(0, 100).replace(/\n/g, ' ')}"`);
         return text;
     } catch (e) {
         console.error('OCR error:', e);
+        ocrLog(`ERROR OCR: ${e.message}. Puedes escribir los datos manualmente.`);
         return '';
-    } finally {
-        if (worker) {
-            try { await worker.terminate(); } catch(_) {}
-        }
     }
 }
 
@@ -360,36 +368,40 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
     renderTable();
     updateCounts();
 
-    // Run OCR on each file one at a time to avoid memory issues
+    // Run OCR on each file one at a time
     const pending = _rows.filter(r => !r.ocrDone && !r.saved);
-    for (const row of pending) {
-        try {
-            log(`OCR: ${row.fileName}...`, 'info');
-            const text = await runOCR(row.file);
-            row.ocrText = text;
-            row.ocrDone = true;
-            row.ocrProgress = 100;
+    if (pending.length > 0) {
+        if (typeof Tesseract === 'undefined') {
+            log('⚠ Tesseract.js no se cargó. Puedes escribir los datos manualmente en la tabla.', 'warn');
+        } else {
+            for (const row of pending) {
+                try {
+                    const text = await runOCR(row.file);
+                    row.ocrText = text;
+                    row.ocrDone = true;
+                    row.ocrProgress = 100;
 
-            const parsed = parseOcrText(text);
-            row.name = parsed.name;
-            row.brand = parsed.brand;
-            row.category = parsed.category;
-            row.subcategory = parsed.subcategory;
+                    const parsed = parseOcrText(text);
+                    row.name = parsed.name;
+                    row.brand = parsed.brand;
+                    row.category = parsed.category;
+                    row.subcategory = parsed.subcategory;
 
-            renderTable();
-            updateCounts();
-            log(`  ✓ "${text.substring(0, 120).replace(/\n/g, ' ')}" → "${parsed.name}"`, 'ok');
-        } catch (e) {
-            row.ocrDone = true;
-            row.error = 'OCR falló: ' + e.message;
-            log(`  ✗ ${row.fileName}: ${e.message}`, 'err');
-            renderTable();
+                    renderTable();
+                    updateCounts();
+                    const snippet = text.substring(0, 100).replace(/\n/g, ' ');
+                    log(`  ✓ "${snippet}" → "${parsed.name}"`, 'ok');
+                } catch (e) {
+                    row.ocrDone = true;
+                    row.error = 'OCR falló';
+                    log(`  ✗ ${row.fileName}: ${e.message}`, 'err');
+                    renderTable();
+                }
+                await new Promise(r => setTimeout(r, 300));
+            }
         }
-        // Pequeña pausa para liberar memoria
-        await new Promise(r => setTimeout(r, 500));
     }
-
-    log('OCR completado. Revisa y edita antes de guardar.', 'info');
+    log('Revisa los datos en la tabla y edita si es necesario antes de guardar.', 'info');
 });
 
 function readFileAsDataURL(file) {
