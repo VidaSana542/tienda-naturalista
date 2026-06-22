@@ -4,9 +4,8 @@
     { "src": "/pos", "dest": "/pos.html" },
     { "src": "/tienda", "dest": "/tienda.html" },
     { "src": "/index", "dest": "/index.html" },
-    { "src": "/migrar", "dest": "/migrar.html" },
-    { "src": "/migrar-imagenes", "dest": "/migrar-imagenes.html" },
-    { "src": "/ver-datos", "dest": "/ver-datos.html" },
+    { "src": "/tools", "dest": "/tools/index.html" },
+    { "src": "/tools/(.+)", "dest": "/tools/$1" },
     { "src": "/(.+)\\.html", "dest": "/$1.html" },
     { "src": "/(.*)", "dest": "/$1" }
   ],

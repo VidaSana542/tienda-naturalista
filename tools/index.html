@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Herramientas - Vida Sana</title>
+    <link rel="icon" href="../icon-192.png">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:system-ui,-apple-system,sans-serif; background:#0a0a0a; color:#e0e0e0; min-height:100vh; }
+        .auth-overlay { position:fixed; inset:0; background:#0a0a0a; display:flex; align-items:center; justify-content:center; z-index:9999; }
+        .auth-box { background:#1a1a2e; border:1px solid #333; border-radius:16px; padding:40px; text-align:center; max-width:360px; width:90%; }
+        .auth-box h1 { font-size:24px; margin-bottom:8px; }
+        .auth-box p { color:#888; margin-bottom:24px; }
+        .auth-box input { width:100%; padding:12px 16px; font-size:18px; text-align:center; background:#0d0d1a; border:1px solid #333; border-radius:8px; color:#e0e0e0; letter-spacing:8px; outline:none; }
+        .auth-box input:focus { border-color:#6366f1; }
+        .auth-box button { margin-top:16px; padding:10px 32px; background:#6366f1; color:#fff; border:none; border-radius:8px; font-size:16px; cursor:pointer; }
+        .auth-box button:hover { background:#5558e6; }
+        .auth-error { color:#ef4444; margin-top:12px; display:none; }
+        .hidden { display:none !important; }
+        .container { max-width:800px; margin:0 auto; padding:32px 24px; }
+        h1 { font-size:28px; margin-bottom:8px; }
+        .subtitle { color:#888; margin-bottom:32px; }
+        .tools-grid { display:grid; gap:12px; }
+        .tool-card { background:#1a1a2e; border:1px solid #222; border-radius:12px; padding:20px; text-decoration:none; color:#e0e0e0; transition:all .15s; }
+        .tool-card:hover { border-color:#6366f1; transform:translateY(-2px); }
+        .tool-card h3 { font-size:16px; margin-bottom:4px; }
+        .tool-card p { font-size:13px; color:#888; }
+        .back-link { display:inline-block; margin-bottom:24px; color:#6366f1; text-decoration:none; font-size:14px; }
+        .back-link:hover { text-decoration:underline; }
+    </style>
+</head>
+<body>
+    <div class="auth-overlay" id="authOverlay">
+        <div class="auth-box">
+            <h1>Herramientas</h1>
+            <p>Ingresa el PIN para acceder</p>
+            <input type="password" id="pinInput" maxlength="10" placeholder="PIN" autofocus>
+            <button onclick="checkPin()">Entrar</button>
+            <div class="auth-error" id="authError">PIN incorrecto</div>
+        </div>
+    </div>
+
+    <div class="container hidden" id="mainContent">
+        <a href="../pos.html" class="back-link">&larr; Volver al POS</a>
+        <h1>Herramientas</h1>
+        <p class="subtitle">Utilidades de administracion y mantenimiento</p>
+        <div class="tools-grid">
+            <a href="ocr-productos.html" class="tool-card">
+                <h3>OCR Productos</h3>
+                <p>Subir fotos de productos y detectar datos con OCR</p>
+            </a>
+            <a href="importar-fotos.html" class="tool-card">
+                <h3>Importar desde Fotos</h3>
+                <p>Importar productos desde archivos de imagen por nombre de archivo</p>
+            </a>
+            <a href="identificar-fotos.html" class="tool-card">
+                <h3>Identificar Fotos</h3>
+                <p>Identificar productos existentes usando OCR</p>
+            </a>
+            <a href="comparar-fotos.html" class="tool-card">
+                <h3>Comparar Fotos vs DB</h3>
+                <p>Comparar fotos subidas contra productos en la base de datos</p>
+            </a>
+            <a href="limpiar-duplicados.html" class="tool-card">
+                <h3>Limpiar Duplicados</h3>
+                <p>Detectar y eliminar productos duplicados</p>
+            </a>
+            <a href="asignar_catalog_names.html" class="tool-card">
+                <h3>Asignar Catalog Names</h3>
+                <p>Auto-asignar nombre de catalogo a productos</p>
+            </a>
+            <a href="asignar_subcats.html" class="tool-card">
+                <h3>Asignar Subcategorias</h3>
+                <p>Auto-asignar subcategorias faltantes por palabras clave</p>
+            </a>
+            <a href="normalizar.html" class="tool-card">
+                <h3>Normalizar Datos</h3>
+                <p>Corregir categorias, subcategorias y duplicados en la BD</p>
+            </a>
+            <a href="recuperar-productos.html" class="tool-card">
+                <h3>Recuperar Productos</h3>
+                <p>Reactivar todos los productos desactivados</p>
+            </a>
+            <a href="ver-datos.html" class="tool-card">
+                <h3>Ver Datos</h3>
+                <p>Inspeccionar categorias y productos, reparar imagenes rotas</p>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const PIN = '542';
+        const SESSION_KEY = 'tools_auth';
+
+        if (sessionStorage.getItem(SESSION_KEY) === 'ok') {
+            document.getElementById('authOverlay').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+        }
+
+        document.getElementById('pinInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') checkPin();
+        });
+
+        function checkPin() {
+            const val = document.getElementById('pinInput').value;
+            if (val === PIN) {
+                sessionStorage.setItem(SESSION_KEY, 'ok');
+                document.getElementById('authOverlay').classList.add('hidden');
+                document.getElementById('mainContent').classList.remove('hidden');
+            } else {
+                document.getElementById('authError').style.display = 'block';
+                document.getElementById('pinInput').value = '';
+                document.getElementById('pinInput').focus();
+            }
+        }
+    </script>
+</body>
+</html>
