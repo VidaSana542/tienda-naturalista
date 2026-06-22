@@ -62,6 +62,8 @@ button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; 
 
 <script>
 let _rows = [];
+let _existingProducts = [];
+let _existingLoaded = false;
 
 const CAT_ALIAS = {
     'suplementos': 'suplementos',
@@ -131,12 +133,39 @@ function parseFilename(filename) {
     return { name: pName, brand: pBrand, category: pCat, subcategory: pSub, catalogName: pCatalog };
 }
 
+async function loadExistingProducts() {
+    try {
+        await API.check();
+        if (!API.isAvailable) return;
+        _existingProducts = await API.getProducts();
+        _existingLoaded = true;
+    } catch(e) {
+        console.error('Error cargando productos existentes:', e);
+    }
+}
+
+function findExisting(name, brand) {
+    const n = name.toLowerCase().trim();
+    const b = (brand || '').toLowerCase().trim();
+    return _existingProducts.find(p =>
+        p.name.toLowerCase().trim() === n &&
+        (!b || (p.brand || '').toLowerCase().trim() === b)
+    );
+}
+
 // ---- File handling ----
 document.getElementById('fileInput').addEventListener('change', async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
+    if (!_existingLoaded) await loadExistingProducts();
+
     for (const file of files) {
+        // Skip if same filename already added in this session
+        if (_rows.some(r => r.fileName === file.name && r.file.size === file.size)) {
+            log(`  Saltando duplicado: ${file.name}`, 'warn');
+            continue;
+        }
         const parsed = parseFilename(file.name);
         const row = {
             id: 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
@@ -249,7 +278,13 @@ async function saveRow(rowId) {
     if (!row.name.trim()) { log(`"${row.fileName}": nombre requerido`, 'err'); return; }
 
     try {
-        log(`Subiendo "${row.name}"...`, 'info');
+        // Check if product already exists by name+brand
+        const existing = findExisting(row.name, row.brand);
+        if (existing) {
+            log(`"${row.name}" ya existe (ID ${existing.id}), actualizando...`, 'info');
+        } else {
+            log(`Subiendo "${row.name}" como nuevo...`, 'info');
+        }
 
         // Upload image
         const ext = row.file.name.split('.').pop();
@@ -259,24 +294,33 @@ async function saveRow(rowId) {
         const { data: urlData } = _sb.storage.from('product-images').getPublicUrl(filename);
         const imgUrl = urlData.publicUrl;
 
-        // Save product
-        await API.saveProduct({
+        // Save product (with existing ID if found)
+        const payload = {
             name: row.name.trim(),
             catalog_name: row.catalogName.trim() || row.name.trim(),
             brand: row.brand.trim() || '',
             category: row.category,
             subcategory: row.subcategory,
-            price: 0,
-            stock: 0,
+            price: existing ? parseFloat(existing.price) || 0 : 0,
+            stock: existing ? parseInt(existing.stock) || 0 : 0,
             img: imgUrl,
             visible: true
-        });
+        };
+        if (existing) payload.id = existing.id;
+        await API.saveProduct(payload);
+
+        // Update local cache
+        if (existing) {
+            Object.assign(existing, payload);
+        } else {
+            _existingProducts.push(payload);
+        }
 
         row.saved = true;
         row.imgUrl = imgUrl;
         renderTable();
         updateCounts();
-        log(`  ✓ "${row.name}" guardado con foto`, 'ok');
+        log(`  ✓ "${row.name}" ${existing ? 'actualizado' : 'creado'} con foto`, 'ok');
     } catch (e) {
         row.error = e.message;
         renderTable();
