@@ -45,10 +45,10 @@ button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; 
 <div class="card">
     <div class="summary-box">
         <strong>Formato del nombre del archivo:</strong><br>
-        <code>NombreProducto_Marca_Categoria_Subcategoria_NombreTienda.jpg</code><br><br>
-        Ejemplo: <code>Colageno Hidrolizado_Natural Systems_suplementos_Colageno_Colageno Hidrolizado.jpg</code><br><br>
-        <strong>Categorias disponibles:</strong> suplementos, vitaminas, belleza_y_bienestar, salud_y_bienestar<br>
-        Si no reconoces la categoria, se asigna "suplementos" por defecto.
+        <code>NombreProducto_Marca_NombreTienda.jpg</code> (mínimo) o <code>NombreProducto_Marca_Categoria_Subcategoria_NombreTienda.jpg</code><br><br>
+        Si no incluyes categoría y subcategoría, el sistema las <strong>detecta automáticamente</strong> desde el nombre del producto usando palabras clave.<br>
+        Ejemplo: <code>Colageno Hidrolizado_Natural Systems_Colageno Hidrolizado.jpg</code> → detecta categoría "Belleza" y subcategoría "Colágeno"<br><br>
+        Si el producto ya existe (mismo nombre + marca + nombre tienda) se salta automáticamente.
     </div>
     <div class="bar">
         <input type="file" id="fileInput" multiple accept="image/*" style="display:none;">
@@ -85,35 +85,133 @@ const SUBCATS = {
     salud_y_bienestar: ['Caléndula','Desparasitante','Diabetes','Digestión','Gastritis y acidez','Hígado y Vesícula','Inflamación','Laxante','Limpieza intestinal','Omega','Pérdida de peso','Próstata','Rendimiento mental','Riñones y vías urinarias','Salud del sueño']
 };
 
+// Keywords para detectar subcategoria desde el nombre del producto
+const SUBCAT_KEYWORDS = {
+    'Colágeno': ['colageno','colágeno','colage','péptidos','peptidos'],
+    'Articulaciones': ['articulacion','articulación','xero fit','glucosamina'],
+    'Glucosamina': ['glucosamina'],
+    'Magnesio': ['magnesio','magnesium','ashwagandha','magpro','citrato de magnesio'],
+    'Calcio': ['calcio','calcium'],
+    'Zinc': ['zinc'],
+    'Biotina': ['biotina','biotin'],
+    'Vitamina A': ['vitamina a','retinol'],
+    'Vitamina C': ['vitamina c','ascórbico','ascorbico'],
+    'Vitamina E': ['vitamina e','tocoferol'],
+    'Vitaminas B': ['vitamina b','complejo b','niacinamide','methylcobalamin','vita fancesa','vita francesa'],
+    'Multivitamínicos': ['multivitamin','multi-vitamin'],
+    'Omega': ['omega','coenzyme','co-enzima'],
+    'Energía': ['energía','energia','energy','ginseng','guarana','shilajit','b-chotta','miletertos','g4','ghr','nerozi','biocros'],
+    'Potencia Masculina': ['potencia','masculina','testo','maca','horny','sex','macho','king','retardex','dura mas','mega','triple','aguaje'],
+    'Balance hormonal': ['hormonal','hormona','famel','freshlypausia','ovarmex','fenogreco'],
+    'Proteína': ['proteina','proteína','protein','whey','colmax','granulada'],
+    'Creatina': ['creatina'],
+    'Pérdida de peso': ['peso','dieta','quema','carnitina','tiraktira'],
+    'Salud sanguínea': ['sanguinea','sanguínea','hierro','iron','vitafer','ferrovi'],
+    'Sistema inmunológico': ['inmuno','defensas','equinacea','echinacea','propoleo','factor de transferencia'],
+    'Resveratrol': ['resveratrol'],
+    'Digestión': ['digest','alcachofa','vinagre','jengibre','oregano','curcuma','garlic'],
+    'Laxante': ['laxante','fibra','ciruelfort','lassacol','digestar','apetifort','chupa panza','higuerón','higueron','ricino','leche de higuer'],
+    'Desparasitante': ['desparasitante','antax'],
+    'Diabetes': ['diabetes','diab','diabetisan','pasuchaca'],
+    'Gastritis y acidez': ['gastritis','acidez','ulcera','ulsn'],
+    'Hígado y Vesícula': ['hígado','higado','vesícula','vesicula','cardo','milk thistle','silimarina','diente de león','diente de leon'],
+    'Inflamación': ['inflamación','inflam','antiinflam','jarabe totumo','pip3r4sin','remartrin','r-qmaz'],
+    'Rendimiento mental': ['mental','memoria','concentración','ginkgo','neuro-stress','memorex','sinhemorroidas','varizan','barrido arterial','venasfull'],
+    'Salud del sueño': ['sueño','sueno','melatonina','melatonin','moon dream'],
+    'Riñones y vías urinarias': ['riñon','riñones','uva ursi','renal','ortiga','zarzaparrilla','chanca piedra','cranberry','urovital','pipi loco','purgante'],
+    'Próstata': ['próstata','prostata','prostasan'],
+    'Limpieza intestinal': ['limpieza intestinal','limplus'],
+    'Caléndula': ['calendula','caléndula']
+};
+
+function normalize(s) {
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+function detectSubcategory(text) {
+    const lower = normalize(text);
+    let best = '', bestLen = 0;
+    for (const [sub, keywords] of Object.entries(SUBCAT_KEYWORDS)) {
+        for (const kw of keywords) {
+            const nkw = normalize(kw);
+            if (lower.includes(nkw) && nkw.length > bestLen) {
+                bestLen = nkw.length;
+                best = sub;
+            }
+        }
+    }
+    return best;
+}
+
+function detectCategory(subLabel, ocrText) {
+    if (subLabel) {
+        const matches = [];
+        for (const [cat, subs] of Object.entries(SUBCATS)) {
+            if (subs.includes(subLabel)) matches.push(cat);
+        }
+        if (matches.length === 1) return matches[0];
+        if (matches.length > 1) {
+            const lower = normalize(ocrText);
+            const catKeywords = {
+                vitaminas: ['vitamina','vitamin','magnesio','calcio','zinc','biotina','multivitamin'],
+                belleza_y_bienestar: ['colageno','colágeno','belleza','caléndula','calendula'],
+                salud_y_bienestar: ['digest','laxante','higado','riñon','diabetes','gastritis'],
+                suplementos: ['energía','energia','proteina','shilajit','maca','creatina','potencia']
+            };
+            let best = matches[0], bestScore = 0;
+            for (const m of matches) {
+                const kws = catKeywords[m] || [];
+                for (const kw of kws) {
+                    if (lower.includes(kw) && kw.length > bestScore) { bestScore = kw.length; best = m; }
+                }
+            }
+            return best;
+        }
+    }
+    // Fallback: detect from text keywords
+    const lower = normalize(ocrText);
+    const catKeywords = {
+        vitaminas: ['vitamina','vitamin','magnesio','calcio','zinc','biotina','omega','multivitamin'],
+        belleza_y_bienestar: ['colageno','colágeno','colage','belleza','caléndula','calendula'],
+        salud_y_bienestar: ['digestión','laxante','higado','riñon','diabetes','gastritis','prostata','articulacion'],
+        suplementos: ['energía','energia','proteina','shilajit','maca','creatina','potencia']
+    };
+    let best = 'suplementos', bestScore = 0;
+    for (const [cat, keywords] of Object.entries(catKeywords)) {
+        for (const kw of keywords) {
+            if (lower.includes(kw) && kw.length > bestScore) { bestScore = kw.length; best = cat; }
+        }
+    }
+    return best;
+}
+
 function parseFilename(filename) {
-    // Remove extension
     let name = filename.replace(/\.[^.]+$/, '').trim();
     if (!name) return { name: '', brand: '', category: 'suplementos', subcategory: '', catalogName: '' };
 
-    // Split by _
     const parts = name.split('_').map(s => s.trim()).filter(s => s.length > 0);
 
-    let pName = '', pBrand = '', pCat = 'suplementos', pSub = '', pCatalog = '';
+    let pName = '', pBrand = '', pCat = '', pSub = '', pCatalog = '';
 
     if (parts.length >= 5) {
         pName = parts[0];
         pBrand = parts[1];
         const catRaw = parts[2].toLowerCase().replace(/\s+/g, '_');
-        pCat = CAT_ALIAS[catRaw] || 'suplementos';
+        pCat = CAT_ALIAS[catRaw] || '';
         pSub = parts[3];
         pCatalog = parts.slice(4).join(' ');
     } else if (parts.length === 4) {
         pName = parts[0];
         pBrand = parts[1];
         const catRaw = parts[2].toLowerCase().replace(/\s+/g, '_');
-        pCat = CAT_ALIAS[catRaw] || 'suplementos';
+        pCat = CAT_ALIAS[catRaw] || '';
         pSub = parts[3];
         pCatalog = pName;
     } else if (parts.length === 3) {
         pName = parts[0];
         pBrand = parts[1];
         const catRaw = parts[2].toLowerCase().replace(/\s+/g, '_');
-        pCat = CAT_ALIAS[catRaw] || 'suplementos';
+        pCat = CAT_ALIAS[catRaw] || '';
         pCatalog = pName;
     } else if (parts.length === 2) {
         pName = parts[0];
@@ -124,10 +222,21 @@ function parseFilename(filename) {
         pCatalog = pName;
     }
 
+    // Auto-detect category/subcategory from product name if not provided
+    const detectFrom = pName + ' ' + pBrand;
+    if (!pCat || !pSub) {
+        const detectedSub = detectSubcategory(detectFrom);
+        if (!pSub && detectedSub) pSub = detectedSub;
+        if (!pCat) pCat = detectCategory(pSub, detectFrom);
+    }
+    if (!pCat) pCat = 'suplementos';
+
     // Validate subcategory belongs to category
     const validSubs = SUBCATS[pCat] || [];
     if (pSub && !validSubs.includes(pSub)) {
-        pSub = '';
+        // Try to find best match
+        const found = validSubs.find(s => normalize(s).includes(normalize(pSub)) || normalize(pSub).includes(normalize(s)));
+        pSub = found || '';
     }
 
     return { name: pName, brand: pBrand, category: pCat, subcategory: pSub, catalogName: pCatalog };
