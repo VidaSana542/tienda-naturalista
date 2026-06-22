@@ -703,9 +703,29 @@
                     </div>
                 </div>
             </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3>Historial de Caja</h3>
+                    <button class="btn btn-sm btn-outline" onclick="clearCashHistory()" style="font-size:12px;">Limpiar</button>
+                </div>
+                <div class="card-body">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fecha/Hora</th>
+                                    <th>Tipo</th>
+                                    <th>Descripcion</th>
+                                    <th>Monto</th>
+                                    <th>Saldo</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cashHistoryBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
-
-    </div>
 </div>
 
 <!-- Product Modal -->
