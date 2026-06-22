@@ -79,7 +79,7 @@ function renderSalidas() {
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">No hay salidas registradas</td></tr>';
             return;
         }
-        tbody.innerHTML = posSalidas.slice().reverse().map(s => {
+        tbody.innerHTML = posSalidas.slice().sort((a,b) => b.id - a.id).map(s => {
             const sent = s.items.reduce((a,i)=>a+i.sentQty,0);
             const sold = s.items.reduce((a,i)=>a+i.soldQty,0);
             const ret = s.items.reduce((a,i)=>a+i.returnedQty,0);
