@@ -1,8 +1,12 @@
 // ============ LOGIN ============
-const POS_USERS = [
-    { user: 'admin', pass: 'admin123', role: 'admin', name: 'Administrador' },
+const POS_USERS_DEFAULT = [
     { user: 'empleado', pass: 'emp123', role: 'empleado', name: 'Empleado' }
 ];
+function getPOSUsers() {
+    let registered = [];
+    try { registered = JSON.parse(localStorage.getItem('posRegisteredUsers')) || []; } catch(e) {}
+    return [...registered, ...POS_USERS_DEFAULT];
+}
 let currentUser = null;
 
 // ============ POS SCOPE (local / fuera) ============
@@ -51,7 +55,7 @@ function handleLogin(e) {
     e.preventDefault();
     const user = document.getElementById('loginUser').value.trim();
     const pass = document.getElementById('loginPass').value;
-    const found = POS_USERS.find(u => u.user === user && u.pass === pass);
+    const found = getPOSUsers().find(u => u.user === user && u.pass === pass);
     if (!found) {
         document.getElementById('loginError').textContent = 'Usuario o contrasena incorrectos';
         document.getElementById('loginError').style.display = 'block';

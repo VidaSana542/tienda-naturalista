@@ -2,6 +2,7 @@
   "builds": [],
   "routes": [
     { "src": "/pos", "dest": "/pos.html" },
+    { "src": "/register", "dest": "/register.html" },
     { "src": "/tienda", "dest": "/tienda.html" },
     { "src": "/index", "dest": "/index.html" },
     { "src": "/tools", "dest": "/tools/index.html" },

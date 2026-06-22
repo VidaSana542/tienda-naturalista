@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registrar Cuenta - Vida Sana</title>
+    <link rel="icon" href="icon-192.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .card { background: #1a1a2e; border: 1px solid #222; border-radius: 16px; padding: 40px; width: 90%; max-width: 420px; }
+        h1 { font-size: 24px; margin-bottom: 4px; text-align: center; }
+        .subtitle { color: #888; font-size: 14px; text-align: center; margin-bottom: 32px; }
+        .field { margin-bottom: 16px; }
+        label { display: block; font-size: 13px; color: #888; margin-bottom: 6px; }
+        input { width: 100%; padding: 12px 16px; background: #0d0d1a; border: 1px solid #333; border-radius: 8px; color: #e0e0e0; font-size: 15px; outline: none; transition: border-color .15s; }
+        input:focus { border-color: #6366f1; }
+        .error { color: #ef4444; font-size: 13px; margin-top: 8px; display: none; text-align: center; }
+        .success { color: #22c55e; font-size: 13px; margin-top: 8px; display: none; text-align: center; }
+        .btn { width: 100%; padding: 12px; background: #6366f1; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 16px; transition: background .15s; }
+        .btn:hover { background: #5558e6; }
+        .btn:disabled { background: #475569; cursor: not-allowed; }
+        .links { text-align: center; margin-top: 20px; font-size: 13px; color: #888; }
+        .links a { color: #6366f1; text-decoration: none; }
+        .links a:hover { text-decoration: underline; }
+        .logo { text-align: center; margin-bottom: 24px; }
+        .logo img { width: 64px; height: 64px; border-radius: 16px; }
+        .hint { font-size: 12px; color: #555; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo">
+            <img src="LOGO.jpeg" alt="Vida Sana" onerror="this.style.display='none'">
+        </div>
+        <h1>Crear Cuenta</h1>
+        <p class="subtitle">Registra tu cuenta de administrador</p>
+
+        <form id="registerForm" onsubmit="handleRegister(event)">
+            <div class="field">
+                <label>Nombre completo</label>
+                <input type="text" id="regName" placeholder="Tu nombre" required>
+            </div>
+            <div class="field">
+                <label>Usuario</label>
+                <input type="text" id="regUser" placeholder="ej: admin" required autocomplete="off">
+            </div>
+            <div class="field">
+                <label>Contrasena</label>
+                <input type="password" id="regPass" placeholder="Minimo 4 caracteres" required minlength="4">
+            </div>
+            <div class="field">
+                <label>Confirmar contrasena</label>
+                <input type="password" id="regPass2" placeholder="Repite la contrasena" required>
+            </div>
+            <div class="error" id="regError"></div>
+            <div class="success" id="regSuccess"></div>
+            <button type="submit" class="btn" id="regBtn">Registrarse</button>
+        </form>
+
+        <div class="links">
+            Ya tienes cuenta? <a href="pos.html">Iniciar sesion</a>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'posRegisteredUsers';
+
+        function getUsers() {
+            try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { return []; }
+        }
+
+        function saveUsers(users) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('regName').value.trim();
+            const user = document.getElementById('regUser').value.trim();
+            const pass = document.getElementById('regPass').value;
+            const pass2 = document.getElementById('regPass2').value;
+            const errEl = document.getElementById('regError');
+            const okEl = document.getElementById('regSuccess');
+
+            errEl.style.display = 'none';
+            okEl.style.display = 'none';
+
+            if (!name || !user || !pass) {
+                errEl.textContent = 'Todos los campos son obligatorios';
+                errEl.style.display = 'block';
+                return;
+            }
+            if (pass.length < 4) {
+                errEl.textContent = 'La contrasena debe tener minimo 4 caracteres';
+                errEl.style.display = 'block';
+                return;
+            }
+            if (pass !== pass2) {
+                errEl.textContent = 'Las contrasenas no coinciden';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            const users = getUsers();
+
+            if (users.find(u => u.user === user)) {
+                errEl.textContent = 'Este usuario ya esta registrado';
+                errEl.style.display = 'block';
+                return;
+            }
+
+            const newUser = { user, pass, role: 'admin', name };
+            users.push(newUser);
+            saveUsers(users);
+
+            okEl.textContent = 'Cuenta creada! Redirigiendo al login...';
+            okEl.style.display = 'block';
+            document.getElementById('regBtn').disabled = true;
+
+            setTimeout(() => { window.location.href = 'pos.html'; }, 1500);
+        }
+    </script>
+</body>
+</html>
