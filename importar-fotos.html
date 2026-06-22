@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Importar Productos desde Fotos</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="js/api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; padding: 20px; max-width: 1200px; margin: auto; background: #f5f5f5; }
+h1 { margin-bottom: 20px; }
+.card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #ddd; font-size: 13px; vertical-align: middle; }
+th { background: #f8f9fa; font-weight: 600; }
+tr:hover { background: #f1f1f1; }
+img.preview { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
+input, select { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+input[type="text"] { width: 100%; }
+select { width: 100%; }
+button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; margin-right: 8px; margin-bottom: 8px; }
+.btn-primary { background: #007bff; color: #fff; }
+.btn-primary:hover { background: #0056b3; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-success { background: #28a745; color: #fff; }
+.btn-success:hover { background: #218838; }
+.btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
+.bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+#result { margin-top: 16px; font-family: monospace; font-size: 12px; line-height: 1.6; max-height: 300px; overflow-y: auto; }
+.log { padding: 2px 0; }
+.log-ok { color: #155724; }
+.log-err { color: #721c24; }
+.log-info { color: #004085; }
+.log-warn { color: #856404; }
+.summary-box { background: #e8f4f8; border-left: 4px solid #007bff; padding: 12px; margin: 10px 0; border-radius: 4px; font-size: 14px; }
+.status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.status-pending { background: #fff3cd; color: #856404; }
+.status-done { background: #d4edda; color: #155724; }
+.status-error { background: #f8d7da; color: #721c24; }
+</style>
+</head>
+<body>
+<h1>Importar Productos desde Fotos</h1>
+<div class="card">
+    <div class="summary-box">
+        <strong>Formato del nombre del archivo:</strong><br>
+        <code>NombreProducto_Marca_Categoria_Subcategoria_NombreTienda.jpg</code><br><br>
+        Ejemplo: <code>Colageno Hidrolizado_Natural Systems_suplementos_Colageno_Colageno Hidrolizado.jpg</code><br><br>
+        <strong>Categorias disponibles:</strong> suplementos, vitaminas, belleza_y_bienestar, salud_y_bienestar<br>
+        Si no reconoces la categoria, se asigna "suplementos" por defecto.
+    </div>
+    <div class="bar">
+        <input type="file" id="fileInput" multiple accept="image/*" style="display:none;">
+        <button class="btn-primary" onclick="document.getElementById('fileInput').click()">Seleccionar Fotos</button>
+        <button class="btn-success" id="btnSaveAll" onclick="saveAll()" disabled>Guardar Todos</button>
+        <span id="countDisplay" style="color:#666;font-size:14px;"></span>
+    </div>
+    <div id="tableContainer"><p style="color:#999;margin:12px 0;">Selecciona las fotos para comenzar...</p></div>
+    <div id="result"></div>
+</div>
+
+<script>
+let _rows = [];
+
+const CAT_ALIAS = {
+    'suplementos': 'suplementos',
+    'vitaminas': 'vitaminas',
+    'vitaminas y minerales': 'vitaminas',
+    'vitaminas_y_minerales': 'vitaminas',
+    'belleza': 'belleza_y_bienestar',
+    'belleza_y_bienestar': 'belleza_y_bienestar',
+    'salud': 'salud_y_bienestar',
+    'salud y bienestar': 'salud_y_bienestar',
+    'salud_y_bienestar': 'salud_y_bienestar'
+};
+const CAT_LABELS = { suplementos: 'Suplementos', vitaminas: 'Vitaminas y Minerales', belleza_y_bienestar: 'Belleza', salud_y_bienestar: 'Salud y Bienestar' };
+
+const SUBCATS = {
+    suplementos: ['Articulaciones','Balance hormonal','Creatina','Digestión','Energía','Glucosamina','Potencia Masculina','Proteína','Resveratrol','Salud sanguínea','Sistema inmunológico','Limpieza intestinal','Pérdida de peso'],
+    vitaminas: ['Biotina','Calcio','Complejo B','Magnesio','Multivitamínicos','Omega','Vitamina A','Vitamina C','Vitamina E','Vitaminas B','Zinc'],
+    belleza_y_bienestar: ['Articulaciones','Caléndula','Colágeno','Glucosamina','Resveratrol'],
+    salud_y_bienestar: ['Caléndula','Desparasitante','Diabetes','Digestión','Gastritis y acidez','Hígado y Vesícula','Inflamación','Laxante','Limpieza intestinal','Omega','Pérdida de peso','Próstata','Rendimiento mental','Riñones y vías urinarias','Salud del sueño']
+};
+
+function parseFilename(filename) {
+    // Remove extension
+    let name = filename.replace(/\.[^.]+$/, '').trim();
+    if (!name) return { name: '', brand: '', category: 'suplementos', subcategory: '', catalogName: '' };
+
+    // Split by _
+    const parts = name.split('_').map(s => s.trim()).filter(s => s.length > 0);
+
+    let pName = '', pBrand = '', pCat = 'suplementos', pSub = '', pCatalog = '';
+
+    if (parts.length >= 5) {
+        pName = parts[0];
+        pBrand = parts[1];
+        const catRaw = parts[2].toLowerCase().replace(/\s+/g, '_');
+        pCat = CAT_ALIAS[catRaw] || 'suplementos';
+        pSub = parts[3];
+        pCatalog = parts.slice(4).join(' ');
+    } else if (parts.length === 4) {
+        pName = parts[0];
+        pBrand = parts[1];
+        const catRaw = parts[2].toLowerCase().replace(/\s+/g, '_');
+        pCat = CAT_ALIAS[catRaw] || 'suplementos';
+        pSub = parts[3];
+        pCatalog = pName;
+    } else if (parts.length === 3) {
+        pName = parts[0];
+        pBrand = parts[1];
+        const catRaw = parts[2].toLowerCase().replace(/\s+/g, '_');
+        pCat = CAT_ALIAS[catRaw] || 'suplementos';
+        pCatalog = pName;
+    } else if (parts.length === 2) {
+        pName = parts[0];
+        pBrand = parts[1];
+        pCatalog = pName;
+    } else {
+        pName = parts[0];
+        pCatalog = pName;
+    }
+
+    // Validate subcategory belongs to category
+    const validSubs = SUBCATS[pCat] || [];
+    if (pSub && !validSubs.includes(pSub)) {
+        pSub = '';
+    }
+
+    return { name: pName, brand: pBrand, category: pCat, subcategory: pSub, catalogName: pCatalog };
+}
+
+// ---- File handling ----
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    for (const file of files) {
+        const parsed = parseFilename(file.name);
+        const row = {
+            id: 'r_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            file,
+            fileName: file.name,
+            dataUrl: '',
+            name: parsed.name,
+            brand: parsed.brand,
+            category: parsed.category,
+            subcategory: parsed.subcategory,
+            catalogName: parsed.catalogName,
+            saved: false,
+            error: '',
+            imgUrl: ''
+        };
+        try {
+            row.dataUrl = await readFileAsDataURL(file);
+        } catch (er) {
+            row.error = 'Error leyendo archivo';
+        }
+        _rows.push(row);
+    }
+
+    renderTable();
+    updateCounts();
+    for (const row of _rows.filter(r => !r.saved)) {
+        log(`  "${row.fileName}" → "${row.name}" (${row.brand}) [${row.category}/${row.subcategory}] catálogo: "${row.catalogName}"`, 'ok');
+    }
+    log(`Cargados ${_rows.length} archivos. Revisa y edita antes de guardar.`, 'info');
+});
+
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// ---- Render ----
+function renderTable() {
+    const container = document.getElementById('tableContainer');
+    if (_rows.length === 0) {
+        container.innerHTML = '<p style="color:#999;margin:12px 0;">Selecciona fotos para comenzar...</p>';
+        return;
+    }
+
+    let html = `<div style="overflow-x:auto;"><table>
+        <thead><tr>
+            <th style="width:60px;">Foto</th>
+            <th style="width:16%;">Nombre</th>
+            <th style="width:12%;">Marca</th>
+            <th style="width:13%;">Categoría</th>
+            <th style="width:16%;">Subcategoría</th>
+            <th style="width:16%;">Nombre Tienda</th>
+            <th style="width:70px;">Estado</th>
+            <th style="width:50px;"></th>
+        </tr></thead>
+        <tbody>`;
+
+    for (const row of _rows) {
+        const statusClass = row.saved ? 'status-done' : row.error ? 'status-error' : 'status-pending';
+        const statusText = row.saved ? 'Guardado' : row.error ? 'Error' : 'Listo';
+
+        html += `<tr>
+            <td>${row.dataUrl ? `<img class="preview" src="${row.dataUrl}" alt="">` : '<span style="color:#999;">—</span>'}</td>
+            <td><input type="text" value="${escHtml(row.name)}" onchange="setField('${row.id}','name',this.value)" ${row.saved?'disabled':''}></td>
+            <td><input type="text" value="${escHtml(row.brand)}" onchange="setField('${row.id}','brand',this.value)" ${row.saved?'disabled':''}></td>
+            <td><select onchange="setField('${row.id}','category',this.value)" ${row.saved?'disabled':''}>
+                ${Object.keys(CAT_LABELS).map(k => `<option value="${k}" ${row.category===k?'selected':''}>${CAT_LABELS[k]}</option>`).join('')}
+            </select></td>
+            <td><select onchange="setField('${row.id}','subcategory',this.value)" ${row.saved?'disabled':''}>
+                <option value="">(ninguna)</option>
+                ${(SUBCATS[row.category]||[]).map(s => `<option value="${s}" ${row.subcategory===s?'selected':''}>${s}</option>`).join('')}
+            </select></td>
+            <td><input type="text" value="${escHtml(row.catalogName)}" onchange="setField('${row.id}','catalogName',this.value)" ${row.saved?'disabled':''}></td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td>${row.saved ? '' : `<button class="btn-success" style="padding:4px 12px;font-size:12px;" onclick="saveRow('${row.id}')">Guardar</button>`}</td>
+        </tr>`;
+    }
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function setField(rowId, field, value) {
+    const row = _rows.find(r => r.id === rowId);
+    if (!row || row.saved) return;
+    row[field] = value;
+    if (field === 'category') {
+        const validSubs = SUBCATS[value] || [];
+        if (!validSubs.includes(row.subcategory)) row.subcategory = '';
+        renderTable();
+    }
+}
+
+function updateCounts() {
+    const total = _rows.length;
+    const saved = _rows.filter(r => r.saved).length;
+    const pending = _rows.filter(r => !r.saved).length;
+    document.getElementById('countDisplay').textContent = `${total} archivos | ${saved} guardados | ${pending} pendientes`;
+    document.getElementById('btnSaveAll').disabled = pending === 0;
+}
+
+// ---- Save ----
+async function saveRow(rowId) {
+    const row = _rows.find(r => r.id === rowId);
+    if (!row || row.saved) return;
+    if (!row.name.trim()) { log(`"${row.fileName}": nombre requerido`, 'err'); return; }
+
+    try {
+        log(`Subiendo "${row.name}"...`, 'info');
+
+        // Upload image
+        const ext = row.file.name.split('.').pop();
+        const filename = 'products/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+        const { error: upErr } = await _sb.storage.from('product-images').upload(filename, row.file, { cacheControl: '3600', upsert: true });
+        if (upErr) throw upErr;
+        const { data: urlData } = _sb.storage.from('product-images').getPublicUrl(filename);
+        const imgUrl = urlData.publicUrl;
+
+        // Save product
+        await API.saveProduct({
+            name: row.name.trim(),
+            catalog_name: row.catalogName.trim() || row.name.trim(),
+            brand: row.brand.trim() || '',
+            category: row.category,
+            subcategory: row.subcategory,
+            price: 0,
+            stock: 0,
+            img: imgUrl,
+            visible: true
+        });
+
+        row.saved = true;
+        row.imgUrl = imgUrl;
+        renderTable();
+        updateCounts();
+        log(`  ✓ "${row.name}" guardado con foto`, 'ok');
+    } catch (e) {
+        row.error = e.message;
+        renderTable();
+        log(`  ✗ "${row.name}": ${e.message}`, 'err');
+    }
+}
+
+async function saveAll() {
+    for (const row of _rows.filter(r => !r.saved)) {
+        await saveRow(row.id);
+    }
+}
+
+function log(msg, type) {
+    const el = document.getElementById('result');
+    el.innerHTML += `<div class="log log-${type}">${msg}</div>`;
+}
+
+function escHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
