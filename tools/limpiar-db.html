@@ -65,6 +65,7 @@
   <div class="presets">
     <button class="preset-btn" onclick="preset('ventas')">Solo ventas</button>
     <button class="preset-btn" onclick="preset('clientes')">Solo clientes</button>
+    <button class="preset-btn" onclick="preset('salidas')">Solo salidas</button>
     <button class="preset-btn" onclick="preset('ventas-clientes')">Ventas + clientes</button>
     <button class="preset-btn" onclick="preset('todo')">Todo (excepto productos/categorias)</button>
     <button class="preset-btn" onclick="preset('ninguno')">Ninguno</button>
@@ -193,6 +194,8 @@ function preset(name) {
     selected.add('sales'); selected.add('sale_items'); selected.add('payments');
   } else if (name === 'clientes') {
     selected.add('customers');
+  } else if (name === 'salidas') {
+    selected.add('salidas'); selected.add('salida_items');
   } else if (name === 'ventas-clientes') {
     selected.add('sales'); selected.add('sale_items'); selected.add('payments'); selected.add('customers');
   } else if (name === 'todo') {
