@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Limpiar Base de Datos</title>
+<script src="auth.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #e0e0e0; padding: 24px; min-height: 100vh; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .subtitle { color: #888; margin-bottom: 24px; }
+  .back-link { display: inline-block; margin-bottom: 20px; color: #6366f1; text-decoration: none; font-size: 14px; }
+  .back-link:hover { text-decoration: underline; }
+  .section { background: #1a1a2e; border: 1px solid #222; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .section h2 { font-size: 16px; margin-bottom: 12px; color: #e0e0e0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 12px; background: #0d0d1a; border-bottom: 2px solid #333; font-weight: 600; }
+  td { padding: 10px 12px; border-bottom: 1px solid #1a1a2e; }
+  tr:hover { background: #1a1a2e; }
+  .count { font-weight: 600; font-size: 14px; }
+  .count-zero { color: #666; }
+  .count-ok { color: #22c55e; }
+  .count-warn { color: #f59042; }
+  .count-danger { color: #ef4444; }
+  input[type="checkbox"] { width: 16px; height: 16px; accent-color: #6366f1; cursor: pointer; }
+  .btn { padding: 8px 16px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .btn-primary { background: #6366f1; color: #fff; }
+  .btn-primary:hover { background: #5558e6; }
+  .btn-danger { background: #dc2626; color: #fff; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-danger:disabled { background: #475569; cursor: not-allowed; }
+  .btn-outline { background: transparent; color: #888; border: 1px solid #333; }
+  .btn-outline:hover { border-color: #666; color: #e0e0e0; }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .preset-btn { padding: 6px 14px; background: #0d0d1a; border: 1px solid #333; border-radius: 20px; color: #aaa; font-size: 12px; cursor: pointer; transition: all .15s; }
+  .preset-btn:hover { border-color: #6366f1; color: #e0e0e0; }
+  .preset-btn.active { border-color: #6366f1; color: #6366f1; background: #1a1a3e; }
+  #confirmSection { display: none; }
+  #confirmInput { width: 100%; padding: 12px; background: #0d0d1a; border: 2px solid #dc2626; border-radius: 8px; color: #ef4444; font-size: 16px; text-align: center; letter-spacing: 2px; outline: none; margin: 12px 0; }
+  #confirmInput::placeholder { color: #666; }
+  #log { background: #0d0d1a; border: 1px solid #222; border-radius: 8px; padding: 12px; margin-top: 12px; max-height: 300px; overflow-y: auto; font-size: 12px; font-family: monospace; white-space: pre-wrap; line-height: 1.6; }
+  .log-ok { color: #22c55e; }
+  .log-err { color: #ef4444; }
+  .log-info { color: #38bdf8; }
+  .summary { display: flex; gap: 24px; margin-top: 12px; }
+  .summary-item { font-size: 13px; color: #888; }
+  .summary-item strong { color: #e0e0e0; }
+</style>
+</head>
+<body>
+
+<a href="index.html" class="back-link">&larr; Volver a Herramientas</a>
+<h1>Limpiar Base de Datos</h1>
+<p class="subtitle">Eliminar registros de tablas. Los productos y categorias NO se eliminan.</p>
+
+<div class="section">
+  <h2>Registros por tabla</h2>
+  <button class="btn btn-primary" onclick="loadCounts()" style="margin-bottom:12px;">Cargar conteos</button>
+  <div id="countsBody">Cargando...</div>
+</div>
+
+<div class="section">
+  <h2>Seleccionar tablas a limpiar</h2>
+  <div class="presets">
+    <button class="preset-btn" onclick="preset('ventas')">Solo ventas</button>
+    <button class="preset-btn" onclick="preset('clientes')">Solo clientes</button>
+    <button class="preset-btn" onclick="preset('ventas-clientes')">Ventas + clientes</button>
+    <button class="preset-btn" onclick="preset('todo')">Todo (excepto productos/categorias)</button>
+    <button class="preset-btn" onclick="preset('ninguno')">Ninguno</button>
+  </div>
+  <div id="checkboxes"></div>
+  <div class="summary" id="summaryInfo"></div>
+</div>
+
+<div class="section" id="confirmSection">
+  <h2>Confirmar eliminacion</h2>
+  <p style="color:#ef4444;font-size:13px;margin-bottom:8px;">Escribe <strong>CONFIRMAR</strong> para proceder:</p>
+  <input type="text" id="confirmInput" placeholder="Escribe CONFIRMAR" oninput="checkConfirm()">
+  <div style="display:flex;gap:8px;margin-top:8px;">
+    <button class="btn btn-danger" id="deleteBtn" disabled onclick="executeDelete()">Eliminar seleccionados</button>
+    <button class="btn btn-outline" onclick="cancelDelete()">Cancelar</button>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Log</h2>
+  <div id="log">Esperando acciones...</div>
+</div>
+
+<script>
+const _SUPABASE_URL = 'https://jcksqhqopqhswwxskhls.supabase.co';
+const _SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja3NxaHFvcHFoc3d3eHNraGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTIzNjksImV4cCI6MjA5NjQ4ODM2OX0.1hnEgbk9--eedO1Tw9L0p6NKtHkz9h9NENEFiFJjbj0';
+const sb = window.supabase.createClient(_SUPABASE_URL, _SUPABASE_KEY);
+
+const TABLES = [
+  { key: 'sales', label: 'Ventas', group: 'ventas' },
+  { key: 'sale_items', label: 'Items de venta', group: 'ventas', note: 'Se elimina con CASCADE de ventas' },
+  { key: 'payments', label: 'Pagos', group: 'ventas', note: 'Se elimina con CASCADE de ventas' },
+  { key: 'customers', label: 'Clientes', group: 'clientes' },
+  { key: 'inventory_log', label: 'Log de inventario', group: 'inventario', note: 'sale_id se pone NULL' },
+  { key: 'salidas', label: 'Salidas', group: 'salidas' },
+  { key: 'salida_items', label: 'Items de salidas', group: 'salidas', note: 'Se elimina con CASCADE de salidas' },
+  { key: 'temp_products', label: 'Productos temporales', group: 'temp' },
+  { key: 'cash_base', label: 'Base de caja', group: 'caja' },
+  { key: 'expenses', label: 'Gastos', group: 'caja' }
+];
+
+let counts = {};
+let selected = new Set();
+
+function log(msg, cls) {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = '[' + new Date().toLocaleTimeString('es-CO') + '] ' + msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function loadCounts() {
+  document.getElementById('countsBody').innerHTML = '<span style="color:#888;">Cargando...</span>';
+  counts = {};
+  for (const t of TABLES) {
+    try {
+      const { count, error } = await sb.from(t.key).select('*', { count: 'exact', head: true });
+      counts[t.key] = error ? -1 : (count || 0);
+    } catch(e) {
+      counts[t.key] = -1;
+    }
+  }
+  renderCounts();
+  renderCheckboxes();
+}
+
+function renderCounts() {
+  const el = document.getElementById('countsBody');
+  let html = '<table><thead><tr><th>Tabla</th><th>Registros</th><th>Nota</th></tr></thead><tbody>';
+  for (const t of TABLES) {
+    const c = counts[t.key];
+    const cls = c === -1 ? 'count-zero' : c === 0 ? 'count-zero' : c > 100 ? 'count-danger' : 'count-ok';
+    const display = c === -1 ? 'Error' : c.toLocaleString('es-CO');
+    html += '<tr><td>' + t.label + '</td><td class="count ' + cls + '">' + display + '</td><td style="color:#666;font-size:12px;">' + (t.note || '') + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function renderCheckboxes() {
+  const el = document.getElementById('checkboxes');
+  let html = '<table><thead><tr><th style="width:40px;"></th><th>Tabla</th><th>Grupo</th><th>Registros</th></tr></thead><tbody>';
+  for (const t of TABLES) {
+    const c = counts[t.key];
+    const display = c === -1 ? 'Error' : c === 0 ? '0' : c.toLocaleString('es-CO');
+    const checked = selected.has(t.key) ? 'checked' : '';
+    const disabled = c === 0 ? 'disabled' : '';
+    html += '<tr><td><input type="checkbox" ' + checked + ' ' + disabled + ' onchange="toggleTable(\'' + t.key + '\', this.checked)"></td><td>' + t.label + '</td><td style="color:#888;font-size:12px;">' + t.group + '</td><td class="count">' + display + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  el.innerHTML = html;
+  updateSummary();
+}
+
+function toggleTable(key, checked) {
+  if (checked) selected.add(key); else selected.delete(key);
+  updateSummary();
+}
+
+function updateSummary() {
+  const el = document.getElementById('summaryInfo');
+  if (selected.size === 0) {
+    el.innerHTML = '';
+    document.getElementById('confirmSection').style.display = 'none';
+    return;
+  }
+  let totalRows = 0;
+  const names = [];
+  for (const t of TABLES) {
+    if (selected.has(t.key) && counts[t.key] > 0) {
+      totalRows += counts[t.key];
+      names.push(t.label);
+    }
+  }
+  el.innerHTML = '<div class="summary-item"><strong>' + selected.size + '</strong> tablas seleccionadas</div><div class="summary-item"><strong>' + totalRows.toLocaleString('es-CO') + '</strong> registros a eliminar</div><div class="summary-item">' + names.join(', ') + '</div>';
+  document.getElementById('confirmSection').style.display = 'block';
+}
+
+function preset(name) {
+  selected.clear();
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  if (name === 'ventas') {
+    selected.add('sales'); selected.add('sale_items'); selected.add('payments');
+  } else if (name === 'clientes') {
+    selected.add('customers');
+  } else if (name === 'ventas-clientes') {
+    selected.add('sales'); selected.add('sale_items'); selected.add('payments'); selected.add('customers');
+  } else if (name === 'todo') {
+    TABLES.forEach(t => { if (counts[t.key] > 0) selected.add(t.key); });
+  }
+  renderCheckboxes();
+}
+
+function checkConfirm() {
+  const val = document.getElementById('confirmInput').value.trim();
+  document.getElementById('deleteBtn').disabled = val !== 'CONFIRMAR';
+}
+
+function cancelDelete() {
+  selected.clear();
+  document.getElementById('confirmSection').style.display = 'none';
+  document.getElementById('confirmInput').value = '';
+  document.getElementById('deleteBtn').disabled = true;
+  renderCheckboxes();
+}
+
+async function executeDelete() {
+  const btn = document.getElementById('deleteBtn');
+  btn.disabled = true;
+  const tablesToDelete = TABLES.filter(t => selected.has(t.key) && counts[t.key] > 0);
+
+  log('Iniciando eliminacion de ' + tablesToDelete.length + ' tablas...', 'log-info');
+
+  for (const t of tablesToDelete) {
+    try {
+      log('Eliminando ' + t.label + ' (' + t.key + ')...', 'log-info');
+      const { error } = await sb.from(t.key).delete().neq('id', 0);
+      if (error) {
+        log('Error en ' + t.label + ': ' + error.message, 'log-err');
+      } else {
+        log('OK ' + t.label + ': ' + counts[t.key] + ' registros eliminados', 'log-ok');
+      }
+    } catch(e) {
+      log('Excepcion en ' + t.label + ': ' + e.message, 'log-err');
+    }
+  }
+
+  log('Proceso completado', 'log-info');
+  selected.clear();
+  document.getElementById('confirmSection').style.display = 'none';
+  document.getElementById('confirmInput').value = '';
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  await loadCounts();
+}
+
+loadCounts();
+</script>
+</body>
+</html>
