@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OCR Productos - Asignar Fotos</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<script src="js/api.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; padding: 20px; max-width: 1200px; margin: auto; background: #f5f5f5; }
+h1 { margin-bottom: 20px; }
+.card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #ddd; font-size: 13px; vertical-align: middle; }
+th { background: #f8f9fa; font-weight: 600; }
+tr:hover { background: #f1f1f1; }
+img.preview { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
+input, select { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+input[type="text"] { width: 100%; }
+select { width: 100%; }
+button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; margin-right: 8px; margin-bottom: 8px; }
+.btn-primary { background: #007bff; color: #fff; }
+.btn-primary:hover { background: #0056b3; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-success { background: #28a745; color: #fff; }
+.btn-success:hover { background: #218838; }
+.btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
+.bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+#result { margin-top: 16px; font-family: monospace; font-size: 12px; line-height: 1.6; max-height: 300px; overflow-y: auto; }
+.log { padding: 2px 0; }
+.log-ok { color: #155724; }
+.log-err { color: #721c24; }
+.log-info { color: #004085; }
+.log-warn { color: #856404; }
+.summary-box { background: #e8f4f8; border-left: 4px solid #007bff; padding: 12px; margin: 10px 0; border-radius: 4px; font-size: 14px; }
+.status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.status-pending { background: #fff3cd; color: #856404; }
+.status-done { background: #d4edda; color: #155724; }
+.status-error { background: #f8d7da; color: #721c24; }
+.status-ocr { background: #cce5ff; color: #004085; }
+</style>
+</head>
+<body>
+<h1>OCR - Asignar Fotos a Productos</h1>
+<div class="card">
+    <div class="summary-box">
+        <strong>Sube las fotos de tus productos</strong>. El OCR leerá el texto visible en la etiqueta y tratará de extraer: <strong>nombre</strong>_<strong>marca</strong>_<strong>categoría</strong>_<strong>subcategoría</strong>.<br>
+        Si el texto no tiene ese formato, puedes editar los campos manualmente. Luego se sube la foto a Supabase y se guarda el producto.
+    </div>
+    <div class="bar">
+        <input type="file" id="fileInput" multiple accept="image/*" style="display:none;">
+        <button class="btn-primary" onclick="document.getElementById('fileInput').click()">Seleccionar Fotos</button>
+        <button class="btn-success" id="btnSaveAll" onclick="saveAll()" disabled>Guardar Todos</button>
+        <span id="countDisplay" style="color:#666;font-size:14px;"></span>
+    </div>
+    <div id="tableContainer"><p style="color:#999;margin:12px 0;">Selecciona fotos para comenzar...</p></div>
+    <div id="result"></div>
+</div>
+
+<script>
+let _rows = [];
+let _categories = [];
+
+// Mapa de categoria keys a labels para mostrar
+const CAT_LABELS = { suplementos: 'Suplementos', vitaminas: 'Vitaminas y Minerales', belleza_y_bienestar: 'Belleza', salud_y_bienestar: 'Salud y Bienestar' };
+
+// Palabras clave para detectar marca
+const KNOWN_BRANDS = [
+    'Natural Systems','Believe','Botanitas','Naturally','Fitomedics','Naturasol','Aromas',
+    'NutriPlan','Nutri Pluss','Vitalim','Macel','AMERICANO','Vida Sana','Herbalife',
+    'Nature\'s Garden','Holland & Barrett','Solaray','Now Foods','Doctor\'s Best',
+    'Carlson','Jarrow','Source Naturals','Life Extension','Solgar','Gaia','Nature\'s Way',
+    'Garden of Life','Amway','Omnilife','Catena','GNFC','Power Life','Big Ben'
+].sort((a,b)=>b.length-a.length);
+
+// Subcategorias por categoria
+const SUBCATS = [
+    { key: 'Articulaciones', cat: 'suplementos' }, { key: 'Articulaciones', cat: 'belleza_y_bienestar' },
+    { key: 'Balance hormonal', cat: 'suplementos' },
+    { key: 'Biotina', cat: 'vitaminas' },
+    { key: 'Calcio', cat: 'vitaminas' },
+    { key: 'Caléndula', cat: 'belleza_y_bienestar' }, { key: 'Caléndula', cat: 'salud_y_bienestar' },
+    { key: 'Colágeno', cat: 'belleza_y_bienestar' },
+    { key: 'Complejo B', cat: 'vitaminas' },
+    { key: 'Creatina', cat: 'suplementos' },
+    { key: 'Desparasitante', cat: 'salud_y_bienestar' },
+    { key: 'Diabetes', cat: 'salud_y_bienestar' },
+    { key: 'Digestión', cat: 'salud_y_bienestar' }, { key: 'Digestión', cat: 'suplementos' },
+    { key: 'Energía', cat: 'suplementos' },
+    { key: 'Gastritis y acidez', cat: 'salud_y_bienestar' },
+    { key: 'Glucosamina', cat: 'suplementos' }, { key: 'Glucosamina', cat: 'belleza_y_bienestar' },
+    { key: 'Hígado y Vesícula', cat: 'salud_y_bienestar' },
+    { key: 'Inflamación', cat: 'salud_y_bienestar' },
+    { key: 'Laxante', cat: 'salud_y_bienestar' },
+    { key: 'Limpieza intestinal', cat: 'salud_y_bienestar' },
+    { key: 'Magnesio', cat: 'vitaminas' },
+    { key: 'Multivitamínicos', cat: 'vitaminas' },
+    { key: 'Omega', cat: 'vitaminas' }, { key: 'Omega', cat: 'salud_y_bienestar' },
+    { key: 'Pérdida de peso', cat: 'salud_y_bienestar' },
+    { key: 'Potencia Masculina', cat: 'suplementos' },
+    { key: 'Próstata', cat: 'salud_y_bienestar' },
+    { key: 'Proteína', cat: 'suplementos' },
+    { key: 'Rendimiento mental', cat: 'salud_y_bienestar' },
+    { key: 'Resveratrol', cat: 'suplementos' }, { key: 'Resveratrol', cat: 'belleza_y_bienestar' },
+    { key: 'Riñones y vías urinarias', cat: 'salud_y_bienestar' },
+    { key: 'Salud del sueño', cat: 'salud_y_bienestar' },
+    { key: 'Salud sanguínea', cat: 'suplementos' },
+    { key: 'Sistema inmunológico', cat: 'suplementos' },
+    { key: 'Vitamina A', cat: 'vitaminas' },
+    { key: 'Vitamina C', cat: 'vitaminas' },
+    { key: 'Vitamina E', cat: 'vitaminas' },
+    { key: 'Vitaminas B', cat: 'vitaminas' },
+    { key: 'Zinc', cat: 'vitaminas' }
+];
+
+// Palabras clave para detectar subcategoria en texto OCR
+const SUBCAT_KEYWORDS = {
+    'Colágeno': ['colageno','colágeno','colage','péptidos','peptidos'],
+    'Articulaciones': ['articulacion','articulación','xero fit','glucosamina'],
+    'Glucosamina': ['glucosamina'],
+    'Magnesio': ['magnesio','magnesium','ashwagandha','magpro','citrato de magnesio'],
+    'Calcio': ['calcio','calcium'],
+    'Zinc': ['zinc'],
+    'Biotina': ['biotina','biotin'],
+    'Vitamina A': ['vitamina a','retinol'],
+    'Vitamina C': ['vitamina c','ascórbico','ascorbico'],
+    'Vitamina E': ['vitamina e','vitamin e','tocoferol'],
+    'Vitaminas B': ['vitamina b','complejo b','niacinamide','methylcobalamin','vita fancesa','vita francesa'],
+    'Multivitamínicos': ['multivitamin','multi-vitamin'],
+    'Omega': ['omega','coenzyme','co-enzima'],
+    'Energía': ['energía','energia','energy','ginseng','guarana','shilajit','b-chotta','miletertos','g4','ghr','nerozi','biocros'],
+    'Potencia Masculina': ['potencia','masculina','testo','maca','horny','sex','macho','king','retardex','dura mas','mega','triple','aguaje'],
+    'Balance hormonal': ['hormonal','hormona','famel','freshlypausia','ovarmex','fenogreco'],
+    'Proteína': ['proteina','proteína','protein','whey','colmax','granulada'],
+    'Creatina': ['creatina'],
+    'Pérdida de peso': ['peso','dieta','quema','carnitina','tiraktira'],
+    'Salud sanguínea': ['sanguinea','sanguínea','hierro','iron','vitafer','ferrovi'],
+    'Sistema inmunológico': ['inmuno','defensas','equinacea','echinacea','propoleo','factor de transferencia'],
+    'Resveratrol': ['resveratrol'],
+    'Digestión': ['digest','alcachofa','vinagre','jengibre','oregano','curcuma','garlic'],
+    'Laxante': ['laxante','fibra','ciruelfort','lassacol','digestar','apetifort','chupa panza','higuerón','higueron','ricino','leche de higuer'],
+    'Desparasitante': ['desparasitante','antax'],
+    'Diabetes': ['diabetes','diab','diabetisan','pasuchaca'],
+    'Gastritis y acidez': ['gastritis','acidez','ulcera','ulsn'],
+    'Hígado y Vesícula': ['hígado','higado','vesícula','vesicula','cardo','milk thistle','silimarina','diente de león','diente de leon'],
+    'Inflamación': ['inflamación','inflamacion','antiinflam','jarabe totumo','pip3r4sin','remartrin','r-qmaz'],
+    'Rendimiento mental': ['mental','memoria','concentración','ginkgo','neuro-stress','memorex','sinhemorroidas','varizan','barrido arterial','venasfull'],
+    'Salud del sueño': ['sueño','sueno','melatonina','melatonin','moon dream'],
+    'Riñones y vías urinarias': ['riñon','riñones','uva ursi','renal','ortiga','zarzaparrilla','chanca piedra','cranberry','urovital','pipi loco','purgante'],
+    'Próstata': ['próstata','prostata','prostasan'],
+    'Limpieza intestinal': ['limpieza intestinal','limplus'],
+    'Caléndula': ['calendula','caléndula']
+};
+
+function normalize(s) {
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+// ---- Pureba OCR ----
+async function runOCR(file) {
+    try {
+        const { data: { text } } = await Tesseract.recognize(file, 'spa', {
+            logger: m => { if (m.status === 'recognizing text') updateOcrStatus(file.name, Math.round(m.progress * 100)); }
+        });
+        return text;
+    } catch (e) {
+        console.error('OCR error:', e);
+        return '';
+    }
+}
+
+function updateOcrStatus(filename, pct) {
+    const row = _rows.find(r => r.fileName === filename);
+    if (row) row.ocrProgress = pct;
+    renderTable();
+}
+
+function detectBrand(text) {
+    const lower = text.toLowerCase();
+    for (const brand of KNOWN_BRANDS) {
+        if (lower.includes(brand.toLowerCase())) return brand;
+    }
+    return '';
+}
+
+function detectSubcategory(text) {
+    const lower = normalize(text);
+    let best = '', bestLen = 0;
+    for (const [sub, keywords] of Object.entries(SUBCAT_KEYWORDS)) {
+        for (const kw of keywords) {
+            const nkw = normalize(kw);
+            if (lower.includes(nkw) && nkw.length > bestLen) {
+                bestLen = nkw.length;
+                best = sub;
+            }
+        }
+    }
+    return best;
+}
+
+function detectCategory(subLabel, ocrText) {
+    if (!subLabel) {
+        // Try to detect category from text keywords
+        const lower = normalize(ocrText);
+        const catKeywords = {
+            vitaminas: ['vitamina','vitamin','magnesio','calcio','zinc','biotina','omega','multivitamin'],
+            belleza_y_bienestar: ['colageno','colágeno','colage','belleza','caléndula','calendula'],
+            salud_y_bienestar: ['digestión','laxante','higado','riñon','diabetes','gastritis','prostata','articulacion'],
+            suplementos: ['energía','energia','proteina','shilajit','maca','creatina']
+        };
+        let best = 'suplementos', bestScore = 0;
+        for (const [cat, keywords] of Object.entries(catKeywords)) {
+            for (const kw of keywords) {
+                if (lower.includes(kw)) {
+                    if (kw.length > bestScore) { bestScore = kw.length; best = cat; }
+                }
+            }
+        }
+        return best;
+    }
+    // Find which categories have this subcategory
+    const matches = SUBCATS.filter(s => s.key === subLabel);
+    if (matches.length === 1) return matches[0].cat;
+    if (matches.length > 1) {
+        // Pick one based on OCR text
+        const lower = normalize(ocrText);
+        const catKeywords = {
+            vitaminas: ['vitamina','vitamin','magnesio','calcio','zinc','biotina','multivitamin'],
+            belleza_y_bienestar: ['colageno','colágeno','colage','belleza','caléndula','calendula'],
+            salud_y_bienestar: ['digest','laxante','higado','riñon','diabetes'],
+            suplementos: ['energía','energia','proteina','shilajit','maca','creatina','potencia','masculina']
+        };
+        let best = matches[0].cat, bestScore = 0;
+        for (const m of matches) {
+            const kws = catKeywords[m.cat] || [];
+            for (const kw of kws) {
+                if (lower.includes(kw) && kw.length > bestScore) { bestScore = kw.length; best = m.cat; }
+            }
+        }
+        return best;
+    }
+    return 'suplementos';
+}
+
+function parseOcrText(text) {
+    if (!text || !text.trim()) {
+        return { name: '', brand: '', category: 'suplementos', subcategory: '' };
+    }
+
+    let clean = text.trim();
+    // Try split by _
+    let parts = clean.split('_').map(s => s.trim()).filter(s => s.length > 0);
+
+    let name = '', brand = '', category = 'suplementos', subcategory = '';
+
+    if (parts.length >= 4) {
+        // nombre_marca_categoria_subcategoria
+        name = parts[0];
+        brand = parts[1];
+        // Try to detect category and subcategory from the rest
+        const catText = parts.slice(2).join(' ');
+        subcategory = detectSubcategory(catText);
+        category = detectCategory(subcategory, catText);
+    } else if (parts.length === 3) {
+        name = parts[0];
+        brand = parts[1];
+        const catText = parts[2];
+        subcategory = detectSubcategory(catText);
+        category = detectCategory(subcategory, catText);
+    } else if (parts.length === 2) {
+        name = parts[0];
+        brand = parts[1];
+    } else {
+        // No underscores - use full text
+        name = clean;
+        brand = detectBrand(clean);
+        subcategory = detectSubcategory(clean);
+        category = detectCategory(subcategory, clean);
+    }
+
+    // Clean up: remove brand from name if present
+    if (brand && name.toLowerCase().includes(brand.toLowerCase())) {
+        name = name.replace(new RegExp(brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), '').trim();
+    }
+
+    return { name: name || clean, brand, category, subcategory };
+}
+
+// ---- File handling ----
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    log(`Procesando ${files.length} archivos...`, 'info');
+
+    for (const file of files) {
+        const row = {
+            id: 'row_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            file,
+            fileName: file.name,
+            dataUrl: '',
+            ocrText: '',
+            ocrProgress: 0,
+            ocrDone: false,
+            name: '',
+            brand: '',
+            category: 'suplementos',
+            subcategory: '',
+            saved: false,
+            error: '',
+            imgUrl: ''
+        };
+
+        // Read file as data URL for preview
+        try {
+            row.dataUrl = await readFileAsDataURL(file);
+        } catch (er) {
+            row.error = 'Error leyendo archivo';
+        }
+
+        _rows.push(row);
+    }
+
+    renderTable();
+    updateCounts();
+
+    // Run OCR on each file sequentially
+    for (const row of _rows.slice().filter(r => !r.ocrDone && !r.saved)) {
+        log(`OCR: ${row.fileName}...`, 'info');
+        const text = await runOCR(row.file);
+        row.ocrText = text;
+        row.ocrDone = true;
+        row.ocrProgress = 100;
+
+        // Parse the OCR text
+        const parsed = parseOcrText(text);
+        row.name = parsed.name;
+        row.brand = parsed.brand;
+        row.category = parsed.category;
+        row.subcategory = parsed.subcategory;
+
+        renderTable();
+        updateCounts();
+        log(`  OCR: "${text.substring(0, 120)}" → "${parsed.name}" (${parsed.brand}) [${parsed.category} / ${parsed.subcategory}]`, 'ok');
+    }
+
+    log('OCR completado. Revisa y edita antes de guardar.', 'info');
+});
+
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// ---- Render ----
+function renderTable() {
+    const container = document.getElementById('tableContainer');
+    if (_rows.length === 0) {
+        container.innerHTML = '<p style="color:#999;margin:12px 0;">Selecciona fotos para comenzar...</p>';
+        return;
+    }
+
+    let html = `<div style="overflow-x:auto;"><table>
+        <thead><tr>
+            <th style="width:70px;">Foto</th>
+            <th>Archivo</th>
+            <th style="width:18%;">Nombre</th>
+            <th style="width:14%;">Marca</th>
+            <th style="width:14%;">Categoría</th>
+            <th style="width:18%;">Subcategoría</th>
+            <th style="width:90px;">Estado</th>
+            <th style="width:60px;"></th>
+        </tr></thead>
+        <tbody>`;
+
+    for (const row of _rows) {
+        const statusClass = row.saved ? 'status-done' : row.error ? 'status-error' : row.ocrDone ? 'status-pending' : 'status-ocr';
+        const statusText = row.saved ? 'Guardado' : row.error ? 'Error' : row.ocrDone ? 'Listo' : (row.ocrProgress > 0 ? `OCR ${row.ocrProgress}%` : 'Esperando...');
+
+        html += `<tr>
+            <td>${row.dataUrl ? `<img class="preview" src="${row.dataUrl}" alt="">` : '<span style="color:#999;">—</span>'}</td>
+            <td style="font-size:11px;word-break:break-all;">${escHtml(row.fileName)}</td>
+            <td><input type="text" value="${escHtml(row.name)}" onchange="setField('${row.id}','name',this.value)" ${row.saved?'disabled':''}></td>
+            <td><input type="text" value="${escHtml(row.brand)}" onchange="setField('${row.id}','brand',this.value)" ${row.saved?'disabled':''}></td>
+            <td><select onchange="setField('${row.id}','category',this.value)" ${row.saved?'disabled':''}>
+                ${Object.keys(CAT_LABELS).map(k => `<option value="${k}" ${row.category===k?'selected':''}>${CAT_LABELS[k]}</option>`).join('')}
+            </select></td>
+            <td><select onchange="setField('${row.id}','subcategory',this.value)" ${row.saved?'disabled':''}>
+                <option value="">(ninguna)</option>
+                ${SUBCATS.filter(s => s.cat === row.category).map(s => `<option value="${s.key}" ${row.subcategory===s.key?'selected':''}>${s.key}</option>`).join('')}
+            </select></td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td>${row.saved ? '' : `<button class="btn-success" style="padding:4px 12px;font-size:12px;" onclick="saveRow('${row.id}')">Guardar</button>`}</td>
+        </tr>`;
+    }
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function setField(rowId, field, value) {
+    const row = _rows.find(r => r.id === rowId);
+    if (!row || row.saved) return;
+    row[field] = value;
+
+    // If category changed, re-filter subcategory
+    if (field === 'category') {
+        const validSubs = SUBCATS.filter(s => s.cat === value).map(s => s.key);
+        if (!validSubs.includes(row.subcategory)) row.subcategory = '';
+        renderTable();
+    }
+}
+
+function updateCounts() {
+    const total = _rows.length;
+    const saved = _rows.filter(r => r.saved).length;
+    const pending = _rows.filter(r => !r.saved).length;
+    document.getElementById('countDisplay').textContent = `${total} archivos | ${saved} guardados | ${pending} pendientes`;
+    document.getElementById('btnSaveAll').disabled = pending === 0;
+}
+
+// ---- Save ----
+async function saveRow(rowId) {
+    const row = _rows.find(r => r.id === rowId);
+    if (!row || row.saved) return;
+    if (!row.name.trim()) { log(`"${row.fileName}": nombre requerido`, 'err'); return; }
+
+    try {
+        log(`Subiendo imagen y guardando "${row.name}"...`, 'info');
+
+        // Upload image to Supabase Storage
+        const ext = row.file.name.split('.').pop();
+        const filename = 'products/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+
+        const { error: upErr } = await _sb.storage
+            .from('product-images')
+            .upload(filename, row.file, { cacheControl: '3600', upsert: true });
+        if (upErr) throw upErr;
+
+        const { data: urlData } = _sb.storage.from('product-images').getPublicUrl(filename);
+        const imgUrl = urlData.publicUrl;
+
+        // Save product via API
+        const payload = {
+            name: row.name.trim(),
+            catalog_name: row.name.trim(),
+            brand: row.brand.trim() || '',
+            category: row.category,
+            subcategory: row.subcategory,
+            price: 0,
+            stock: 0,
+            img: imgUrl,
+            visible: true
+        };
+
+        await API.saveProduct(payload);
+        row.saved = true;
+        row.imgUrl = imgUrl;
+        renderTable();
+        updateCounts();
+        log(`  ✓ "${row.name}" → imagen guardada`, 'ok');
+    } catch (e) {
+        row.error = e.message;
+        renderTable();
+        log(`  ✗ "${row.name}": ${e.message}`, 'err');
+    }
+}
+
+async function saveAll() {
+    const pending = _rows.filter(r => !r.saved);
+    for (const row of pending) {
+        await saveRow(row.id);
+    }
+}
+
+function log(msg, type) {
+    const el = document.getElementById('result');
+    el.innerHTML += `<div class="log log-${type}">${msg}</div>`;
+}
+
+function escHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
