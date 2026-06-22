@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Limpiar Productos Duplicados</title>
+<title>Limpiar Duplicados Exactos</title>
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <script src="js/api.js"></script>
 <style>
@@ -14,9 +14,8 @@ h1 { margin-bottom: 20px; }
 table { width: 100%; border-collapse: collapse; margin: 12px 0; }
 th, td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #ddd; font-size: 12px; vertical-align: middle; }
 th { background: #f8f9fa; font-weight: 600; }
-tr:hover { background: #f1f1f1; }
-tr.keep { background: #d4edda; }
-tr.delete { background: #f8d7da; text-decoration: line-through; opacity: 0.6; }
+tr.exact-dupe { background: #fff3cd; }
+tr.variant { }
 img.preview { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
 button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; margin-right: 8px; margin-bottom: 8px; }
 .btn-primary { background: #007bff; color: #fff; }
@@ -24,7 +23,7 @@ button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; 
 .btn-danger { background: #dc3545; color: #fff; }
 .btn-danger:hover { background: #c82333; }
 .btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-success { background: #28a745; color: #fff; }
+.bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
 #result { margin-top: 16px; font-family: monospace; font-size: 12px; line-height: 1.6; max-height: 300px; overflow-y: auto; }
 .log { padding: 2px 0; }
 .log-ok { color: #155724; }
@@ -32,49 +31,43 @@ button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; 
 .log-info { color: #004085; }
 .log-warn { color: #856404; }
 .summary-box { background: #e8f4f8; border-left: 4px solid #007bff; padding: 12px; margin: 10px 0; border-radius: 4px; font-size: 14px; }
-.bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
-.badge { display: inline-block; padding: 2px 6px; border-radius: 8px; font-size: 10px; font-weight: 600; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+.badge-exact { background: #fff3cd; color: #856404; }
 .badge-keep { background: #d4edda; color: #155724; }
 .badge-del { background: #f8d7da; color: #721c24; }
 </style>
 </head>
 <body>
-<h1>Limpiar Productos Duplicados</h1>
+<h1>Limpiar Duplicados Exactos</h1>
 <div class="card">
     <div class="summary-box">
-        Detecta productos con el mismo nombre y marca. Para cada grupo, <strong>mantiene el que tiene más datos</strong> (imagen, stock, precio) y marca los demás para eliminar.
-        Revisa antes de borrar.
+        Agrupa productos por nombre + marca. Los que tienen <strong>exactamente el mismo precio y stock</strong> son duplicados reales y se marcan automáticamente.
+        Los que solo comparten nombre pero tienen diferente precio/stock <strong>NO se marcan</strong> (son variantes distintas).<br>
+        <strong>Siempre se conserva el que tiene imagen.</strong>
     </div>
     <div class="bar">
-        <button class="btn-primary" id="btnLoad" onclick="loadAndDetect()">Cargar y Detectar Duplicados</button>
-        <button class="btn-danger" id="btnDelete" onclick="deleteMarked()" disabled>Eliminar Marcados</button>
+        <button class="btn-primary" id="btnLoad" onclick="loadAndDetect()">Cargar y Detectar</button>
+        <button class="btn-danger" id="btnDelete" onclick="deleteMarked()" disabled>Eliminar Seleccionados</button>
         <span id="countDisplay" style="color:#666;font-size:14px;"></span>
     </div>
-    <div id="tableContainer"><p style="color:#999;margin:12px 0;">Presiona "Cargar y Detectar Duplicados"...</p></div>
+    <div id="tableContainer"><p style="color:#999;margin:12px 0;">Presiona "Cargar y Detectar"...</p></div>
     <div id="result"></div>
 </div>
-
 <script>
 let _groups = [];
-let _toDelete = [];
 
-function score(p) {
-    let s = 0;
-    if (p.img && !p.img.startsWith('/uploads/') && p.img !== '') s += 3;
-    if (parseInt(p.stock) > 0) s += 2;
-    if (parseFloat(p.price) > 0) s += 2;
-    if (p.catalog_name && p.catalog_name.trim()) s += 1;
-    if (p.brand && p.brand.trim()) s += 1;
-    if (p.description && p.description.trim()) s += 1;
-    if (p.subcategory && p.subcategory.trim()) s += 1;
-    return s;
+function isExactDuplicate(a, b) {
+    return parseFloat(a.price) === parseFloat(b.price) && parseInt(a.stock) === parseInt(b.stock);
+}
+
+function hasImage(p) {
+    return p.img && !p.img.startsWith('/uploads/') && p.img !== '';
 }
 
 async function loadAndDetect() {
     document.getElementById('btnLoad').disabled = true;
     document.getElementById('result').innerHTML = '<div class="log log-info">Cargando productos...</div>';
     _groups = [];
-    _toDelete = [];
 
     try {
         await API.check();
@@ -85,7 +78,6 @@ async function loadAndDetect() {
 
         log(`Cargados ${products.length} productos activos.`, 'info');
 
-        // Group by normalized name + brand
         const groups = {};
         for (const p of products) {
             const key = (p.name || '').trim().toLowerCase() + '|' + (p.brand || '').trim().toLowerCase();
@@ -93,32 +85,51 @@ async function loadAndDetect() {
             groups[key].push(p);
         }
 
-        let dupCount = 0;
+        let exactDupes = 0;
         for (const [key, items] of Object.entries(groups)) {
             if (items.length <= 1) continue;
-            dupCount++;
 
-            // Sort by score descending, best first
-            items.sort((a, b) => score(b) - score(a));
+            // Mark exact duplicates
+            for (let i = 0; i < items.length; i++) {
+                let isExact = false;
+                for (let j = 0; j < items.length; j++) {
+                    if (i !== j && isExactDuplicate(items[i], items[j])) {
+                        isExact = true;
+                        break;
+                    }
+                }
+                items[i]._isExactDupe = isExact;
+                items[i]._selected = false;
+            }
+
+            // Pre-select exact duplicates, but keep the one with image
+            const exactItems = items.filter(i => i._isExactDupe);
+            if (exactItems.length > 1) {
+                exactDupes += exactItems.length - 1;
+                // Keep the one with image (or lowest ID if none have image)
+                const withImg = exactItems.filter(i => hasImage(i));
+                const keep = withImg.length > 0 ? withImg.sort((a,b) => a.id - b.id)[0] : exactItems.sort((a,b) => a.id - b.id)[0];
+                for (const item of exactItems) {
+                    if (item.id !== keep.id) item._selected = true;
+                }
+            }
 
             _groups.push({
-                key,
-                name: items[0].name,
-                brand: items[0].brand || '',
-                items: items.map(p => ({ ...p, selected: false }))
+                key, name: items[0].name, brand: items[0].brand || '',
+                items: items.map(i => ({ ...i, selected: i._selected }))
             });
         }
 
-        if (dupCount === 0) {
+        if (_groups.length === 0) {
             log('No se encontraron duplicados.', 'ok');
             document.getElementById('tableContainer').innerHTML = '<p style="color:#28a745;margin:12px 0;">✓ No hay productos duplicados.</p>';
         } else {
-            log(`Encontrados ${dupCount} grupos con duplicados. Total a eliminar: ${_toDelete.length}`, 'warn');
+            const totalSel = _groups.reduce((s,g) => s + g.items.filter(i => i.selected).length, 0);
+            log(`Encontrados ${_groups.length} grupos. ${totalSel} duplicados exactos preseleccionados.`, 'warn');
             renderTable();
         }
     } catch (e) {
         log('ERROR: ' + e.message, 'err');
-        console.error(e);
     } finally {
         document.getElementById('btnLoad').disabled = false;
         updateCounts();
@@ -127,55 +138,56 @@ async function loadAndDetect() {
 
 function renderTable() {
     const container = document.getElementById('tableContainer');
-    if (_groups.length === 0) {
-        container.innerHTML = '<p style="color:#999;margin:12px 0;">No hay duplicados.</p>';
-        return;
-    }
+    if (_groups.length === 0) { container.innerHTML = '<p style="color:#999;margin:12px 0;">No hay grupos.</p>'; return; }
 
-    let selectedCount = 0;
-    _groups.forEach(g => g.items.forEach(i => { if (i.selected) selectedCount++; }));
-    let html = `<p style="margin:8px 0;font-weight:600;">${selectedCount} seleccionados para eliminar</p>`;
-    html += `<div style="overflow-x:auto;"><table>
+    let html = `<div style="overflow-x:auto;"><table>
         <thead><tr>
-            <th style="width:40px;"><input type="checkbox" id="checkAll" onchange="toggleAll(this.checked)"></th>
-            <th style="width:40px;">Foto</th>
+            <th style="width:36px;"><input type="checkbox" id="checkAll" onchange="toggleAll(this.checked)" title="Seleccionar solo duplicados exactos"></th>
+            <th style="width:36px;">Foto</th>
             <th>Nombre</th>
             <th>Marca</th>
             <th>Precio</th>
             <th>Stock</th>
             <th>Subcat</th>
-            <th>Score</th>
+            <th style="width:80px;">Tipo</th>
         </tr></thead><tbody>`;
 
     for (const group of _groups) {
-        html += `<tr style="background:#e8f5e9;font-weight:600;"><td colspan="8">${escHtml(group.name)}${group.brand ? ' — ' + escHtml(group.brand) : ''} (${group.items.length} copias) <span style="font-weight:normal;font-size:11px;color:#666;">— Conserva el de mayor score</span></td></tr>`;
+        const exactCount = group.items.filter(i => i.selected).length;
+        const totalExact = group.items.filter(i => {
+            let c = 0;
+            for (const o of group.items) if (o.id !== i.id && isExactDuplicate(i, o)) { c++; }
+            return c > 0;
+        }).length;
+        html += `<tr style="background:#e8f5e9;font-weight:600;"><td colspan="8">${escHtml(group.name)}${group.brand ? ' — ' + escHtml(group.brand) : ''} ${totalExact > 0 ? `<span style="font-weight:normal;font-size:11px;">— ${exactCount} duplicado(s) exacto(s) preseleccionado(s)</span>` : '<span style="font-weight:normal;font-size:11px;color:#666;">— solo mismo nombre, diferentes precios</span>'}</td></tr>`;
         for (const item of group.items) {
+            const isExact = group.items.some(o => o.id !== item.id && isExactDuplicate(item, o));
+            const cls = item.selected ? 'exact-dupe' : '';
             const checked = item.selected ? 'checked' : '';
-            html += `<tr class="${item.selected ? 'delete' : ''}">
-                <td><input type="checkbox" ${checked} onchange="toggleItem(${item.id}, this.checked)"></td>
-                <td>${item.img && !item.img.startsWith('/uploads/') ? `<img class="preview" src="${item.img}" alt="">` : '<span style="color:#ccc;">—</span>'}</td>
+            const badge = isExact ? '<span class="badge badge-exact">DUPLICADO EXACTO</span>' : '<span class="badge" style="background:#e2e3e5;color:#666;">VARIANTE</span>';
+            html += `<tr class="${cls} ${item.selected ? 'delete' : ''}">
+                <td>${isExact ? `<input type="checkbox" ${checked} onchange="toggleItem(${item.id}, this.checked)">` : ''}</td>
+                <td>${hasImage(item) ? `<img class="preview" src="${item.img}" alt="">` : '<span style="color:#ccc;">—</span>'}</td>
                 <td>#${item.id} ${escHtml(item.name)}</td>
                 <td>${escHtml(item.brand || '')}</td>
                 <td>${parseFloat(item.price) || 0}</td>
                 <td>${parseInt(item.stock) || 0}</td>
                 <td>${escHtml(item.subcategory || '')}</td>
-                <td>${score(item)}</td>
+                <td>${badge}</td>
             </tr>`;
         }
     }
-
     html += '</tbody></table></div>';
     container.innerHTML = html;
 }
 
-function getSelectedIds() {
-    const ids = [];
-    _groups.forEach(g => g.items.forEach(i => { if (i.selected) ids.push(i.id); }));
-    return ids;
-}
-
 function toggleAll(checked) {
-    _groups.forEach(g => g.items.forEach(i => { i.selected = checked; }));
+    for (const g of _groups) {
+        for (const item of g.items) {
+            const isExact = g.items.some(o => o.id !== item.id && isExactDuplicate(item, o));
+            if (isExact) item.selected = checked;
+        }
+    }
     renderTable();
     updateCounts();
 }
@@ -188,6 +200,12 @@ function toggleItem(id, checked) {
     updateCounts();
 }
 
+function getSelectedIds() {
+    const ids = [];
+    _groups.forEach(g => g.items.forEach(i => { if (i.selected) ids.push(i.id); }));
+    return ids;
+}
+
 function updateCounts() {
     const sel = getSelectedIds();
     document.getElementById('countDisplay').textContent = `${_groups.length} grupos | ${sel.length} seleccionados`;
@@ -197,28 +215,24 @@ function updateCounts() {
 async function deleteMarked() {
     const ids = getSelectedIds();
     if (ids.length === 0) return;
-    if (!confirm(`¿Desactivar ${ids.length} productos? No se puede deshacer.`)) return;
+    if (!confirm(`Desactivar ${ids.length} duplicados exactos? Se conserva el que tiene imagen.`)) return;
 
     document.getElementById('btnDelete').disabled = true;
     document.getElementById('btnLoad').disabled = true;
-
-    const batchSize = 10;
     let ok = 0, err = 0;
 
-    for (let i = 0; i < ids.length; i += batchSize) {
-        const batch = ids.slice(i, i + batchSize);
+    for (let i = 0; i < ids.length; i += 10) {
+        const batch = ids.slice(i, i + 10);
         try {
             const { error } = await _sb.from('products').update({ active: false }).in('id', batch);
             if (error) throw error;
             ok += batch.length;
-            log(`  ✓ Lote ${i + 1}-${Math.min(i + batchSize, ids.length)}: ${batch.length} desactivados`, 'ok');
         } catch (e) {
             err += batch.length;
             log(`  ✗ Lote: ${e.message}`, 'err');
         }
     }
-
-    log(`---\nTotal: ${ok} desactivados, ${err} errores`, err === 0 ? 'ok' : 'warn');
+    log(`${ok} desactivados, ${err} errores`, err === 0 ? 'ok' : 'warn');
     _groups = [];
     renderTable();
     updateCounts();
@@ -229,11 +243,7 @@ function log(msg, type) {
     const el = document.getElementById('result');
     el.innerHTML += `<div class="log log-${type}">${msg}</div>`;
 }
-
-function escHtml(s) {
-    if (!s) return '';
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+function escHtml(s) { if (!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 </script>
 </body>
 </html>
