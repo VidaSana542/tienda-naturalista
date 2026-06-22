@@ -15,13 +15,11 @@ async function loadSalidas() {
     if (API.isAvailable) {
         try {
             const apiSalidas = await API.getSalidas();
-            if (apiSalidas && apiSalidas.length > 0) {
-                posSalidas = apiSalidas.map(s => ({ ...s, _synced: true }));
-                posSalidasNextId = Math.max(posSalidasNextId, ...posSalidas.map(s => s.id + 1));
-                localStorage.setItem('posSalidas', JSON.stringify(posSalidas));
-                if (typeof renderSalidas === 'function') renderSalidas();
-                return;
-            }
+            posSalidas = (apiSalidas || []).map(s => ({ ...s, _synced: true }));
+            if (posSalidas.length > 0) posSalidasNextId = Math.max(posSalidasNextId, ...posSalidas.map(s => s.id + 1));
+            localStorage.setItem('posSalidas', JSON.stringify(posSalidas));
+            if (typeof renderSalidas === 'function') renderSalidas();
+            return;
         } catch(e) { console.error('[POS] loadSalidas API error:', e); }
     }
     try {
