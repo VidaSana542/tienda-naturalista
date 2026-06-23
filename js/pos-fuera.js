@@ -209,28 +209,54 @@ function loadSalidaToTpv() {
     showToast(loaded + ' producto(s) cargado(s) desde Salida #' + s.id + ' - Confirma el cobro en TPV');
 }
 
-function handleBarcodeScan() {
+function setupBarcodeScan() {
     const input = document.getElementById('tpvBarcode');
-    const code = input.value.trim();
-    if (code.length < 3) return;
-    clearTimeout(_barcodeTimer);
-    _barcodeTimer = setTimeout(() => {
-        const product = posProducts.find(p => p.barcode === code);
-        if (product) {
-            if (product.stock > 0) {
-                addToCart(product.id);
-                showToast('+ ' + product.name);
-                input.value = '';
-                renderTpvProducts();
+    if (!input) return;
+    input.addEventListener('input', function() {
+        clearTimeout(_barcodeTimer);
+        const code = this.value.trim();
+        if (code.length < 3) return;
+        _barcodeTimer = setTimeout(() => {
+            const product = posProducts.find(p => p.barcode === code);
+            if (product) {
+                if (product.stock > 0) {
+                    addToCart(product.id);
+                    showToast('+ ' + product.name);
+                    this.value = '';
+                    renderTpvProducts();
+                } else {
+                    showToast(product.name + ' (agotado)');
+                    this.value = '';
+                }
             } else {
-                showToast(product.name + ' (agotado)');
-                input.value = '';
+                showToast('Codigo no encontrado');
+                this.select();
             }
-        } else {
-            showToast('Codigo no encontrado');
-            input.select();
+        }, 120);
+    });
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(_barcodeTimer);
+            const code = this.value.trim();
+            if (!code) return;
+            const product = posProducts.find(p => p.barcode === code);
+            if (product) {
+                if (product.stock > 0) {
+                    addToCart(product.id);
+                    showToast('+ ' + product.name);
+                    this.value = '';
+                    renderTpvProducts();
+                } else {
+                    showToast(product.name + ' (agotado)');
+                    this.value = '';
+                }
+            } else {
+                showToast('Codigo no encontrado');
+                this.select();
+            }
         }
-    }, 120);
+    });
 }
 
 function populateTpvFilters() {
@@ -1960,6 +1986,7 @@ function initPOS() {
         migrateProductSubcats();
         renderDashboard();
         renderTpv();
+        setupBarcodeScan();
         renderProductTable();
         renderCustomerTable();
         renderCategoriesTable();
