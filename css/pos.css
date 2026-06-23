@@ -404,7 +404,24 @@ table .actions button.del:hover svg { fill: var(--danger); }
 .checkout-credit-summary { font-size:12px; color:var(--text-muted); padding:6px 0; }
 .checkout-credit-summary .cs-row { display:flex; justify-content:space-between; padding:2px 0; }
 
+.checkout-customer-add { width:28px;height:28px;border-radius:50%;border:2px solid var(--green);background:#fff;color:var(--green);font-size:18px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;line-height:1; }
+.checkout-customer-add:hover { background:var(--green);color:#fff; }
+.checkout-quick-add { margin-top:6px;padding:8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px; }
+.checkout-cambio-section { margin-top:8px; padding:8px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; }
+.checkout-cambio-row { display:flex; justify-content:space-between; align-items:center; padding:3px 0; font-size:14px; font-weight:600; }
+.checkout-cambio-row input { width:100px; padding:4px 8px; border:2px solid var(--border); border-radius:6px; font-family:'Outfit',sans-serif; font-size:14px; font-weight:600; text-align:right; outline:none; }
+.checkout-cambio-row input:focus { border-color:var(--green); }
+#chkCambioDisplay { color:var(--success); font-weight:700; font-size:15px; }
 
+.checkout-mixed-section { margin-top:8px; padding:10px; background:#f8fafc; border:1px solid var(--border); border-radius:8px; }
+.checkout-mixed-title { font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px; }
+.checkout-mixed-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; }
+.checkout-mixed-label { font-size:13px; font-weight:500; color:var(--text); }
+.checkout-mixed-input { width:100px; padding:4px 8px; border:2px solid var(--border); border-radius:6px; font-family:'Outfit',sans-serif; font-size:13px; font-weight:500; text-align:right; outline:none; }
+.checkout-mixed-input:focus { border-color:var(--primary); }
+.checkout-mixed-total { display:flex; justify-content:space-between; padding:6px 0 2px; margin-top:6px; border-top:1px solid var(--border); font-size:13px; font-weight:600; }
+.checkout-mixed-remaining { display:flex; justify-content:space-between; padding:2px 0; font-size:13px; font-weight:600; }
+.checkout-mixed-cambio { display:flex; justify-content:space-between; padding:4px 0 0; font-size:13px; font-weight:700; }
 
 .tpv-checkout-btn { width: 100%; padding: 12px; border-radius: 30px; border: none; background: var(--green); color: #fff; font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .tpv-checkout-btn svg { width: 18px; height: 18px; fill: #fff; }

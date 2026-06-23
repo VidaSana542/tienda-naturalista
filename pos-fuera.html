@@ -758,8 +758,17 @@
                 <div class="checkout-customer-search">
                     <input type="text" id="chkCustomerInput" placeholder="Buscar cliente..." oninput="renderCheckoutCustomers()">
                     <input type="hidden" id="chkCustomerId">
+                    <button type="button" class="checkout-customer-add" onclick="quickAddCheckoutCustomer()" title="Agregar cliente">+</button>
                 </div>
                 <div class="checkout-customer-list" id="chkCustomerList"></div>
+                <div class="checkout-quick-add" id="chkQuickAdd" style="display:none;">
+                    <input type="text" id="chkQuickName" placeholder="Nombre del cliente" style="width:100%;padding:6px 8px;border:2px solid var(--border);border-radius:6px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;">
+                    <input type="tel" id="chkQuickPhone" placeholder="Teléfono (opcional)" style="width:100%;padding:6px 8px;border:2px solid var(--border);border-radius:6px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;margin-top:4px;">
+                    <div style="display:flex;gap:4px;margin-top:4px;">
+                        <button type="button" class="checkout-pay-opt" style="flex:1;padding:6px;border-radius:6px;font-size:12px;" onclick="saveQuickCheckoutCustomer()">Guardar</button>
+                        <button type="button" class="checkout-pay-opt" style="flex:1;padding:6px;border-radius:6px;font-size:12px;" onclick="cancelQuickAddCustomer()">Cancelar</button>
+                    </div>
+                </div>
             </div>
             <div class="checkout-section">
                 <div class="checkout-section-title"><svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg> Metodo de Pago</div>
@@ -777,6 +786,16 @@
             <div class="checkout-resumen-items" id="chkResumenItems"></div>
             <div class="checkout-credit-summary" id="chkCreditSummary"></div>
             <div class="checkout-resumen-total"><span>TOTAL</span><span id="chkTotalDisplay">$0</span></div>
+            <div class="checkout-cambio-section" id="chkCambioSection" style="display:none;">
+                <div class="checkout-cambio-row">
+                    <span>Paga con</span>
+                    <input type="number" id="chkPagaCon" value="" min="0" oninput="calcCambio()" placeholder="$0">
+                </div>
+                <div class="checkout-cambio-row">
+                    <span>Cambio</span>
+                    <span id="chkCambioDisplay">$0</span>
+                </div>
+            </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeCheckoutModal()">Cancelar</button>

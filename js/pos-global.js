@@ -247,10 +247,21 @@ function showReceipt(sale) {
     const content = document.getElementById('receiptContent');
     const itemsHtml = sale.items.map(i => '<div class="receipt-row"><span>' + (i.name || 'Producto').substring(0,22) + ' x' + i.qty + '</span><span>' + formatPrice(i.price * i.qty) + '</span></div>').join('');
     const badge = sale.ventaPorFuera ? '<div style="font-size:11px;color:var(--warning);text-align:center;margin:4px 0;">VENTA POR FUERA</div>' : '';
+    const breakdownHtml = sale.paymentBreakdown ? sale.paymentBreakdown.map(p =>
+        '<div class="receipt-row" style="font-size:12px;"><span style="padding-left:8px;">' + p.method + '</span><span>' + formatPrice(p.amount) + '</span></div>'
+    ).join('') : '';
+    let pagaHtml = sale.pagaCon && !sale.paymentBreakdown ? '<div class="receipt-row"><span>Paga con</span><span>' + formatPrice(sale.pagaCon) + '</span></div>' : '';
+    let cambioHtml = sale.cambio ? '<div class="receipt-row" style="color:var(--success);font-weight:700;"><span>Cambio</span><span>' + formatPrice(sale.cambio) + '</span></div>' : '';
+    if (sale.pagaConCash) {
+        pagaHtml = '<div class="receipt-row"><span>Paga con (Efectivo)</span><span>' + formatPrice(sale.pagaConCash) + '</span></div>';
+    }
+    if (sale.cambioCash) {
+        cambioHtml = '<div class="receipt-row" style="color:var(--success);font-weight:700;"><span>Cambio (Efectivo)</span><span>' + formatPrice(sale.cambioCash) + '</span></div>';
+    }
     content.innerHTML = `
         <div class="receipt">
             <div class="receipt-header">
-                <img src="LOGO.jpeg" style="height:40px;margin-bottom:4px;" alt="Vida Sana">
+                <img src="Logo_Factura.png" style="max-width:160px;height:auto;margin-bottom:4px;" alt="Vida Sana">
                 <h4>VIDA SANA</h4>
                 <p>Santa Marta, Colombia<br>NIT: 1082954847-4</p>
                 <p style="font-size:11px;margin-top:2px;">${shortDate(sale.date)}</p>
@@ -263,6 +274,9 @@ function showReceipt(sale) {
             ${itemsHtml}
             <div class="receipt-divider"></div>
             <div class="receipt-total"><span>TOTAL</span><span>${formatPrice(sale.total)}</span></div>
+            ${sale.paymentBreakdown ? '<div class="receipt-divider"></div><div class="receipt-row" style="font-size:12px;color:var(--text-muted);"><span>Desglose de pago</span></div>' + breakdownHtml : ''}
+            ${pagaHtml}
+            ${cambioHtml}
             <div class="receipt-footer">
                 <p>Gracias por su compra!</p>
                 <p>tel: 313 6196312</p>

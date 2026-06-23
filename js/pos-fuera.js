@@ -668,6 +668,14 @@ const TRANSFER_OPTS = [
     { key: 'daviplata', label: 'Daviplata' },
     { key: 'bolt', label: 'Bolt' }
 ];
+const MIXED_METHODS = [
+    { key: 'cash', label: 'Efectivo', icon: 'M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z' },
+    { key: 'card', label: 'Tarjeta', icon: 'M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h12v2H6v-2zm0 4h8v2H6v-2z' },
+    { key: 'transferencia', label: 'Transferencia', icon: 'M21 18v3H3v-3h18zM19 7v3l-7-5-7 5V7l7-5 7 5z' },
+    { key: 'nequi', label: 'Nequi', icon: 'M21 18v3H3v-3h18zM19 7v3l-7-5-7 5V7l7-5 7 5z' },
+    { key: 'daviplata', label: 'Daviplata', icon: 'M21 18v3H3v-3h18zM19 7v3l-7-5-7 5V7l7-5 7 5z' },
+    { key: 'bolt', label: 'Bolt', icon: 'M21 18v3H3v-3h18zM19 7v3l-7-5-7 5V7l7-5 7 5z' }
+];
 let chkPayMethod = 'cash';
 let chkCreditType = 'fijo';
 
@@ -678,9 +686,92 @@ function toggleExcedente() {
 }
 function calcTotalExcedente() { renderTpvCart(); }
 
+function renderCheckoutMixedHtml() {
+    return '<div class="checkout-mixed-section">' +
+        '<div class="checkout-mixed-title">Distribuir pago</div>' +
+        MIXED_METHODS.map(m => '<div class="checkout-mixed-row">' +
+            '<span class="checkout-mixed-label">' + m.label + '</span>' +
+            '<input type="number" class="checkout-mixed-input" data-method="' + m.key + '" data-label="' + m.label + '" value="" min="0" placeholder="$0" oninput="onMixedInputChange()">' +
+            '</div>').join('') +
+        '<div class="checkout-mixed-total">' +
+            '<span>Total asignado</span><span id="chkMixedAssigned">$0</span>' +
+        '</div>' +
+        '<div class="checkout-mixed-remaining" id="chkMixedRemaining">' +
+            '<span>Restante</span><span id="chkMixedRestante">$0</span>' +
+        '</div>' +
+        '<div class="checkout-mixed-cambio" id="chkMixedCambioRow" style="display:none;color:var(--success);font-weight:700;font-size:13px;padding:4px 0 0;border-top:1px solid var(--border);margin-top:4px;">' +
+            '<span>Cambio (Efectivo)</span><span id="chkMixedCambioAmount">$0</span>' +
+        '</div>' +
+        '</div>';
+}
+function calcMixedTotal() {
+    const inputs = document.querySelectorAll('.checkout-mixed-input');
+    let sum = 0;
+    inputs.forEach(inp => { sum += parseFloat(inp.value) || 0; });
+    return sum;
+}
+function getCashMixedAmount() {
+    const cashInput = document.querySelector('.checkout-mixed-input[data-method="cash"]');
+    return cashInput ? (parseFloat(cashInput.value) || 0) : 0;
+}
+function getNonCashSum() {
+    const inputs = document.querySelectorAll('.checkout-mixed-input');
+    let sum = 0;
+    inputs.forEach(inp => {
+        if (inp.dataset.method !== 'cash') sum += parseFloat(inp.value) || 0;
+    });
+    return sum;
+}
+function onMixedInputChange() {
+    const total = getCheckoutTotal();
+    const assigned = calcMixedTotal();
+    const nonCashSum = getNonCashSum();
+    const cashBill = getCashMixedAmount();
+    const cashAssigned = Math.max(0, total - nonCashSum);
+    const cambio = Math.max(0, cashBill - cashAssigned);
+    document.getElementById('chkMixedAssigned').textContent = formatPrice(assigned);
+    const remEl = document.getElementById('chkMixedRestante');
+    const missing = Math.max(0, cashAssigned - cashBill);
+    if (cashBill > 0 && missing > 0) {
+        remEl.textContent = formatPrice(missing);
+        remEl.style.color = 'var(--danger)';
+    } else if (cashBill > 0 && cambio > 0) {
+        remEl.textContent = '$0';
+        remEl.style.color = 'var(--success)';
+    } else {
+        const restante = total - assigned;
+        remEl.textContent = formatPrice(Math.abs(restante));
+        remEl.style.color = restante > 0 ? 'var(--warning)' : (restante === 0 ? 'var(--success)' : 'var(--danger)');
+    }
+    const cambioRow = document.getElementById('chkMixedCambioRow');
+    if (cambio > 0) {
+        cambioRow.style.display = 'flex';
+        document.getElementById('chkMixedCambioAmount').textContent = formatPrice(cambio);
+    } else {
+        cambioRow.style.display = 'none';
+    }
+}
+function getMixedBreakdown() {
+    const inputs = document.querySelectorAll('.checkout-mixed-input');
+    const total = getCheckoutTotal();
+    const nonCashSum = getNonCashSum();
+    const cashAssigned = Math.max(0, total - nonCashSum);
+    const breakdown = [];
+    inputs.forEach(inp => {
+        const val = parseFloat(inp.value) || 0;
+        if (val > 0 && inp.dataset.method !== 'cash') {
+            breakdown.push({ method: inp.dataset.label, methodKey: inp.dataset.method, amount: val });
+        }
+    });
+    if (cashAssigned > 0) {
+        breakdown.push({ method: 'Efectivo', methodKey: 'cash', amount: cashAssigned });
+    }
+    return breakdown;
+}
 function renderCheckoutPayGrid() {
     const grid = document.getElementById('chkPayGrid');
     const isTransfer = chkPayMethod === 'transfer' || ['transferencia','nequi','daviplata','bolt'].includes(chkPayMethod);
+    const isMixed = chkPayMethod === 'mixed';
     grid.innerHTML =
         '<div style="display:flex;flex-direction:column;gap:6px;">' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">' +
@@ -692,6 +783,7 @@ function renderCheckoutPayGrid() {
         (isTransfer ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:8px;background:var(--hover);border-radius:8px;">' +
             TRANSFER_OPTS.map(t => '<div class="checkout-pay-subopt' + (t.key === chkPayMethod ? ' selected' : '') + '" onclick="pickCheckoutSubPay(\'' + t.key + '\', \'' + t.label + '\')" style="display:flex;align-items:center;justify-content:center;padding:8px;border:2px solid ' + (t.key === chkPayMethod ? 'var(--primary)' : 'var(--border)') + ';border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;transition:all 0.15s;background:' + (t.key === chkPayMethod ? 'rgba(11,81,59,0.06)' : '#fff') + ';">' + t.label + '</div>').join('') +
             '</div>' : '') +
+        (isMixed ? renderCheckoutMixedHtml() : '') +
         '</div>';
 }
 function pickCheckoutPay(key) {
@@ -754,6 +846,8 @@ function openCheckoutModal() {
     chkCreditType = 'fijo';
     document.getElementById('chkCustomerId').value = '';
     document.getElementById('chkCustomerInput').value = '';
+    const el = document.getElementById('chkQuickAdd');
+    if (el) el.style.display = 'none';
     document.getElementById('chkCreditConfig').classList.remove('open');
     const modal = document.getElementById('checkoutModal');
     modal.classList.add('open');
@@ -804,39 +898,36 @@ function pickCheckoutCustomer(id) {
 }
 
 // ============ QUICK ADD CUSTOMER ============
-function toggleQuickAddCustomer() {
-    const form = document.getElementById('quickAddCustomer');
-    const isOpen = form.classList.contains('open');
-    form.classList.toggle('open');
-    if (!isOpen) {
-        document.getElementById('quickCustName').value = '';
-        document.getElementById('quickCustPhone').value = '';
-        document.getElementById('quickCustAddress').value = '';
-        setTimeout(() => document.getElementById('quickCustName').focus(), 100);
+function quickAddCheckoutCustomer() {
+    const el = document.getElementById('chkQuickAdd');
+    el.style.display = el.style.display === 'none' ? '' : 'none';
+    if (el.style.display !== 'none') {
+        document.getElementById('chkQuickName').value = '';
+        document.getElementById('chkQuickPhone').value = '';
+        document.getElementById('chkQuickName').focus();
     }
 }
-
-function saveQuickCustomer() {
-    const name = document.getElementById('quickCustName').value.trim();
-    const phone = document.getElementById('quickCustPhone').value.trim();
-    const address = document.getElementById('quickCustAddress').value.trim();
-    if (!name) { showToast('Ingresa el nombre del cliente'); return; }
-    const exists = posCustomers.find(c => c.name.toLowerCase() === name.toLowerCase());
-    if (exists) { showToast('Ya existe un cliente con ese nombre'); return; }
-    const id = 'c' + Date.now();
-    const customer = { id, name, phone, email: '', address, tipo: 'fuera', pending: 0, _synced: false };
-    posCustomers.push(customer);
+function cancelQuickAddCustomer() {
+    document.getElementById('chkQuickAdd').style.display = 'none';
+}
+function saveQuickCheckoutCustomer() {
+    const name = document.getElementById('chkQuickName').value.trim();
+    if (!name) { showToast('Nombre requerido'); document.getElementById('chkQuickName').focus(); return; }
+    const phone = document.getElementById('chkQuickPhone').value.trim();
+    const tipo = getDefaultCustomerTipo();
+    const cust = { id: 'c' + posNextCustomerId++, name, phone, email: '', address: '', tipo, _synced: false };
+    posCustomers.push(cust);
     saveCustomers();
-    document.getElementById('quickAddCustomer').classList.remove('open');
-    document.getElementById('chkCustomerId').value = id;
-    document.getElementById('chkCustomerInput').value = name + (phone ? ' - ' + phone : '');
-    requestAnimationFrame(() => {
-        renderCheckoutCustomers();
-        renderCustomerTable();
-        const list = document.getElementById('chkCustomerList');
-        if (list) list.scrollTop = list.scrollHeight;
-    });
-    showToast('Cliente "' + name + '" creado');
+    pickCheckoutCustomer(cust.id);
+    document.getElementById('chkQuickAdd').style.display = 'none';
+    showToast('Cliente agregado');
+}
+
+function calcCambio() {
+    const total = getCheckoutTotal();
+    const paga = parseFloat(document.getElementById('chkPagaCon').value) || 0;
+    const cambio = Math.max(0, paga - total);
+    document.getElementById('chkCambioDisplay').textContent = formatPrice(cambio);
 }
 
 function renderCheckoutResumen() {
@@ -861,9 +952,23 @@ function renderCheckoutResumen() {
                 html = '<div style="font-size:12px;color:#16a34a;">Cuenta de cobro: ' + formatPrice(total) + '</div>';
             }
             summary.innerHTML = html;
+        } else if (chkPayMethod === 'mixed') {
+            const assigned = calcMixedTotal();
+            const restante = total - assigned;
+            const color = restante > 0 ? 'var(--warning)' : (restante === 0 ? 'var(--success)' : 'var(--danger)');
+            summary.innerHTML = '<div style="font-size:12px;font-weight:600;color:' + color + ';"><span>Restante: ' + formatPrice(Math.abs(restante)) + '</span></div>';
         } else {
             summary.innerHTML = '';
         }
+    }
+    const section = document.getElementById('chkCambioSection');
+    if (chkPayMethod === 'cash') {
+        section.style.display = '';
+        calcCambio();
+    } else {
+        section.style.display = 'none';
+        document.getElementById('chkPagaCon').value = '';
+        document.getElementById('chkCambioDisplay').textContent = '$0';
     }
 }
 
@@ -880,6 +985,33 @@ function confirmCheckout() {
         const cust = posCustomers.find(c => c.id === custId);
         if (cust) { customerName = cust.name; customerId = custId; }
     }
+    let paymentBreakdown = null;
+    let pagaCon = total;
+    let cambio = 0;
+    let pagaConCash = null;
+    let cambioCash = null;
+    if (chkPayMethod === 'mixed') {
+        const nonCashSum = getNonCashSum();
+        const cashBill = getCashMixedAmount();
+        const cashAssigned = Math.max(0, total - nonCashSum);
+        if (cashBill > 0 && cashBill < cashAssigned) {
+            showToast('El billete de efectivo ($' + formatPrice(cashBill) + ') no cubre la parte de efectivo ($' + formatPrice(cashAssigned) + ')');
+            return;
+        }
+        paymentBreakdown = getMixedBreakdown();
+        const assignedTotal = paymentBreakdown.reduce((s, p) => s + p.amount, 0);
+        if (assignedTotal !== total) {
+            showToast('La suma de los metodos (' + formatPrice(assignedTotal) + ') debe ser igual al total (' + formatPrice(total) + ')');
+            return;
+        }
+        if (cashBill > 0) {
+            pagaConCash = cashBill;
+            cambioCash = Math.max(0, cashBill - cashAssigned);
+        }
+    } else if (chkPayMethod === 'cash') {
+        pagaCon = parseFloat(document.getElementById('chkPagaCon').value) || total;
+        cambio = Math.max(0, pagaCon - total);
+    }
     const sale = {
         id: posNextSaleId++,
         date: now(),
@@ -890,6 +1022,11 @@ function confirmCheckout() {
         subtotal,
         excedente,
         total,
+        pagaCon,
+        cambio,
+        pagaConCash,
+        cambioCash,
+        paymentBreakdown,
         method: methods[chkPayMethod] || 'Efectivo',
         methodKey: chkPayMethod,
         customer: customerName,
@@ -1396,10 +1533,21 @@ function showReceipt(sale) {
     if (typeof sale === 'string') sale = JSON.parse(sale);
     const content = document.getElementById('receiptContent');
     const itemsHtml = sale.items.map(i => `<div class="receipt-row"><span>${(i.name || 'Producto').substring(0,22)} x${i.qty}</span><span>${formatPrice(i.price * i.qty)}</span></div>`).join('');
+    const breakdownHtml = sale.paymentBreakdown ? sale.paymentBreakdown.map(p =>
+        '<div class="receipt-row" style="font-size:12px;"><span style="padding-left:8px;">' + p.method + '</span><span>' + formatPrice(p.amount) + '</span></div>'
+    ).join('') : '';
+    let pagaHtml = sale.pagaCon && !sale.paymentBreakdown ? '<div class="receipt-row"><span>Paga con</span><span>' + formatPrice(sale.pagaCon) + '</span></div>' : '';
+    let cambioHtml = sale.cambio ? '<div class="receipt-row" style="color:var(--success);font-weight:700;"><span>Cambio</span><span>' + formatPrice(sale.cambio) + '</span></div>' : '';
+    if (sale.pagaConCash) {
+        pagaHtml = '<div class="receipt-row"><span>Paga con (Efectivo)</span><span>' + formatPrice(sale.pagaConCash) + '</span></div>';
+    }
+    if (sale.cambioCash) {
+        cambioHtml = '<div class="receipt-row" style="color:var(--success);font-weight:700;"><span>Cambio (Efectivo)</span><span>' + formatPrice(sale.cambioCash) + '</span></div>';
+    }
     content.innerHTML = `
         <div class="receipt">
             <div class="receipt-header">
-                <img src="LOGO.jpeg" style="height:52px;margin-bottom:6px;" alt="Logo">
+                <img src="Logo_Factura.png" style="max-width:180px;height:auto;margin-bottom:6px;" alt="Logo">
                 <p>Santa Marta, Colombia<br>NIT: 1082954847-4</p>
                 <p style="font-size:11px;margin-top:2px;">${shortDate(sale.date)}</p>
             </div>
@@ -1412,6 +1560,9 @@ function showReceipt(sale) {
             <div class="receipt-divider"></div>
             <div class="receipt-row"><span>Subtotal</span><span>${formatPrice(sale.subtotal)}</span></div>
             <div class="receipt-total"><span>TOTAL</span><span>${formatPrice(sale.total)}</span></div>
+            ${sale.paymentBreakdown ? '<div class="receipt-divider"></div><div class="receipt-row" style="font-size:12px;color:var(--text-muted);"><span>Desglose de pago</span></div>' + breakdownHtml : ''}
+            ${pagaHtml}
+            ${cambioHtml}
             <div class="receipt-footer">
                 <p>Gracias por su compra!</p>
                 <p>tel: 313 6196312</p>
