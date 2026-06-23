@@ -6,7 +6,6 @@
     <title>Registrar Cuenta - Vida Sana</title>
     <link rel="icon" href="icon-192.png">
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    <script src="js/api.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
@@ -38,7 +37,7 @@
         <h1>Crear Cuenta</h1>
         <p class="subtitle">Registra tu cuenta de administrador</p>
 
-        <form id="registerForm" onsubmit="handleRegister(event)">
+        <form id="registerForm" onsubmit="return handleRegister(event)">
             <div class="field">
                 <label>Nombre completo</label>
                 <input type="text" id="regName" placeholder="Tu nombre" required>
@@ -68,10 +67,21 @@
     <script>
         const _SUPABASE_URL = 'https://jcksqhqopqhswwxskhls.supabase.co';
         const _SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja3NxaHFvcHFoc3d3eHNraGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTIzNjksImV4cCI6MjA5NjQ4ODM2OX0.1hnEgbk9--eedO1Tw9L0p6NKtHkz9h9NENEFiFJjbj0';
-        const sb = window.supabase.createClient(_SUPABASE_URL, _SUPABASE_KEY);
+        let sb = null;
+        try {
+            sb = window.supabase.createClient(_SUPABASE_URL, _SUPABASE_KEY);
+            console.log('[Register] Supabase OK');
+        } catch(e) {
+            console.error('[Register] Supabase error:', e);
+        }
 
         async function handleRegister(e) {
             e.preventDefault();
+            if (!sb) {
+                document.getElementById('regError').textContent = 'Error de conexion';
+                document.getElementById('regError').style.display = 'block';
+                return false;
+            }
             const name = document.getElementById('regName').value.trim();
             const user = document.getElementById('regUser').value.trim();
             const pass = document.getElementById('regPass').value;
@@ -103,16 +113,17 @@
             btn.textContent = 'Creando...';
 
             try {
-                const { data: existing } = await sb.from('pos_users').select('id').eq('username', user).maybeSingle();
+                const { data: existing, error: checkErr } = await sb.from('pos_users').select('id').eq('username', user).maybeSingle();
+                if (checkErr) throw checkErr;
                 if (existing) {
                     errEl.textContent = 'Este usuario ya esta registrado';
                     errEl.style.display = 'block';
                     btn.disabled = false;
                     btn.textContent = 'Registrarse';
-                    return;
+                    return false;
                 }
 
-                const { error } = await sb.from('pos_users').insert({ username: user, pass, role: 'admin', name });
+                const { data, error } = await sb.from('pos_users').insert({ username: user, pass, role: 'admin', name }).select();
                 if (error) throw error;
 
                 okEl.textContent = 'Cuenta creada! Redirigiendo al login...';
@@ -124,6 +135,7 @@
                 btn.disabled = false;
                 btn.textContent = 'Registrarse';
             }
+            return false;
         }
     </script>
 </body>
