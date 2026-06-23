@@ -1611,71 +1611,45 @@ function showFinalInvoice(saleId) {
     const pendiente = sale.total - pagado;
     const isPaid = pendiente <= 0;
     const paymentsHtml = ci.payments && ci.payments.length > 0
-        ? ci.payments.map((p, i) => '<tr><td>' + (i + 1) + '</td><td>' + shortDate(p.date) + '</td><td style="text-align:right;color:#166534;font-weight:600;">' + formatPrice(p.amount) + '</td></tr>').join('')
-        : '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">Sin pagos registrados</td></tr>';
-    const progressPct = sale.total > 0 ? Math.min(Math.round((pagado / sale.total) * 100), 100) : 0;
+        ? ci.payments.map(p => '<div class="receipt-row" style="font-size:12px;"><span>' + shortDate(p.date) + '</span><span style="color:var(--success);font-weight:600;">' + formatPrice(p.amount) + '</span></div>').join('')
+        : '<div style="text-align:center;color:var(--text-muted);font-size:11px;padding:4px 0;">Sin pagos registrados</div>';
+    const progressBar = sale.total > 0 ? Math.round((pagado / sale.total) * 100) : 0;
+    const statusColor = isPaid ? 'var(--success)' : 'var(--warning)';
+    const statusLabel = isPaid ? 'CANCELADA' : 'PENDIENTE';
     document.getElementById('receiptContent').innerHTML = '' +
-        '<div class="invoice-print" id="invoicePrintArea">' +
-            '<div class="inv-header">' +
-                '<div class="inv-logo"><img src="LOGO.jpeg" alt="Logo"></div>' +
-                '<div class="inv-doc-info">' +
-                    '<div class="inv-doc-type">ESTADO DE CUENTA</div>' +
-                    '<div class="inv-doc-num">Factura #' + sale.id + '</div>' +
-                    '<div class="inv-doc-date">' + new Date(sale.date).toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }) + '</div>' +
-                '</div>' +
+        '<div class="receipt">' +
+            '<div class="receipt-header">' +
+                '<img src="Logo_Factura.png" style="max-width:160px;height:auto;margin-bottom:6px;" alt="Logo">' +
+                '<h4 style="font-size:15px;margin:2px 0;">ESTADO DE CUENTA</h4>' +
+                '<p style="font-size:11px;margin:2px 0;">Factura #' + sale.id + '</p>' +
+                '<p style="font-size:11px;margin:2px 0;">' + new Date(sale.date).toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }) + '</p>' +
+                '<div style="margin:6px auto;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;display:inline-block;background:' + (isPaid ? '#f0fdf4' : '#fffbe6') + ';color:' + statusColor + ';border:1px solid ' + (isPaid ? '#bbf7d0' : '#fde68a') + ';">' + statusLabel + '</div>' +
             '</div>' +
-            '<div class="inv-status ' + (isPaid ? 'inv-status-paid' : 'inv-status-pending') + '">' +
-                (isPaid ? 'CUENTA CANCELADA' : 'CUENTA PENDIENTE') +
-            '</div>' +
-            '<div class="inv-section">' +
-                '<div class="inv-section-title">DATOS DEL CLIENTE</div>' +
-                '<div class="inv-customer-grid">' +
-                    '<div><span>Nombre:</span> <strong>' + (sale.customer || 'Cliente mostrador') + '</strong></div>' +
-                    '<div><span>Metodo de pago:</span> <strong>' + sale.method + '</strong></div>' +
-                    '<div><span>Tipo de credito:</span> <strong>' + (ci.tipo === 'abono' ? 'Abono libre' : 'Cuotas fijas (' + ci.totalCuotas + ' cuotas)') + '</strong></div>' +
-                '</div>' +
-            '</div>' +
-            '<div class="inv-section">' +
-                '<div class="inv-section-title">PRODUCTOS COMPRADOS</div>' +
-                '<table class="inv-table">' +
-                    '<thead><tr><th>#</th><th>Producto</th><th>Cant.</th><th style="text-align:right">Precio Unit.</th><th style="text-align:right">Subtotal</th></tr></thead>' +
-                    '<tbody>' + sale.items.map((item, i) => '<tr><td>' + (i + 1) + '</td><td>' + (item.name || 'Producto') + '</td><td>' + item.qty + '</td><td style="text-align:right">' + formatPrice(item.price) + '</td><td style="text-align:right;font-weight:600;">' + formatPrice(item.price * item.qty) + '</td></tr>').join('') + '</tbody>' +
-                    '<tfoot>' +
-                        '<tr class="inv-total-row"><td colspan="4">TOTAL VENTA</td><td style="text-align:right">' + formatPrice(sale.total) + '</td></tr>' +
-                    '</tfoot>' +
-                '</table>' +
-            '</div>' +
-            '<div class="inv-section">' +
-                '<div class="inv-section-title">RESUMEN DE PAGOS</div>' +
-                '<div class="inv-summary-grid">' +
-                    '<div class="inv-summary-box inv-total-box"><div class="inv-summary-label">Total de la compra</div><div class="inv-summary-val">' + formatPrice(sale.total) + '</div></div>' +
-                    '<div class="inv-summary-box inv-paid-box"><div class="inv-summary-label">Total pagado</div><div class="inv-summary-val">' + formatPrice(pagado) + '</div></div>' +
-                    '<div class="inv-summary-box inv-pending-box"><div class="inv-summary-label">Saldo pendiente</div><div class="inv-summary-val">' + formatPrice(Math.max(0, pendiente)) + '</div></div>' +
-                '</div>' +
-                '<div class="inv-progress-wrap">' +
-                    '<div class="inv-progress-bar"><div class="inv-progress-fill" style="width:' + progressPct + '%"></div></div>' +
-                    '<div class="inv-progress-text">' + progressPct + '% pagado</div>' +
-                '</div>' +
-            '</div>' +
-            '<div class="inv-section">' +
-                '<div class="inv-section-title">HISTORIAL DE PAGOS</div>' +
-                '<table class="inv-table inv-payments-table">' +
-                    '<thead><tr><th>#</th><th>Fecha</th><th style="text-align:right">Monto</th></tr></thead>' +
-                    '<tbody>' + paymentsHtml + '</tbody>' +
-                    '<tfoot>' +
-                        '<tr class="inv-paid-row"><td colspan="2">TOTAL ABONADO</td><td style="text-align:right">' + formatPrice(pagado) + '</td></tr>' +
-                        (!isPaid ? '<tr class="inv-pending-foot-row"><td colspan="2">SALDO PENDIENTE</td><td style="text-align:right">' + formatPrice(pendiente) + '</td></tr>' : '') +
-                    '</tfoot>' +
-                '</table>' +
-            '</div>' +
-            '<div class="inv-footer">' +
+            '<div class="receipt-divider"></div>' +
+            '<div class="receipt-row"><span>Cliente</span><span style="font-weight:600;">' + (sale.customer || 'Mostrador') + '</span></div>' +
+            '<div class="receipt-row" style="font-size:12px;"><span>Metodo</span><span>' + sale.method + '</span></div>' +
+            '<div class="receipt-row" style="font-size:12px;"><span>Credito</span><span>' + (ci.tipo === 'abono' ? 'Abono libre' : 'Cuotas fijas (' + ci.totalCuotas + ')') + '</span></div>' +
+            '<div class="receipt-divider"></div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Productos</div>' +
+            sale.items.map(i => '<div class="receipt-row" style="font-size:12px;"><span>' + (i.name || 'Producto').substring(0,20) + ' x' + i.qty + '</span><span>' + formatPrice(i.price * i.qty) + '</span></div>').join('') +
+            '<div class="receipt-divider"></div>' +
+            '<div class="receipt-total"><span>TOTAL VENTA</span><span>' + formatPrice(sale.total) + '</span></div>' +
+            '<div class="receipt-divider"></div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Resumen de pagos</div>' +
+            '<div class="receipt-row" style="font-size:12px;"><span>Total pagado</span><span style="color:var(--success);font-weight:600;">' + formatPrice(pagado) + '</span></div>' +
+            '<div class="receipt-row" style="font-size:12px;' + (isPaid ? '' : 'color:var(--warning);font-weight:700;') + '"><span>Saldo pendiente</span><span>' + formatPrice(Math.max(0, pendiente)) + '</span></div>' +
+            '<div class="receipt-divider"></div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Historial de pagos</div>' +
+            paymentsHtml +
+            '<div class="receipt-divider"></div>' +
+            '<div class="receipt-footer">' +
                 '<p>Documento generado el ' + new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }) + '</p>' +
-                '<p style="margin-top:4px;">Gracias por su compra</p>' +
+                '<p style="margin-top:4px;">Gracias por su compra!</p>' +
             '</div>' +
         '</div>';
     document.getElementById('receiptModal').classList.add('open');
     const btnInv = document.getElementById('btnDownloadInv');
-    if (btnInv) btnInv.style.display = '';
+    if (btnInv) btnInv.style.display = 'none';
 }
 
 // ============ CUSTOMER HISTORY / CUENTA DE COBRO ============
