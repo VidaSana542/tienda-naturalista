@@ -103,7 +103,7 @@
             btn.textContent = 'Creando...';
 
             try {
-                const { data: existing } = await sb.from('pos_users').select('id').eq('user', user).maybeSingle();
+                const { data: existing } = await sb.from('pos_users').select('id').eq('username', user).maybeSingle();
                 if (existing) {
                     errEl.textContent = 'Este usuario ya esta registrado';
                     errEl.style.display = 'block';
@@ -112,7 +112,7 @@
                     return;
                 }
 
-                const { error } = await sb.from('pos_users').insert({ user, pass, role: 'admin', name });
+                const { error } = await sb.from('pos_users').insert({ username: user, pass, role: 'admin', name });
                 if (error) throw error;
 
                 okEl.textContent = 'Cuenta creada! Redirigiendo al login...';

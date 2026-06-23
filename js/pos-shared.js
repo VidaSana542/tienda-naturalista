@@ -9,7 +9,8 @@ async function getPOSUsers() {
         try {
             const { data, error } = await _sb.from('pos_users').select('*');
             if (!error && data && data.length > 0) {
-                _posUsersCache = [...data, ...POS_USERS_DEFAULT];
+                const mapped = data.map(u => ({ user: u.username, pass: u.pass, role: u.role, name: u.name }));
+                _posUsersCache = [...mapped, ...POS_USERS_DEFAULT];
                 localStorage.setItem('posRegisteredUsers', JSON.stringify(data));
                 return _posUsersCache;
             }
