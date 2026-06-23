@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registrar Cuenta - Vida Sana</title>
     <link rel="icon" href="icon-192.png">
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="js/api.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
@@ -64,17 +66,11 @@
     </div>
 
     <script>
-        const STORAGE_KEY = 'posRegisteredUsers';
+        const _SUPABASE_URL = 'https://jcksqhqopqhswwxskhls.supabase.co';
+        const _SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja3NxaHFvcHFoc3d3eHNraGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTIzNjksImV4cCI6MjA5NjQ4ODM2OX0.1hnEgbk9--eedO1Tw9L0p6NKtHkz9h9NENEFiFJjbj0';
+        const sb = window.supabase.createClient(_SUPABASE_URL, _SUPABASE_KEY);
 
-        function getUsers() {
-            try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { return []; }
-        }
-
-        function saveUsers(users) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-        }
-
-        function handleRegister(e) {
+        async function handleRegister(e) {
             e.preventDefault();
             const name = document.getElementById('regName').value.trim();
             const user = document.getElementById('regUser').value.trim();
@@ -102,23 +98,32 @@
                 return;
             }
 
-            const users = getUsers();
+            const btn = document.getElementById('regBtn');
+            btn.disabled = true;
+            btn.textContent = 'Creando...';
 
-            if (users.find(u => u.user === user)) {
-                errEl.textContent = 'Este usuario ya esta registrado';
+            try {
+                const { data: existing } = await sb.from('pos_users').select('id').eq('user', user).maybeSingle();
+                if (existing) {
+                    errEl.textContent = 'Este usuario ya esta registrado';
+                    errEl.style.display = 'block';
+                    btn.disabled = false;
+                    btn.textContent = 'Registrarse';
+                    return;
+                }
+
+                const { error } = await sb.from('pos_users').insert({ user, pass, role: 'admin', name });
+                if (error) throw error;
+
+                okEl.textContent = 'Cuenta creada! Redirigiendo al login...';
+                okEl.style.display = 'block';
+                setTimeout(() => { window.location.href = 'pos.html'; }, 1500);
+            } catch(e) {
+                errEl.textContent = 'Error: ' + e.message;
                 errEl.style.display = 'block';
-                return;
+                btn.disabled = false;
+                btn.textContent = 'Registrarse';
             }
-
-            const newUser = { user, pass, role: 'admin', name };
-            users.push(newUser);
-            saveUsers(users);
-
-            okEl.textContent = 'Cuenta creada! Redirigiendo al login...';
-            okEl.style.display = 'block';
-            document.getElementById('regBtn').disabled = true;
-
-            setTimeout(() => { window.location.href = 'pos.html'; }, 1500);
         }
     </script>
 </body>

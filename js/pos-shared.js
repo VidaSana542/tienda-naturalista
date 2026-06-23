@@ -2,10 +2,23 @@
 const POS_USERS_DEFAULT = [
     { user: 'empleado', pass: 'emp123', role: 'empleado', name: 'Empleado' }
 ];
-function getPOSUsers() {
+let _posUsersCache = null;
+async function getPOSUsers() {
+    if (_posUsersCache) return _posUsersCache;
+    if (typeof _sb !== 'undefined' && _sb) {
+        try {
+            const { data, error } = await _sb.from('pos_users').select('*');
+            if (!error && data && data.length > 0) {
+                _posUsersCache = [...data, ...POS_USERS_DEFAULT];
+                localStorage.setItem('posRegisteredUsers', JSON.stringify(data));
+                return _posUsersCache;
+            }
+        } catch(e) { console.error('[Login] Error cargando usuarios:', e); }
+    }
     let registered = [];
     try { registered = JSON.parse(localStorage.getItem('posRegisteredUsers')) || []; } catch(e) {}
-    return [...registered, ...POS_USERS_DEFAULT];
+    _posUsersCache = [...registered, ...POS_USERS_DEFAULT];
+    return _posUsersCache;
 }
 let currentUser = null;
 
@@ -51,11 +64,12 @@ function applyPosScopeUI() {
     });
 }
 
-function handleLogin(e) {
+async function handleLogin(e) {
     e.preventDefault();
     const user = document.getElementById('loginUser').value.trim();
     const pass = document.getElementById('loginPass').value;
-    const found = getPOSUsers().find(u => u.user === user && u.pass === pass);
+    const users = await getPOSUsers();
+    const found = users.find(u => u.user === user && u.pass === pass);
     if (!found) {
         document.getElementById('loginError').textContent = 'Usuario o contrasena incorrectos';
         document.getElementById('loginError').style.display = 'block';
