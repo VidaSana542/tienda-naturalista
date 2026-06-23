@@ -963,7 +963,7 @@ function renderCustomerTable() {
 }
 
 function getCustomerPending(cid) {
-    const sales = filterSalesByScope(posSales.filter(s => s.customerId === cid && !s.creditInfo?.merged));
+    const sales = filterSalesByScope(posSales.filter(s => s.customerId === cid));
     return sales.reduce((sum, s) => {
             if (!s.creditInfo) return sum;
             if (s.creditInfo.tipo === 'abono') {
