@@ -1862,9 +1862,13 @@ async function mergeSelectedSales() {
                     method_key: 'credito',
                     credit_info: mergedSale.creditInfo,
                     venta_por_fuera: mergedSale.ventaPorFuera,
-                    created_at: mergedSale.created_at
+                    created_at: mergedSale.created_at,
+                    items: allItems
                 });
-                if (savedSale && savedSale.id) mergedSale.id = savedSale.id;
+                if (savedSale && savedSale.id) {
+                    mergedSale.id = savedSale.id;
+                    mergedSale.apiSynced = true;
+                }
             } catch (e) {
                 console.error('[POS] API saveSale error:', e);
             }
