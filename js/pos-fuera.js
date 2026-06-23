@@ -1723,7 +1723,7 @@ function renderAccountStatus() {
         return;
     }
     tbody.innerHTML = customers.map(c => {
-        const sales = filterSalesByScope(posSales.filter(s => s.customerId === c.id));
+        const sales = filterSalesByScope(posSales.filter(s => s.customerId === c.id && !s.creditInfo?.merged));
         const totalSpent = sales.reduce((sum, s) => sum + s.total, 0);
         const pendingTotal = getCustomerPending(c.id);
         const totalPaid = Math.max(0, totalSpent - pendingTotal);

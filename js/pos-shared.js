@@ -963,7 +963,7 @@ function renderCustomerTable() {
 }
 
 function getCustomerPending(cid) {
-    const sales = filterSalesByScope(posSales.filter(s => s.customerId === cid));
+    const sales = filterSalesByScope(posSales.filter(s => s.customerId === cid && !s.creditInfo?.merged));
     return sales.reduce((sum, s) => {
             if (!s.creditInfo) return sum;
             if (s.creditInfo.tipo === 'abono') {
@@ -1660,7 +1660,7 @@ function showCustomerHistory(custId) {
     const cust = posCustomers.find(c => c.id === custId);
     if (!cust) return;
     document.getElementById('custHistoryTitle').textContent = 'Cuenta de Cobro: ' + cust.name;
-    const sales = filterSalesByScope(posSales.filter(s => s.customerId === custId));
+    const sales = filterSalesByScope(posSales.filter(s => s.customerId === custId && !s.creditInfo?.merged));
     const creditSales = sales.filter(s => s.creditInfo);
     const totalOwedGlobal = creditSales.reduce((sum, s) => {
         if (s.creditInfo.merged) return sum;
@@ -1811,17 +1811,12 @@ async function mergeSelectedSales() {
             }
         });
 
-        let combinedBalance = 0;
+        let totalPaid = 0;
         let combinedPayments = [];
         sales.forEach(s => {
-            if (s.creditInfo) {
-                const pending = s.creditInfo.tipo === 'abono'
-                    ? s.creditInfo.balance - s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0)
-                    : (s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor;
-                combinedBalance += Math.max(0, pending);
-                if (s.creditInfo.payments) {
-                    combinedPayments = combinedPayments.concat(s.creditInfo.payments);
-                }
+            if (s.creditInfo && s.creditInfo.payments) {
+                combinedPayments = combinedPayments.concat(s.creditInfo.payments);
+                s.creditInfo.payments.forEach(p => totalPaid += p.amount);
             }
         });
 
@@ -1842,7 +1837,7 @@ async function mergeSelectedSales() {
                 cuotaValor: 0,
                 pagadas: 0,
                 payments: combinedPayments,
-                balance: combinedBalance,
+                balance: combinedTotal,
                 mergedFrom: mergedFromIds
             },
             ventaPorFuera: sales[0].ventaPorFuera || false,
