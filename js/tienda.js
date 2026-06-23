@@ -428,8 +428,7 @@ function openModal(id) {
     btn.disabled = false;
     btn.style.opacity = '1';
     btn.style.cursor = 'pointer';
-        btn.onclick = () => { addToCart(p.id); closeModal(); };
-    }
+    btn.onclick = () => { addToCart(p.id); closeModal(); };
     document.getElementById('productModal').classList.add('open');
     document.body.style.overflow = 'hidden';
 }
