@@ -416,6 +416,7 @@ function saveSuppliers() {
 }
 async function syncFromApi() {
     try {
+        loadData();
         const apiProducts = await API.getProducts();
         if (apiProducts && apiProducts.length > 0) {
             const apiMap = {};
@@ -507,6 +508,8 @@ async function syncFromApi() {
         }
         const apiSales = await API.getSales();
         if (apiSales && Array.isArray(apiSales)) {
+            const mergeFlags = {};
+            posSales.forEach(ls => { if (ls.creditInfo?.merged) mergeFlags[ls.id] = { merged: true, mergedInto: ls.creditInfo.mergedInto }; });
             const apiSalesMap = {};
             apiSales.forEach(s => { apiSalesMap[s.id] = s; });
             const localUnsynced = posSales.filter(ls => !apiSalesMap[ls.id] && ls.id < 100000);
@@ -541,6 +544,7 @@ async function syncFromApi() {
                 };
             });
             posSales = [...posSales, ...localUnsynced];
+            posSales.forEach(s => { const f = mergeFlags[s.id]; if (f) { if (!s.creditInfo) s.creditInfo = {}; s.creditInfo.merged = f.merged; s.creditInfo.mergedInto = f.mergedInto; } });
             localStorage.setItem('posSales', JSON.stringify(posSales));
             const maxApiId = apiSales.reduce((m, s) => Math.max(m, s.id), 0);
             posNextSaleId = Math.max(posNextSaleId, maxApiId + 1);
