@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tests - Vida Sana</title>
+    <link rel="icon" href="../icon-192.png">
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0a; color: #e0e0e0; padding: 24px; }
+        h1 { font-size: 24px; margin-bottom: 4px; }
+        .subtitle { color: #888; margin-bottom: 24px; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #6366f1; text-decoration: none; font-size: 14px; }
+        .section { background: #1a1a2e; border: 1px solid #222; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .test-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #1a1a2e; }
+        .test-row:last-child { border-bottom: none; }
+        .test-name { flex: 1; font-size: 13px; }
+        .test-status { font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 12px; }
+        .pass { background: #052e16; color: #22c55e; }
+        .fail { background: #450a0a; color: #ef4444; }
+        .skip { background: #1c1917; color: #888; }
+        .running { background: #1e1b4b; color: #818cf8; }
+        .summary { display: flex; gap: 24px; margin-top: 12px; font-size: 14px; }
+        .summary strong { color: #e0e0e0; }
+        .btn { padding: 10px 24px; background: #6366f1; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .btn:hover { background: #5558e6; }
+        .btn:disabled { background: #475569; cursor: not-allowed; }
+        #log { background: #0d0d1a; border: 1px solid #222; border-radius: 8px; padding: 12px; margin-top: 12px; max-height: 200px; overflow-y: auto; font-size: 11px; font-family: monospace; white-space: pre-wrap; color: #888; }
+    </style>
+</head>
+<body>
+    <a href="../pos.html" class="back-link">&larr; Volver al POS</a>
+    <h1>Tests del Sistema</h1>
+    <p class="subtitle">Verificacion automatica de funcionalidad</p>
+
+    <div class="section">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+            <button class="btn" id="runBtn" onclick="runAllTests()">Ejecutar Tests</button>
+            <div class="summary" id="summary"></div>
+        </div>
+        <div id="tests"></div>
+    </div>
+
+    <div class="section">
+        <h2 style="font-size:14px;margin-bottom:8px;">Log</h2>
+        <div id="log">Esperando...</div>
+    </div>
+
+<script>
+const URL = 'https://jcksqhqopqhswwxskhls.supabase.co';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja3NxaHFvcHFoc3d3eHNraGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTIzNjksImV4cCI6MjA5NjQ4ODM2OX0.1hnEgbk9--eedO1Tw9L0p6NKtHkz9h9NENEFiFJjbj0';
+let sb;
+
+const results = [];
+
+function log(msg) {
+    const el = document.getElementById('log');
+    el.textContent += '[' + new Date().toLocaleTimeString('es-CO') + '] ' + msg + '\n';
+    el.scrollTop = el.scrollHeight;
+}
+
+function renderTests() {
+    document.getElementById('tests').innerHTML = results.map(r => {
+        const cls = r.status === 'pass' ? 'pass' : r.status === 'fail' ? 'fail' : r.status === 'running' ? 'running' : 'skip';
+        const label = r.status === 'pass' ? 'PASS' : r.status === 'fail' ? 'FAIL' : r.status === 'running' ? '...' : '-';
+        return `<div class="test-row"><span class="test-status ${cls}">${label}</span><span class="test-name">${r.name}</span><span style="font-size:11px;color:#666;">${r.detail || ''}</span></div>`;
+    }).join('');
+
+    const passed = results.filter(r => r.status === 'pass').length;
+    const failed = results.filter(r => r.status === 'fail').length;
+    const total = results.length;
+    document.getElementById('summary').innerHTML = `<strong>${passed}</strong> <span style="color:#22c55e;">pasados</span> | <strong>${failed}</strong> <span style="color:#ef4444;">fallidos</span> | <strong>${total}</strong> total`;
+}
+
+async function test(name, fn) {
+    const r = { name, status: 'running', detail: '' };
+    results.push(r);
+    renderTests();
+    try {
+        const detail = await fn();
+        r.status = 'pass';
+        r.detail = detail || '';
+        log('PASS ' + name);
+    } catch(e) {
+        r.status = 'fail';
+        r.detail = e.message;
+        log('FAIL ' + name + ': ' + e.message);
+    }
+    renderTests();
+}
+
+async function runAllTests() {
+    results.length = 0;
+    document.getElementById('log').textContent = '';
+    document.getElementById('runBtn').disabled = true;
+    log('Iniciando tests...');
+
+    sb = window.supabase.createClient(URL, KEY);
+
+    // 1. Supabase connection
+    await test('Supabase: conexion', async () => {
+        const { error } = await sb.from('products').select('id').limit(1);
+        if (error) throw error;
+        return 'OK';
+    });
+
+    // 2. Tabla products
+    await test('Tabla products: existe y tiene datos', async () => {
+        const { data, error } = await sb.from('products').select('id, name').limit(5);
+        if (error) throw error;
+        if (!data || data.length === 0) throw new Error('Tabla vacia');
+        return data.length + ' registros';
+    });
+
+    // 3. Tabla categories
+    await test('Tabla categories: existe', async () => {
+        const { data, error } = await sb.from('categories').select('id').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' registros';
+    });
+
+    // 4. Tabla customers
+    await test('Tabla customers: existe', async () => {
+        const { data, error } = await sb.from('customers').select('id').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' registros';
+    });
+
+    // 5. Tabla sales
+    await test('Tabla sales: existe', async () => {
+        const { data, error } = await sb.from('sales').select('id').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' registros';
+    });
+
+    // 6. Tabla sale_items
+    await test('Tabla sale_items: existe', async () => {
+        const { data, error } = await sb.from('sale_items').select('id').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' registros';
+    });
+
+    // 7. Tabla payments
+    await test('Tabla payments: existe', async () => {
+        const { data, error } = await sb.from('payments').select('id').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' registros';
+    });
+
+    // 8. Tabla suppliers
+    await test('Tabla suppliers: existe', async () => {
+        const { data, error } = await sb.from('suppliers').select('id').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' registros';
+    });
+
+    // 9. Tabla inventory_log
+    await test('Tabla inventory_log: existe', async () => {
+        const { data, error } = await sb.from('inventory_log').select('id').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' registros';
+    });
+
+    // 10. Tabla salidas
+    await test('Tabla salidas: existe', async () => {
+        const { data, error } = await sb.from('salidas').select('id').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' registros';
+    });
+
+    // 11. Tabla salida_items
+    await test('Tabla salida_items: existe', async () => {
+        const { data, error } = await sb.from('salida_items').select('id').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' registros';
+    });
+
+    // 12. Tabla pos_users
+    await test('Tabla pos_users: existe', async () => {
+        const { data, error } = await sb.from('pos_users').select('id').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' registros';
+    });
+
+    // 13. Tabla cash_base
+    await test('Tabla cash_base: existe', async () => {
+        const { data, error } = await sb.from('cash_base').select('id').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' registros';
+    });
+
+    // 14. Tabla expenses
+    await test('Tabla expenses: existe', async () => {
+        const { data, error } = await sb.from('expenses').select('id').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' registros';
+    });
+
+    // 15. Tabla temp_products
+    await test('Tabla temp_products: existe', async () => {
+        const { data, error } = await sb.from('temp_products').select('id').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' registros';
+    });
+
+    // 16. Storage bucket
+    await test('Storage product-images: accesible', async () => {
+        const { data, error } = await sb.storage.from('product-images').list('', { limit: 1 });
+        if (error) throw error;
+        return 'OK';
+    });
+
+    // 17. Products con imagen
+    await test('Products con imagen URL', async () => {
+        const { data, error } = await sb.from('products').select('id, img').not('img', 'eq', '').limit(5);
+        if (error) throw error;
+        return (data || []).length + ' con imagen';
+    });
+
+    // 18. Products activos vs inactivos
+    await test('Products: conteo activos/inactivos', async () => {
+        const { data: active } = await sb.from('products').select('id', { count: 'exact', head: true }).eq('active', true);
+        const { data: inactive } = await sb.from('products').select('id', { count: 'exact', head: true }).eq('active', false);
+        return 'activos: ' + (active || 0) + ', inactivos: ' + (inactive || 0);
+    });
+
+    // 19. Sales recientes
+    await test('Sales: ultimas 3 ventas', async () => {
+        const { data, error } = await sb.from('sales').select('id, total, created_at').order('created_at', { ascending: false }).limit(3);
+        if (error) throw error;
+        if (!data || data.length === 0) return 'Sin ventas';
+        return data.map(s => '#' + s.id + ' $' + s.total).join(', ');
+    });
+
+    // 20. Login function exists
+    await test('Funcion getPOSUsers: existe en pos-shared.js', async () => {
+        if (typeof getPOSUsers === 'function') return 'Funcional';
+        throw new Error('No encontrada - pos-shared.js no cargado');
+    });
+
+    const passed = results.filter(r => r.status === 'pass').length;
+    const failed = results.filter(r => r.status === 'fail').length;
+    log('Tests completados: ' + passed + ' pasados, ' + failed + ' fallidos');
+
+    document.getElementById('runBtn').disabled = false;
+}
+</script>
+</body>
+</html>
