@@ -1811,12 +1811,17 @@ async function mergeSelectedSales() {
             }
         });
 
-        let totalPaid = 0;
+        let combinedBalance = 0;
         let combinedPayments = [];
         sales.forEach(s => {
-            if (s.creditInfo && s.creditInfo.payments) {
-                combinedPayments = combinedPayments.concat(s.creditInfo.payments);
-                s.creditInfo.payments.forEach(p => totalPaid += p.amount);
+            if (s.creditInfo) {
+                const pending = s.creditInfo.tipo === 'abono'
+                    ? s.creditInfo.balance - s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0)
+                    : (s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor;
+                combinedBalance += Math.max(0, pending);
+                if (s.creditInfo.payments) {
+                    combinedPayments = combinedPayments.concat(s.creditInfo.payments);
+                }
             }
         });
 
@@ -1837,7 +1842,7 @@ async function mergeSelectedSales() {
                 cuotaValor: 0,
                 pagadas: 0,
                 payments: combinedPayments,
-                balance: combinedTotal,
+                balance: combinedBalance,
                 mergedFrom: mergedFromIds
             },
             ventaPorFuera: sales[0].ventaPorFuera || false,
