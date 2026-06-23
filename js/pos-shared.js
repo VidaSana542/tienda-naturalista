@@ -1815,12 +1815,10 @@ async function mergeSelectedSales() {
         let combinedPayments = [];
         sales.forEach(s => {
             if (s.creditInfo) {
-                if (s.creditInfo.tipo === 'abono') {
-                    const pagado = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
-                    combinedBalance += s.creditInfo.balance - pagado;
-                } else {
-                    combinedBalance += (s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor;
-                }
+                const pending = s.creditInfo.tipo === 'abono'
+                    ? s.creditInfo.balance - s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0)
+                    : (s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor;
+                combinedBalance += Math.max(0, pending);
                 if (s.creditInfo.payments) {
                     combinedPayments = combinedPayments.concat(s.creditInfo.payments);
                 }
@@ -1844,7 +1842,7 @@ async function mergeSelectedSales() {
                 cuotaValor: 0,
                 pagadas: 0,
                 payments: combinedPayments,
-                balance: combinedBalance > 0 ? combinedTotal : 0,
+                balance: combinedBalance,
                 mergedFrom: mergedFromIds
             },
             ventaPorFuera: sales[0].ventaPorFuera || false,
@@ -1854,29 +1852,39 @@ async function mergeSelectedSales() {
         };
 
         if (API.isAvailable) {
-            const savedSale = await API.saveSale({
-                customer_id: parseInt(cust.id.replace('c', '')),
-                customer_name: cust.name,
-                total: combinedTotal,
-                excedente: 0,
-                method: 'Credito',
-                method_key: 'credito',
-                credit_info: mergedSale.creditInfo,
-                venta_por_fuera: mergedSale.ventaPorFuera,
-                created_at: mergedSale.created_at
-            });
-            mergedSale.id = savedSale.id;
+            try {
+                const savedSale = await API.saveSale({
+                    customer_id: parseInt(cust.id.replace('c', '')),
+                    customer_name: cust.name,
+                    total: combinedTotal,
+                    excedente: 0,
+                    method: 'Credito',
+                    method_key: 'credito',
+                    credit_info: mergedSale.creditInfo,
+                    venta_por_fuera: mergedSale.ventaPorFuera,
+                    created_at: mergedSale.created_at
+                });
+                if (savedSale && savedSale.id) mergedSale.id = savedSale.id;
+            } catch (e) {
+                console.error('[POS] API saveSale error:', e);
+            }
+        }
 
-            for (const s of sales) {
-                const newCreditInfo = { ...s.creditInfo, merged: true, mergedInto: savedSale.id, balance: 0, payments: s.creditInfo.payments || [] };
-                await API.updateSale(s.id, { credit_info: newCreditInfo });
-                s.creditInfo = newCreditInfo;
+        const mergedId = mergedSale.id;
+        for (const s of sales) {
+            s.creditInfo = { ...s.creditInfo, merged: true, mergedInto: mergedId, balance: 0, payments: s.creditInfo.payments || [] };
+            if (API.isAvailable) {
+                try {
+                    await API.updateSale(s.id, { credit_info: s.creditInfo });
+                } catch (e) {
+                    console.error('[POS] API updateSale error:', e);
+                }
             }
         }
 
         posSales.push(mergedSale);
         saveSales();
-        showToast('Facturas unidas exitosamente como #' + mergedSale.id);
+        showToast('Facturas unidas exitosamente como #' + mergedId);
         _mergeSelection = [];
         showCustomerHistory(custId);
     } catch (e) {
