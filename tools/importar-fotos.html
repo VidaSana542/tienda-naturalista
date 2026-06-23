@@ -49,7 +49,7 @@ button { padding: 10px 24px; border: none; border-radius: 6px; cursor: pointer; 
         <code>NombreProducto_Marca_NombreTienda.jpg</code> (mínimo) o <code>NombreProducto_Marca_Categoria_Subcategoria_NombreTienda.jpg</code><br><br>
         Si no incluyes categoría y subcategoría, el sistema las <strong>detecta automáticamente</strong> desde el nombre del producto usando palabras clave.<br>
         Ejemplo: <code>Colageno Hidrolizado_Natural Systems_Colageno Hidrolizado.jpg</code> → detecta categoría "Belleza" y subcategoría "Colágeno"<br><br>
-        Si el producto ya existe (mismo nombre + marca + nombre tienda) se salta automáticamente.
+        Si el producto ya existe (mismo nombre + nombre tienda) se salta automáticamente.
     </div>
     <div class="bar">
         <input type="file" id="fileInput" multiple accept="image/*" style="display:none;">
@@ -259,15 +259,12 @@ async function loadExistingProducts() {
 
 function findExisting(name, brand, catalogName) {
     const n = name.toLowerCase().trim();
-    const b = (brand || '').toLowerCase().trim();
     const c = (catalogName || '').toLowerCase().trim();
     return _existingProducts.find(p => {
         const pn = (p.name || '').toLowerCase().trim();
-        const pb = (p.brand || '').toLowerCase().trim();
         const pc = (p.catalog_name || '').toLowerCase().trim();
-        // Match by name + brand + catalog_name to avoid mixing different products
+        // Match by name + catalog_name (tienda)
         if (pn !== n) return false;
-        if (b && pb !== b) return false;
         if (c && pc && pc !== c) return false;
         return true;
     });
