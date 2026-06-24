@@ -1114,64 +1114,12 @@ function confirmCheckout() {
     });
     clearCart();
     closeCheckoutModal();
-    renderOrders();
     renderTpv();
     renderProductTable();
     renderCustomerTable();
     renderSalesTable();
     showReceipt(sale);
     showToast('Pedido #' + sale.id + ' registrado');
-}
-
-// ============ ORDERS PANEL ============
-let _ordersFilter = 'all';
-
-function setOrdersFilter(f) {
-    _ordersFilter = f;
-    document.querySelectorAll('.orders-filter-btn').forEach(b => b.classList.toggle('active', b.dataset.of === f));
-    renderOrders();
-}
-
-function renderOrders() {
-    const q = document.getElementById('ordersSearch') ? document.getElementById('ordersSearch').value.toLowerCase().trim() : '';
-    let filtered = posSales.filter(s => s.ventaPorFuera).reverse();
-    if (_ordersFilter === 'pendiente') filtered = filtered.filter(s => s.creditInfo && s.creditInfo.tipo === 'abono' ? (s.creditInfo.payments.reduce((a,p) => a + p.amount, 0) < s.creditInfo.balance) : (s.creditInfo && s.creditInfo.pagadas < s.creditInfo.totalCuotas));
-    if (_ordersFilter === 'pagado') filtered = filtered.filter(s => !s.creditInfo || (s.creditInfo.tipo === 'abono' ? (s.creditInfo.payments.reduce((a,p) => a + p.amount, 0) >= s.creditInfo.balance) : (s.creditInfo.pagadas >= s.creditInfo.totalCuotas)));
-    if (q) filtered = filtered.filter(s => s.id.toString().includes(q) || (s.customer && s.customer.toLowerCase().includes(q)));
-    const tbody = document.getElementById('ordersTableBody');
-    if (!tbody) return;
-    if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:30px;">No hay pedidos por fuera</td></tr>';
-        return;
-    }
-    tbody.innerHTML = filtered.map((s, idx) => {
-        const qty = s.items.reduce((sum, i) => sum + i.qty, 0);
-        let statusHtml = '';
-        if (s.creditInfo) {
-            if (s.creditInfo.tipo === 'abono') {
-                const pagado = s.creditInfo.payments.reduce((sum, p) => sum + p.amount, 0);
-                const balance = s.creditInfo.balance - pagado;
-                statusHtml = balance > 0 ? '<span class="tag tag-warning">Pendiente ' + formatPrice(balance) + '</span>' : '<span class="tag tag-success">Pagado</span>';
-            } else {
-                const pending = (s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor;
-                statusHtml = pending > 0 ? '<span class="tag tag-warning">' + s.creditInfo.pagadas + '/' + s.creditInfo.totalCuotas + ' cuotas</span>' : '<span class="tag tag-success">Pagado</span>';
-            }
-        } else {
-            statusHtml = '<span class="tag tag-success">Pagado</span>';
-        }
-        return `<tr>
-            <td><strong>#${s.id}</strong></td>
-            <td>${formatDate(s.date)}</td>
-            <td>${s.customer || 'Mostrador'}</td>
-            <td>${qty}</td>
-            <td><strong>${formatPrice(s.total)}</strong></td>
-            <td>${statusHtml}</td>
-            <td class="actions">
-                ${s.creditInfo && (s.creditInfo.tipo === 'abono' ? (s.creditInfo.payments.reduce((a,p) => a + p.amount, 0) < s.creditInfo.balance) : (s.creditInfo.pagadas < s.creditInfo.totalCuotas)) ? '<button class="edit" onclick="openPaymentModal(' + s.id + ')" title="Registrar Pago" style="color:var(--success);"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></button>' : ''}
-                <button onclick="showReceipt(${JSON.stringify(s).replace(/"/g, '&quot;')})" title="Ver recibo"><svg viewBox="0 0 24 24"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg></button>
-            </td>
-        </tr>`;
-    }).join('');
 }
 
 // ============ DASHBOARD ============
@@ -1699,7 +1647,6 @@ function confirmPayment() {
     }
     closePaymentModal();
     refreshCustHistory();
-    renderOrders();
     renderSalesTable();
     renderDashboard();
     showToast('Pago registrado con exito');
@@ -1951,7 +1898,6 @@ async function saveOldPurchase() {
 
 // ============ INIT ============
 POS_PANEL_RENDERERS['dashboard'] = renderDashboard;
-POS_PANEL_RENDERERS['orders'] = renderOrders;
 POS_PANEL_RENDERERS['tpv'] = renderTpv;
 POS_PANEL_RENDERERS['products'] = renderProductTable;
 POS_PANEL_RENDERERS['customers'] = renderCustomerTable;
@@ -1992,7 +1938,6 @@ function initPOS() {
         renderCategoriesTable();
         renderAccountStatus();
         renderSalesTable();
-        renderOrders();
         buildMobileMenu();
     })();
 }
