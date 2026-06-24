@@ -510,7 +510,6 @@ async function syncFromApi() {
         if (apiSales && Array.isArray(apiSales)) {
             const mergeFlags = {};
             posSales.forEach(ls => { if (ls.creditInfo?.merged) mergeFlags[ls.id] = { merged: true, mergedInto: ls.creditInfo.mergedInto }; });
-            console.log('[DEBUG syncFromApi] mergeFlags:', JSON.stringify(mergeFlags), 'posSales ids:', posSales.map(s=>s.id+' m:'+!!s.creditInfo?.merged));
             const apiSalesMap = {};
             apiSales.forEach(s => { apiSalesMap[s.id] = s; });
             const localUnsynced = posSales.filter(ls => !apiSalesMap[ls.id] && ls.id < 100000);
@@ -546,7 +545,6 @@ async function syncFromApi() {
             });
             posSales = [...posSales, ...localUnsynced];
             posSales.forEach(s => { const f = mergeFlags[s.id]; if (f) { if (!s.creditInfo) s.creditInfo = {}; s.creditInfo.merged = f.merged; s.creditInfo.mergedInto = f.mergedInto; } });
-            console.log('[DEBUG syncFromApi] AFTER re-apply. posSales ids:', posSales.map(s=>s.id+' m:'+!!s.creditInfo?.merged+' bal:'+s.creditInfo?.balance));
             localStorage.setItem('posSales', JSON.stringify(posSales));
             const maxApiId = apiSales.reduce((m, s) => Math.max(m, s.id), 0);
             posNextSaleId = Math.max(posNextSaleId, maxApiId + 1);
@@ -937,42 +935,43 @@ function renderCustomerTable() {
     }
     const tbody = document.getElementById('custTableBody');
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:30px;">No hay clientes registrados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">No hay clientes registrados</td></tr>';
         return;
     }
     tbody.innerHTML = filtered.map((c, idx) => {
         const sales = filterSalesByScope(posSales.filter(s => s.customerId === c.id));
         const purchases = sales.length;
-        const localCount = sales.filter(s => !s.ventaPorFuera).length;
-        const fueraCount = sales.filter(s => s.ventaPorFuera).length;
         const totalSpent = sales.reduce((sum, s) => sum + s.total, 0);
         const pendingTotal = getCustomerPending(c.id);
+        const totalPaid = Math.max(0, totalSpent - pendingTotal);
+        const lastDate = sales.length > 0 ? Math.max(...sales.map(s => new Date(s.date || s.created_at || 0))) : null;
+        const lastStr = lastDate ? new Date(lastDate).toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' }) : 'Nunca';
         const pendingHtml = pendingTotal > 0 ? '<span style="color:var(--warning);font-weight:600;">' + formatPrice(pendingTotal) + '</span>' : '<span style="color:var(--success);">Al dia</span>';
-        const tipoLabel = c.tipo === 'fuera' ? '<span class="tag tag-warning" style="font-size:10px;">Por fuera</span>' : '<span class="tag tag-success" style="font-size:10px;">Local</span>';
         return `<tr>
-            <td><strong>#${idx + 1}</strong></td>
             <td><strong style="cursor:pointer;" onclick="showCustomerHistory('${c.id}')">${c.name}</strong></td>
             <td>${c.phone || '-'}</td>
-            <td>${c.email || '-'}</td>
-            <td>${tipoLabel}</td>
             <td>${purchases}</td>
-            <td><span style="color:var(--green);font-weight:600;">${localCount}</span></td>
-            <td><span style="color:var(--warning);font-weight:600;">${fueraCount}</span></td>
             <td><strong>${formatPrice(totalSpent)}</strong></td>
+            <td>${formatPrice(totalPaid)}</td>
             <td>${pendingHtml}</td>
+            <td style="font-size:12px;color:var(--text-muted);">${lastStr}</td>
             <td class="actions">
-                <button class="edit" onclick="showCustomerHistory('${c.id}')" title="Historial"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg></button>
-                ${currentUser && currentUser.role === 'admin' ? `<button class="edit" onclick="openCustomerModal('${c.id}')"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button><button class="del" onclick="deleteCustomer('${c.id}')"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>` : ''}
+                <button class="btn btn-sm btn-outline" onclick="showCustomerHistory('${c.id}')" title="Historial">
+                    <svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 13h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg> Historial
+                </button>
+                ${currentUser && currentUser.role === 'admin' ? `<button class="btn btn-sm btn-outline" onclick="openCustomerModal('${c.id}')" title="Editar" style="margin-left:4px;">
+                    <svg viewBox="0 0 24 24" width="14" height="14"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                </button><button class="btn btn-sm btn-outline" onclick="deleteCustomer('${c.id}')" title="Eliminar" style="margin-left:4px;color:var(--danger);">
+                    <svg viewBox="0 0 24 24" width="14" height="14"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                </button>` : ''}
             </td>
         </tr>`;
     }).join('');
 }
 
 function getCustomerPending(cid) {
-    const raw = posSales.filter(s => s.customerId === cid);
-    const filtered = filterSalesByScope(raw.filter(s => !s.creditInfo?.merged));
-    console.log('[DEBUG getCustomerPending] cid:', cid, 'raw:', raw.length, 'filtered:', filtered.length, 'raw ids:', raw.map(s=>s.id+' m:'+!!s.creditInfo?.merged), 'filtered ids:', filtered.map(s=>s.id+' bal:'+s.creditInfo?.balance+' pay:'+s.creditInfo?.payments?.reduce((a,p)=>a+p.amount,0)));
-    return filtered.reduce((sum, s) => {
+    const sales = filterSalesByScope(posSales.filter(s => s.customerId === cid && !s.creditInfo?.merged));
+    return sales.reduce((sum, s) => {
             if (!s.creditInfo) return sum;
             if (s.creditInfo.tipo === 'abono') {
                 const pagado = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
@@ -1669,9 +1668,7 @@ function showCustomerHistory(custId) {
     if (!cust) return;
     document.getElementById('custHistoryTitle').textContent = 'Cuenta de Cobro: ' + cust.name;
     const allSales = filterSalesByScope(posSales.filter(s => s.customerId === custId));
-    console.log('[DEBUG showCustomerHistory] ALL sales:', allSales.map(s=>s.id+' tot:'+s.total+' m:'+!!s.creditInfo?.merged+' bal:'+s.creditInfo?.balance));
     const sales = filterSalesByScope(posSales.filter(s => s.customerId === custId && !s.creditInfo?.merged));
-    console.log('[DEBUG showCustomerHistory] FILTERED sales:', sales.map(s=>s.id+' tot:'+s.total+' m:'+!!s.creditInfo?.merged+' bal:'+s.creditInfo?.balance));
     const creditSales = sales.filter(s => s.creditInfo);
     const totalOwedGlobal = creditSales.reduce((sum, s) => {
         if (s.creditInfo.merged) return sum;
@@ -1811,7 +1808,6 @@ async function mergeSelectedSales() {
 
     const sales = filterSalesByScope(posSales.filter(s => _mergeSelection.includes(s.id)));
     if (sales.length < 2) return;
-    console.log('[DEBUG merge] sales to merge:', sales.map(s=>s.id+' total:'+s.total+' bal:'+s.creditInfo?.balance+' paySum:'+s.creditInfo?.payments?.reduce((a,p)=>a+p.amount,0)));
 
     showMergeConfirmModal(cust.name, sales.length, async () => {
     try {
@@ -1895,7 +1891,6 @@ async function mergeSelectedSales() {
 
         posSales.push(mergedSale);
         saveSales();
-        console.log('[DEBUG merge] AFTER push. Customer sales:', posSales.filter(s=>s.customerId===custId).map(s=>s.id+' tot:'+s.total+' m:'+!!s.creditInfo?.merged+' bal:'+s.creditInfo?.balance));
         showToast('Facturas unidas exitosamente como #' + mergedId);
         _mergeSelection = [];
         showCustomerHistory(custId);
