@@ -1670,6 +1670,8 @@ function showCustomerHistory(custId) {
     const allSales = filterSalesByScope(posSales.filter(s => s.customerId === custId));
     const activeSales = allSales.filter(s => !s.creditInfo?.merged);
     const creditSales = activeSales.filter(s => s.creditInfo);
+    console.log('[HISTORY] allSales:', allSales.map(s => s.id + ' tot:' + s.total + ' m:' + !!s.creditInfo?.merged));
+    console.log('[HISTORY] activeSales:', activeSales.map(s => s.id + ' tot:' + s.total));
     const totalOwedGlobal = creditSales.reduce((sum, s) => {
         if (s.creditInfo.merged) return sum;
         if (s.creditInfo.tipo === 'abono') {
@@ -1841,7 +1843,10 @@ async function mergeSelectedSales() {
     try {
         const primary = sales[0];
         const others = sales.slice(1);
+        console.log('[MERGE] primary:', primary.id, 'total:', primary.total);
+        console.log('[MERGE] others:', others.map(s => s.id + ' total:' + s.total));
         const combinedTotal = sales.reduce((sum, s) => sum + s.total, 0);
+        console.log('[MERGE] combinedTotal:', combinedTotal);
         const allItems = [];
         sales.forEach(s => { if (s.items) s.items.forEach(item => allItems.push({ ...item })); });
         const combinedPayments = [];
@@ -1858,6 +1863,7 @@ async function mergeSelectedSales() {
             balance: combinedTotal,
             mergedFrom: sales.map(s => s.id)
         };
+        console.log('[MERGE] primary after merge - total:', primary.total, 'balance:', primary.creditInfo.balance);
 
         if (API.isAvailable) {
             try {
@@ -1883,6 +1889,7 @@ async function mergeSelectedSales() {
         }
 
         saveSales();
+        console.log('[MERGE] AFTER save. primary total:', primary.total, 'primary balance:', primary.creditInfo.balance);
         showToast('Facturas unidas exitosamente como #' + primary.id);
         _mergeSelection = [];
         showCustomerHistory(custId);
