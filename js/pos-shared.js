@@ -939,7 +939,7 @@ function renderCustomerTable() {
         return;
     }
     tbody.innerHTML = filtered.map((c, idx) => {
-        const sales = filterSalesByScope(posSales.filter(s => s.customerId === c.id));
+        const sales = filterSalesByScope(posSales.filter(s => s.customerId === c.id && !s.creditInfo?.merged));
         const purchases = sales.length;
         const totalSpent = sales.reduce((sum, s) => sum + s.total, 0);
         const pendingTotal = getCustomerPending(c.id);
