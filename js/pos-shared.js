@@ -1053,6 +1053,17 @@ function deleteCustomer(id) {
 }
 
 // ============ ACCOUNT EDIT ============
+const ACCOUNT_EDIT_METHODS = [
+    { key: 'Efectivo', label: 'Efectivo' },
+    { key: 'Tarjeta', label: 'Tarjeta' },
+    { key: 'Transferencia', label: 'Transferencia' },
+    { key: 'Nequi', label: 'Nequi' },
+    { key: 'Daviplata', label: 'Daviplata' },
+    { key: 'Bolt', label: 'Bolt' },
+    { key: 'Mixto', label: 'Mixto' },
+    { key: 'Credito', label: 'Credito' }
+];
+
 function openAccountEditModal(cId) {
     const customer = posCustomers.find(c => c.id === cId);
     if (!customer) return;
@@ -1080,15 +1091,20 @@ function openAccountEditModal(cId) {
                         '</div>'
                     ).join('')
                     : '<p style="font-size:12px;color:var(--text-muted);padding:4px 0;">Sin productos</p>';
+                const methodOptions = ACCOUNT_EDIT_METHODS.map(m =>
+                    '<option value="' + m.key + '"' + (s.method === m.key ? ' selected' : '') + '>' + m.label + '</option>'
+                ).join('');
                 return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--bg-alt);">' +
                     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
                         '<span style="font-size:12px;color:var(--text-muted);">' + dateStr + ' &mdash; #' + s.id + '</span>' +
                         '<span style="font-size:13px;font-weight:600;" id="acct-sale-total-' + s.id + '">' + formatPrice(s.total) + '</span>' +
                     '</div>' +
                     itemsHtml +
-                    '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:6px;border-top:1px solid var(--border);">' +
-                        '<label style="font-size:12px;color:var(--text-muted);white-space:nowrap;">Pagado:</label>' +
-                        '<input type="number" min="0" class="acct-edit-sale-paid" data-sale-id="' + s.id + '" value="' + paid + '" style="width:100px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;">' +
+                    '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:6px;border-top:1px solid var(--border);flex-wrap:wrap;">' +
+                        '<label style="font-size:12px;color:var(--text-muted);white-space:nowrap;">Metodo:</label>' +
+                        '<select class="acct-edit-sale-method" data-sale-id="' + s.id + '" style="padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;">' + methodOptions + '</select>' +
+                        '<label style="font-size:12px;color:var(--text-muted);white-space:nowrap;margin-left:4px;">Pagado:</label>' +
+                        '<input type="number" min="0" class="acct-edit-sale-paid" data-sale-id="' + s.id + '" value="' + paid + '" style="width:90px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;">' +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -1138,6 +1154,22 @@ function saveAccountEdit() {
     posSales.filter(s => s.customerId === cId && !s.creditInfo?.merged).forEach(s => {
         if (s.items && s.items.length > 0) {
             s.total = s.items.reduce((sum, it) => sum + (it.price * it.qty), 0);
+        }
+    });
+    document.querySelectorAll('.acct-edit-sale-method').forEach(sel => {
+        const sale = posSales.find(s => String(s.id) === sel.dataset.saleId);
+        if (sale) {
+            const newMethod = sel.value;
+            if (newMethod === 'Credito' && sale.method !== 'Credito') {
+                sale.creditInfo = sale.creditInfo || {};
+                sale.creditInfo.balance = Math.max(0, sale.total - (sale.payments || []).reduce((s, p) => s + (p.amount || 0), 0));
+            } else if (newMethod !== 'Credito' && sale.method === 'Credito') {
+                sale.payments = sale.payments || [];
+                const paid = sale.payments.reduce((s, p) => s + (p.amount || 0), 0);
+                if (paid >= sale.total) { sale.creditInfo = null; }
+            }
+            sale.method = newMethod;
+            sale.apiSynced = false;
         }
     });
     document.querySelectorAll('.acct-edit-sale-paid').forEach(inp => {
