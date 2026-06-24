@@ -288,7 +288,7 @@ function renderTpvProducts() {
     const catFilter = document.getElementById('tpvCatFilter').value;
     const subcatFilter = document.getElementById('tpvSubcatFilter').value;
     let filtered = posProducts;
-    if (q) filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+    if (q) filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q)));
     if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
     if (subcatFilter) filtered = filtered.filter(p => (p.subcategory || '') === subcatFilter);
     const grid = document.getElementById('tpvGrid');

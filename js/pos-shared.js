@@ -685,7 +685,7 @@ function renderProductTable() {
     const q = searchEl ? searchEl.value.toLowerCase().trim() : '';
     const cat = catEl ? catEl.value : 'all';
     let filtered = posProducts;
-    if (q) filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q));
+    if (q) filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || (p.barcode && p.barcode.includes(q)));
     if (cat !== 'all') {
         const subKeys = getSubCats(cat).map(s => s.key);
         filtered = filtered.filter(p => p.category === cat || subKeys.includes(p.subcategory));
@@ -1331,7 +1331,7 @@ function renderInventory() {
     const q = searchEl ? searchEl.value.toLowerCase().trim() : '';
     const cat = catFilter ? catFilter.value : 'all';
     let filtered = posProducts;
-    if (q) filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || (p.brand && p.brand.toLowerCase().includes(q)));
+    if (q) filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || (p.brand && p.brand.toLowerCase().includes(q)) || (p.barcode && p.barcode.includes(q)));
     if (cat !== 'all') {
         const subKeys = getSubCats(cat).map(s => s.key);
         filtered = filtered.filter(p => p.category === cat || subKeys.includes(p.subcategory));
