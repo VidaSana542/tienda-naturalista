@@ -1039,9 +1039,16 @@ function deleteCustomer(id) {
     if (!confirm('Eliminar este cliente?')) return;
     const apiId = id && /^c/i.test(id) ? parseInt(id.replace(/^c/i,'')) : null;
     if (apiId && API.isAvailable) API.deleteCustomer(apiId).catch(e => { console.error('[POS] deleteCustomer error:', e); });
+    posSales.filter(s => s.customerId === id).forEach(s => {
+        const saleApiId = s.id && s.id < 100000 ? s.id : null;
+        if (saleApiId && API.isAvailable) API.deleteSale(saleApiId).catch(e => {});
+    });
+    posSales = posSales.filter(s => s.customerId !== id);
     posCustomers = posCustomers.filter(c => c.id !== id);
+    saveSales();
     saveCustomers();
     renderCustomerTable();
+    if (typeof renderAccountStatus === 'function') renderAccountStatus();
     showToast('Cliente eliminado');
 }
 
