@@ -506,7 +506,8 @@ function addCreateSalidaRow() {
         if (q) {
             filtered = productsList.filter(p => 
                 p.name.toLowerCase().includes(q) || 
-                (p.brand && p.brand.toLowerCase().includes(q))
+                (p.brand && p.brand.toLowerCase().includes(q)) ||
+                (p.barcode && p.barcode.includes(q))
             );
         }
         if (q && filtered.length > 0) {
@@ -1748,7 +1749,7 @@ function onOldPurchaseProdSearch() {
     const q = document.getElementById('oldPurchaseProdSearch').value.toLowerCase().trim();
     const results = document.getElementById('oldPurchaseProdResults');
     if (!q) { results.style.display = 'none'; return; }
-    const matches = posProducts.filter(p => p.name.toLowerCase().includes(q) || (p.brand && p.brand.toLowerCase().includes(q))).slice(0, 8);
+    const matches = posProducts.filter(p => p.name.toLowerCase().includes(q) || (p.brand && p.brand.toLowerCase().includes(q)) || (p.barcode && p.barcode.includes(q))).slice(0, 8);
     if (matches.length === 0) { results.style.display = 'none'; return; }
     results.innerHTML = matches.map(p => 
         '<div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;font-size:13px;"' +
