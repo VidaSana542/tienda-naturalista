@@ -1668,8 +1668,8 @@ function showCustomerHistory(custId) {
     if (!cust) return;
     document.getElementById('custHistoryTitle').textContent = 'Cuenta de Cobro: ' + cust.name;
     const allSales = filterSalesByScope(posSales.filter(s => s.customerId === custId));
-    const sales = filterSalesByScope(posSales.filter(s => s.customerId === custId && !s.creditInfo?.merged));
-    const creditSales = sales.filter(s => s.creditInfo);
+    const activeSales = allSales.filter(s => !s.creditInfo?.merged);
+    const creditSales = activeSales.filter(s => s.creditInfo);
     const totalOwedGlobal = creditSales.reduce((sum, s) => {
         if (s.creditInfo.merged) return sum;
         if (s.creditInfo.tipo === 'abono') {
@@ -1684,10 +1684,10 @@ function showCustomerHistory(custId) {
     html += '<div style="font-size:12px;color:var(--text-muted);">' + (cust.phone || '') + (cust.phone && cust.email ? ' | ' : '') + (cust.email || '') + '</div></div>';
     html += '<div style="text-align:right;"><div style="font-size:11px;color:var(--text-muted);">Saldo pendiente total</div><div style="font-size:20px;font-weight:700;' + (totalOwedGlobal > 0 ? 'color:var(--warning);' : 'color:var(--success);') + '">' + formatPrice(totalOwedGlobal) + '</div></div>';
     html += '</div>';
-    if (sales.length === 0) {
+    if (allSales.length === 0) {
         html += '<div class="empty-state" style="padding:40px;"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg><p>Sin compras registradas</p></div>';
     } else {
-        const contadoSales = sales.filter(s => !s.creditInfo).sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0));
+        const contadoSales = activeSales.filter(s => !s.creditInfo).sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0));
         if (contadoSales.length > 0) {
             html += '<details open style="margin-bottom:12px;"><summary style="font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;user-select:none;padding:4px 0;">Compras de contado (' + contadoSales.length + ')</summary>';
             contadoSales.forEach(s => {
@@ -1757,6 +1757,34 @@ function showCustomerHistory(custId) {
             });
             html += '</details>';
         }
+        const mergedSales = allSales.filter(s => s.creditInfo?.merged).sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0));
+        if (mergedSales.length > 0) {
+            html += '<details style="margin-bottom:12px;"><summary style="font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;user-select:none;padding:4px 0;">Facturas unidas (' + mergedSales.length + ')</summary>';
+            mergedSales.forEach(s => {
+                const qty = s.items ? s.items.reduce((sum, i) => sum + i.qty, 0) : 0;
+                const pagado = s.creditInfo.payments ? s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0) : 0;
+                html += '<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;">';
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--hover);border-bottom:1px solid var(--border);">';
+                html += '<div style="display:flex;align-items:center;gap:8px;">';
+                html += '<span style="font-size:11px;padding:2px 8px;background:#f3f4f6;border-radius:4px;color:var(--text-muted);">UNIDA</span>';
+                html += '<div><strong>#' + s.id + '</strong> <span style="color:var(--text-muted);font-size:12px;">' + shortDate(s.date) + '</span></div>';
+                html += '</div>';
+                html += '<div style="font-weight:600;font-size:13px;">' + formatPrice(s.total) + '</div>';
+                html += '</div>';
+                if (s.items && s.items.length > 0) {
+                    html += '<div style="padding:6px 12px;font-size:11px;color:var(--text-muted);">';
+                    html += s.items.map(i => (i.name || 'Producto').substring(0, 20) + ' x' + i.qty).join(' \u00b7 ');
+                    html += '</div>';
+                }
+                if (s.creditInfo.payments && s.creditInfo.payments.length > 0) {
+                    html += '<div style="padding:4px 12px;font-size:11px;color:var(--text-muted);border-top:1px solid var(--border);">';
+                    html += 'Pagos: ' + s.creditInfo.payments.map(p => formatPrice(p.amount)).join(' + ');
+                    html += '</div>';
+                }
+                html += '</div>';
+            });
+            html += '</details>';
+        }
         // Merge action bar
         const unpaidCount = creditSales.filter(s => {
             let pending = 0;
@@ -1818,7 +1846,6 @@ async function mergeSelectedSales() {
         sales.forEach(s => { if (s.items) s.items.forEach(item => allItems.push({ ...item })); });
         const combinedPayments = [];
         sales.forEach(s => { if (s.creditInfo && s.creditInfo.payments) combinedPayments.push(...s.creditInfo.payments); });
-        const totalPaid = combinedPayments.reduce((sp, p) => sp + p.amount, 0);
 
         primary.items = allItems;
         primary.total = combinedTotal;
@@ -1839,26 +1866,24 @@ async function mergeSelectedSales() {
                     credit_info: primary.creditInfo,
                     items: allItems
                 });
-                primary.apiSynced = true;
             } catch (e) {
                 console.error('[POS] API updateSale error:', e);
             }
         }
 
         for (const s of others) {
+            s.creditInfo = { ...s.creditInfo, merged: true, mergedInto: primary.id, balance: 0, payments: s.creditInfo.payments || [] };
             if (API.isAvailable) {
                 try {
-                    await API.deleteSale(s.id);
+                    await API.updateSale(s.id, { credit_info: s.creditInfo });
                 } catch (e) {
-                    console.error('[POS] API deleteSale error:', e);
+                    console.error('[POS] API updateSale error:', e);
                 }
             }
-            const idx = posSales.findIndex(ps => ps.id === s.id);
-            if (idx >= 0) posSales.splice(idx, 1);
         }
 
         saveSales();
-        showToast('Facturas unidas exitosamente como #' + mergedId);
+        showToast('Facturas unidas exitosamente como #' + primary.id);
         _mergeSelection = [];
         showCustomerHistory(custId);
     } catch (e) {
@@ -1880,7 +1905,7 @@ function showMergeConfirmModal(customerName, count, callback) {
                 <h3 style="margin:12px 0 4px;font-size:18px;">Unir Facturas</h3>
                 <p style="color:var(--text-muted);font-size:14px;line-height:1.5;margin:8px 0;">
                     Se unirán <strong>${count} facturas</strong> de <strong>${customerName}</strong> en una sola.
-                    La primera factura se actualizará con el total combinado y las demás serán eliminadas.
+                    La primera factura se actualizará con el total combinado y las demás quedarán como registro.
                 </p>
             </div>
             <div style="display:flex;gap:10px;justify-content:center;padding:16px 0 8px;">
