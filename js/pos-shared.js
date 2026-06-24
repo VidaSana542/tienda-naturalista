@@ -1068,20 +1068,47 @@ function openAccountEditModal(cId) {
             sales.map(s => {
                 const dateStr = new Date(s.date || s.created_at || '').toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' });
                 const paid = (s.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
-                const pending = Math.max(0, s.total - paid);
+                const items = (s.items || []);
+                const itemsHtml = items.length > 0
+                    ? items.map((it, idx) =>
+                        '<div style="display:flex;gap:6px;align-items:center;padding:4px 0;' + (idx < items.length - 1 ? 'border-bottom:1px solid var(--border);' : '') + '">' +
+                            '<span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (it.name || 'Prod') + '">' + (it.name || 'Prod').substring(0, 24) + '</span>' +
+                            '<input type="number" min="0" class="acct-edit-item-qty" data-sale-id="' + s.id + '" data-item-idx="' + idx + '" value="' + it.qty + '" style="width:44px;padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:center;">' +
+                            '<span style="font-size:11px;color:var(--text-muted);">x</span>' +
+                            '<input type="number" min="0" step="50" class="acct-edit-item-price" data-sale-id="' + s.id + '" data-item-idx="' + idx + '" value="' + it.price + '" style="width:80px;padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:right;">' +
+                            '<span style="font-size:11px;color:var(--text-muted);min-width:20px;text-align:right;" id="acct-item-sub-' + s.id + '-' + idx + '">' + formatPrice(it.price * it.qty) + '</span>' +
+                        '</div>'
+                    ).join('')
+                    : '<p style="font-size:12px;color:var(--text-muted);padding:4px 0;">Sin productos</p>';
                 return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--bg-alt);">' +
-                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
                         '<span style="font-size:12px;color:var(--text-muted);">' + dateStr + ' &mdash; #' + s.id + '</span>' +
-                        '<span style="font-size:12px;font-weight:600;">' + formatPrice(s.total) + '</span>' +
+                        '<span style="font-size:13px;font-weight:600;" id="acct-sale-total-' + s.id + '">' + formatPrice(s.total) + '</span>' +
                     '</div>' +
-                    '<div style="display:flex;gap:8px;align-items:center;">' +
-                        '<label style="font-size:12px;color:var(--text-muted);white-space:nowrap;">Total:</label>' +
-                        '<input type="number" class="acct-edit-sale-total" data-sale-id="' + s.id + '" value="' + s.total + '" style="width:100px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;">' +
-                        '<label style="font-size:12px;color:var(--text-muted);white-space:nowrap;margin-left:8px;">Pagado:</label>' +
-                        '<input type="number" class="acct-edit-sale-paid" data-sale-id="' + s.id + '" value="' + paid + '" style="width:100px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;">' +
+                    itemsHtml +
+                    '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:6px;border-top:1px solid var(--border);">' +
+                        '<label style="font-size:12px;color:var(--text-muted);white-space:nowrap;">Pagado:</label>' +
+                        '<input type="number" min="0" class="acct-edit-sale-paid" data-sale-id="' + s.id + '" value="' + paid + '" style="width:100px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;">' +
                     '</div>' +
                 '</div>';
             }).join('');
+        listEl.querySelectorAll('.acct-edit-item-price, .acct-edit-item-qty').forEach(inp => {
+            inp.addEventListener('input', function() {
+                const saleId = this.dataset.saleId;
+                const idx = parseInt(this.dataset.itemIdx);
+                const sale = posSales.find(s => String(s.id) === saleId);
+                if (!sale || !sale.items[idx]) return;
+                const qty = parseFloat(document.querySelector('.acct-edit-item-qty[data-sale-id="' + saleId + '"][data-item-idx="' + idx + '"]').value) || 0;
+                const price = parseFloat(document.querySelector('.acct-edit-item-price[data-sale-id="' + saleId + '"][data-item-idx="' + idx + '"]').value) || 0;
+                document.getElementById('acct-item-sub-' + saleId + '-' + idx).textContent = formatPrice(price * qty);
+                let newTotal = 0;
+                document.querySelectorAll('.acct-edit-item-price[data-sale-id="' + saleId + '"]').forEach((p, i) => {
+                    const q = parseFloat(document.querySelector('.acct-edit-item-qty[data-sale-id="' + saleId + '"][data-item-idx="' + i + '"]').value) || 0;
+                    newTotal += (parseFloat(p.value) || 0) * q;
+                });
+                document.getElementById('acct-sale-total-' + saleId).textContent = formatPrice(newTotal);
+            });
+        });
     }
     document.getElementById('accountEditModal').classList.add('open');
 }
@@ -1096,9 +1123,22 @@ function saveAccountEdit() {
     if (!customer) return;
     customer.name = document.getElementById('accountEditName').value.trim() || customer.name;
     customer.phone = document.getElementById('accountEditPhone').value.trim();
-    document.querySelectorAll('.acct-edit-sale-total').forEach(inp => {
+    document.querySelectorAll('.acct-edit-item-qty').forEach(inp => {
         const sale = posSales.find(s => String(s.id) === inp.dataset.saleId);
-        if (sale) sale.total = parseFloat(inp.value) || sale.total;
+        if (sale && sale.items && sale.items[inp.dataset.itemIdx]) {
+            sale.items[inp.dataset.itemIdx].qty = parseFloat(inp.value) || 0;
+        }
+    });
+    document.querySelectorAll('.acct-edit-item-price').forEach(inp => {
+        const sale = posSales.find(s => String(s.id) === inp.dataset.saleId);
+        if (sale && sale.items && sale.items[inp.dataset.itemIdx]) {
+            sale.items[inp.dataset.itemIdx].price = parseFloat(inp.value) || 0;
+        }
+    });
+    posSales.filter(s => s.customerId === cId && !s.creditInfo?.merged).forEach(s => {
+        if (s.items && s.items.length > 0) {
+            s.total = s.items.reduce((sum, it) => sum + (it.price * it.qty), 0);
+        }
     });
     document.querySelectorAll('.acct-edit-sale-paid').forEach(inp => {
         const sale = posSales.find(s => String(s.id) === inp.dataset.saleId);
