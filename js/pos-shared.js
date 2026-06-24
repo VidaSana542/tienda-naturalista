@@ -1053,17 +1053,6 @@ function deleteCustomer(id) {
 }
 
 // ============ ACCOUNT EDIT ============
-const ACCOUNT_EDIT_METHODS = [
-    { key: 'Efectivo', label: 'Efectivo' },
-    { key: 'Tarjeta', label: 'Tarjeta' },
-    { key: 'Transferencia', label: 'Transferencia' },
-    { key: 'Nequi', label: 'Nequi' },
-    { key: 'Daviplata', label: 'Daviplata' },
-    { key: 'Bolt', label: 'Bolt' },
-    { key: 'Mixto', label: 'Mixto' },
-    { key: 'Credito', label: 'Credito' }
-];
-
 function openAccountEditModal(cId) {
     const customer = posCustomers.find(c => c.id === cId);
     if (!customer) return;
@@ -1091,9 +1080,9 @@ function openAccountEditModal(cId) {
                         '</div>'
                     ).join('')
                     : '<p style="font-size:12px;color:var(--text-muted);padding:4px 0;">Sin productos</p>';
-                const methodOptions = ACCOUNT_EDIT_METHODS.map(m =>
-                    '<option value="' + m.key + '"' + (s.method === m.key ? ' selected' : '') + '>' + m.label + '</option>'
-                ).join('');
+                let currentStatus = 'pendiente';
+                if (paid >= s.total && s.total > 0) currentStatus = 'pagada';
+                else if (paid > 0) currentStatus = 'abonada';
                 return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--bg-alt);">' +
                     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
                         '<span style="font-size:12px;color:var(--text-muted);">' + dateStr + ' &mdash; #' + s.id + '</span>' +
@@ -1101,10 +1090,13 @@ function openAccountEditModal(cId) {
                     '</div>' +
                     itemsHtml +
                     '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:6px;border-top:1px solid var(--border);flex-wrap:wrap;">' +
-                        '<label style="font-size:12px;color:var(--text-muted);white-space:nowrap;">Metodo:</label>' +
-                        '<select class="acct-edit-sale-method" data-sale-id="' + s.id + '" style="padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;">' + methodOptions + '</select>' +
-                        '<label style="font-size:12px;color:var(--text-muted);white-space:nowrap;margin-left:4px;">Pagado:</label>' +
-                        '<input type="number" min="0" class="acct-edit-sale-paid" data-sale-id="' + s.id + '" value="' + paid + '" style="width:90px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;">' +
+                        '<label style="font-size:12px;color:var(--text-muted);white-space:nowrap;">Estado:</label>' +
+                        '<select class="acct-edit-sale-status" data-sale-id="' + s.id + '" style="padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-weight:600;">' +
+                            '<option value="pagada"' + (currentStatus === 'pagada' ? ' selected' : '') + '>Pagada</option>' +
+                            '<option value="abonada"' + (currentStatus === 'abonada' ? ' selected' : '') + '>Abonada</option>' +
+                            '<option value="pendiente"' + (currentStatus === 'pendiente' ? ' selected' : '') + '>Pendiente</option>' +
+                        '</select>' +
+                        '<button type="button" class="btn btn-sm btn-outline acct-mark-paid-btn" data-sale-id="' + s.id + '" data-sale-total="' + s.total + '" style="font-size:11px;padding:2px 8px;color:var(--success);border-color:var(--success);">Marcar pagada</button>' +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -1123,6 +1115,20 @@ function openAccountEditModal(cId) {
                     newTotal += (parseFloat(p.value) || 0) * q;
                 });
                 document.getElementById('acct-sale-total-' + saleId).textContent = formatPrice(newTotal);
+            });
+        });
+        listEl.querySelectorAll('.acct-mark-paid-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const saleId = this.dataset.saleId;
+                const sale = posSales.find(s => String(s.id) === saleId);
+                if (!sale) return;
+                sale.payments = [{ date: new Date().toISOString(), amount: sale.total }];
+                sale.method = 'Efectivo';
+                sale.creditInfo = null;
+                sale.apiSynced = false;
+                const sel = listEl.querySelector('.acct-edit-sale-status[data-sale-id="' + saleId + '"]');
+                if (sel) sel.value = 'pagada';
+                showToast('Venta #' + saleId + ' marcada como pagada');
             });
         });
     }
@@ -1156,43 +1162,30 @@ function saveAccountEdit() {
             s.total = s.items.reduce((sum, it) => sum + (it.price * it.qty), 0);
         }
     });
-    document.querySelectorAll('.acct-edit-sale-method').forEach(sel => {
+    document.querySelectorAll('.acct-edit-sale-status').forEach(sel => {
         const sale = posSales.find(s => String(s.id) === sel.dataset.saleId);
-        if (sale) {
-            const newMethod = sel.value;
-            if (newMethod === 'Credito' && sale.method !== 'Credito') {
-                sale.creditInfo = sale.creditInfo || {};
-                sale.creditInfo.balance = Math.max(0, sale.total - (sale.payments || []).reduce((s, p) => s + (p.amount || 0), 0));
-            } else if (newMethod !== 'Credito' && sale.method === 'Credito') {
-                sale.payments = sale.payments || [];
-                const paid = sale.payments.reduce((s, p) => s + (p.amount || 0), 0);
-                if (paid >= sale.total) { sale.creditInfo = null; }
+        if (!sale) return;
+        const status = sel.value;
+        sale.payments = sale.payments || [];
+        const currentPaid = sale.payments.reduce((s, p) => s + (p.amount || 0), 0);
+        if (status === 'pagada') {
+            if (currentPaid < sale.total) {
+                sale.payments.push({ date: new Date().toISOString(), amount: sale.total - currentPaid });
             }
-            sale.method = newMethod;
-            sale.apiSynced = false;
-        }
-    });
-    document.querySelectorAll('.acct-edit-sale-paid').forEach(inp => {
-        const sale = posSales.find(s => String(s.id) === inp.dataset.saleId);
-        if (sale) {
-            const newPaid = parseFloat(inp.value) || 0;
-            const currentPaid = (sale.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
-            if (newPaid !== currentPaid) {
-                sale.payments = sale.payments || [];
-                if (newPaid > currentPaid) {
-                    sale.payments.push({ date: new Date().toISOString(), amount: newPaid - currentPaid });
-                } else if (newPaid < currentPaid) {
-                    let diff = currentPaid - newPaid;
-                    for (let i = sale.payments.length - 1; i >= 0 && diff > 0; i--) {
-                        if (sale.payments[i].amount <= diff) { diff -= sale.payments[i].amount; sale.payments.splice(i, 1); }
-                        else { sale.payments[i].amount -= diff; diff = 0; }
-                    }
-                }
-                sale.creditInfo = sale.creditInfo || {};
-                sale.creditInfo.balance = Math.max(0, sale.total - (sale.payments.reduce((s, p) => s + (p.amount || 0), 0)));
-                sale.apiSynced = false;
+            if (sale.method === 'Credito') sale.method = 'Efectivo';
+            sale.creditInfo = null;
+        } else if (status === 'pendiente') {
+            sale.payments = [];
+            sale.method = 'Credito';
+            sale.creditInfo = { balance: sale.total };
+        } else if (status === 'abonada') {
+            if (currentPaid <= 0) {
+                sale.payments = [{ date: new Date().toISOString(), amount: Math.round(sale.total * 0.5) }];
             }
+            sale.method = 'Credito';
+            sale.creditInfo = { balance: Math.max(0, sale.total - sale.payments.reduce((s, p) => s + (p.amount || 0), 0)) };
         }
+        sale.apiSynced = false;
     });
     saveCustomers();
     saveSales();
