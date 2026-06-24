@@ -358,6 +358,14 @@ const API = {
     return { message: 'Venta actualizada' };
   },
 
+  async deleteSale(id) {
+    const { error: itemsErr } = await _sb.from('sale_items').delete().eq('sale_id', id);
+    const { error: payErr } = await _sb.from('payments').delete().eq('sale_id', id);
+    const { error } = await _sb.from('sales').delete().eq('id', id);
+    if (error) throw error;
+    return { message: 'Venta eliminada' };
+  },
+
   async addPayment(saleId, amount, note) {
     const { data, error } = await _sb
       .from('payments')

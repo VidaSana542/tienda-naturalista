@@ -1811,85 +1811,52 @@ async function mergeSelectedSales() {
 
     showMergeConfirmModal(cust.name, sales.length, async () => {
     try {
+        const primary = sales[0];
+        const others = sales.slice(1);
         const combinedTotal = sales.reduce((sum, s) => sum + s.total, 0);
         const allItems = [];
-        sales.forEach(s => {
-            if (s.items) {
-                s.items.forEach(item => allItems.push({ ...item }));
-            }
-        });
+        sales.forEach(s => { if (s.items) s.items.forEach(item => allItems.push({ ...item })); });
+        const combinedPayments = [];
+        sales.forEach(s => { if (s.creditInfo && s.creditInfo.payments) combinedPayments.push(...s.creditInfo.payments); });
+        const totalPaid = combinedPayments.reduce((sp, p) => sp + p.amount, 0);
 
-        let totalPaid = 0;
-        let combinedPayments = [];
-        sales.forEach(s => {
-            if (s.creditInfo && s.creditInfo.payments) {
-                combinedPayments = combinedPayments.concat(s.creditInfo.payments);
-                s.creditInfo.payments.forEach(p => totalPaid += p.amount);
-            }
-        });
-
-        const nextSaleId = posSales.length > 0 ? Math.max(...posSales.map(s => s.id)) + 1 : 1;
-        const mergedFromIds = sales.map(s => s.id);
-        const mergedSale = {
-            id: nextSaleId,
-            customerId: custId,
-            customer: cust.name,
-            items: allItems,
-            total: combinedTotal,
-            excedente: 0,
-            method: 'Credito',
-            methodKey: 'credito',
-            creditInfo: {
-                tipo: 'abono',
-                totalCuotas: 0,
-                cuotaValor: 0,
-                pagadas: 0,
-                payments: combinedPayments,
-                balance: combinedTotal,
-                mergedFrom: mergedFromIds
-            },
-            ventaPorFuera: sales[0].ventaPorFuera || false,
-            date: new Date().toISOString(),
-            created_at: new Date().toISOString(),
-            status: 'completada'
+        primary.items = allItems;
+        primary.total = combinedTotal;
+        primary.creditInfo = {
+            tipo: 'abono',
+            totalCuotas: 0,
+            cuotaValor: 0,
+            pagadas: 0,
+            payments: combinedPayments,
+            balance: combinedTotal,
+            mergedFrom: sales.map(s => s.id)
         };
 
         if (API.isAvailable) {
             try {
-                const savedSale = await API.saveSale({
-                    customer_id: parseInt(cust.id.replace('c', '')),
-                    customer_name: cust.name,
+                await API.updateSale(primary.id, {
                     total: combinedTotal,
-                    excedente: 0,
-                    method: 'Credito',
-                    method_key: 'credito',
-                    credit_info: mergedSale.creditInfo,
-                    venta_por_fuera: mergedSale.ventaPorFuera,
-                    created_at: mergedSale.created_at,
+                    credit_info: primary.creditInfo,
                     items: allItems
                 });
-                if (savedSale && savedSale.id) {
-                    mergedSale.id = savedSale.id;
-                    mergedSale.apiSynced = true;
-                }
+                primary.apiSynced = true;
             } catch (e) {
-                console.error('[POS] API saveSale error:', e);
+                console.error('[POS] API updateSale error:', e);
             }
         }
 
-        const mergedId = mergedSale.id;
-        for (const s of sales) {
-            s.creditInfo = { ...s.creditInfo, merged: true, mergedInto: mergedId, balance: 0, payments: s.creditInfo.payments || [] };
+        for (const s of others) {
             if (API.isAvailable) {
                 try {
-                    await API.updateSale(s.id, { credit_info: s.creditInfo });
+                    await API.deleteSale(s.id);
                 } catch (e) {
-                    console.error('[POS] API updateSale error:', e);
+                    console.error('[POS] API deleteSale error:', e);
                 }
             }
+            const idx = posSales.findIndex(ps => ps.id === s.id);
+            if (idx >= 0) posSales.splice(idx, 1);
         }
 
-        posSales.push(mergedSale);
         saveSales();
         showToast('Facturas unidas exitosamente como #' + mergedId);
         _mergeSelection = [];
@@ -1913,7 +1880,7 @@ function showMergeConfirmModal(customerName, count, callback) {
                 <h3 style="margin:12px 0 4px;font-size:18px;">Unir Facturas</h3>
                 <p style="color:var(--text-muted);font-size:14px;line-height:1.5;margin:8px 0;">
                     Se unirán <strong>${count} facturas</strong> de <strong>${customerName}</strong> en una sola.
-                    Las originales quedaran con saldo $0 y la deuda total se trasladara a la nueva factura.
+                    La primera factura se actualizará con el total combinado y las demás serán eliminadas.
                 </p>
             </div>
             <div style="display:flex;gap:10px;justify-content:center;padding:16px 0 8px;">
