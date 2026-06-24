@@ -1052,6 +1052,84 @@ function deleteCustomer(id) {
     showToast('Cliente eliminado');
 }
 
+// ============ ACCOUNT EDIT ============
+function openAccountEditModal(cId) {
+    const customer = posCustomers.find(c => c.id === cId);
+    if (!customer) return;
+    document.getElementById('accountEditCustId').value = cId;
+    document.getElementById('accountEditName').value = customer.name || '';
+    document.getElementById('accountEditPhone').value = customer.phone || '';
+    const sales = posSales.filter(s => s.customerId === cId && !s.creditInfo?.merged);
+    const listEl = document.getElementById('accountEditSalesList');
+    if (sales.length === 0) {
+        listEl.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:16px;">Este cliente no tiene ventas registradas.</p>';
+    } else {
+        listEl.innerHTML = '<label style="font-weight:600;font-size:13px;margin-bottom:8px;display:block;">Ventas del cliente</label>' +
+            sales.map(s => {
+                const dateStr = new Date(s.date || s.created_at || '').toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' });
+                const paid = (s.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+                const pending = Math.max(0, s.total - paid);
+                return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--bg-alt);">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+                        '<span style="font-size:12px;color:var(--text-muted);">' + dateStr + ' &mdash; #' + s.id + '</span>' +
+                        '<span style="font-size:12px;font-weight:600;">' + formatPrice(s.total) + '</span>' +
+                    '</div>' +
+                    '<div style="display:flex;gap:8px;align-items:center;">' +
+                        '<label style="font-size:12px;color:var(--text-muted);white-space:nowrap;">Total:</label>' +
+                        '<input type="number" class="acct-edit-sale-total" data-sale-id="' + s.id + '" value="' + s.total + '" style="width:100px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;">' +
+                        '<label style="font-size:12px;color:var(--text-muted);white-space:nowrap;margin-left:8px;">Pagado:</label>' +
+                        '<input type="number" class="acct-edit-sale-paid" data-sale-id="' + s.id + '" value="' + paid + '" style="width:100px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:13px;">' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+    }
+    document.getElementById('accountEditModal').classList.add('open');
+}
+
+function closeAccountEditModal() {
+    document.getElementById('accountEditModal').classList.remove('open');
+}
+
+function saveAccountEdit() {
+    const cId = document.getElementById('accountEditCustId').value;
+    const customer = posCustomers.find(c => c.id === cId);
+    if (!customer) return;
+    customer.name = document.getElementById('accountEditName').value.trim() || customer.name;
+    customer.phone = document.getElementById('accountEditPhone').value.trim();
+    document.querySelectorAll('.acct-edit-sale-total').forEach(inp => {
+        const sale = posSales.find(s => String(s.id) === inp.dataset.saleId);
+        if (sale) sale.total = parseFloat(inp.value) || sale.total;
+    });
+    document.querySelectorAll('.acct-edit-sale-paid').forEach(inp => {
+        const sale = posSales.find(s => String(s.id) === inp.dataset.saleId);
+        if (sale) {
+            const newPaid = parseFloat(inp.value) || 0;
+            const currentPaid = (sale.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+            if (newPaid !== currentPaid) {
+                sale.payments = sale.payments || [];
+                if (newPaid > currentPaid) {
+                    sale.payments.push({ date: new Date().toISOString(), amount: newPaid - currentPaid });
+                } else if (newPaid < currentPaid) {
+                    let diff = currentPaid - newPaid;
+                    for (let i = sale.payments.length - 1; i >= 0 && diff > 0; i--) {
+                        if (sale.payments[i].amount <= diff) { diff -= sale.payments[i].amount; sale.payments.splice(i, 1); }
+                        else { sale.payments[i].amount -= diff; diff = 0; }
+                    }
+                }
+                sale.creditInfo = sale.creditInfo || {};
+                sale.creditInfo.balance = Math.max(0, sale.total - (sale.payments.reduce((s, p) => s + (p.amount || 0), 0)));
+                sale.apiSynced = false;
+            }
+        }
+    });
+    saveCustomers();
+    saveSales();
+    closeAccountEditModal();
+    if (typeof renderAccountStatus === 'function') renderAccountStatus();
+    renderCustomerTable();
+    showToast('Cambios guardados');
+}
+
 // ============ SUPPLIERS ============
 function renderSupplierTable() {
     const q = document.getElementById('suppSearch').value.toLowerCase().trim();

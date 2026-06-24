@@ -703,6 +703,28 @@
     </div>
 </div>
 
+<!-- Account Edit Modal -->
+<div class="modal-overlay" id="accountEditModal" onclick="if(event.target===this)closeAccountEditModal()">
+    <div class="modal" style="max-width:600px;">
+        <button class="modal-close" onclick="closeAccountEditModal()">&times;</button>
+        <h3><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Editar Estado de Cuenta</h3>
+        <input type="hidden" id="accountEditCustId">
+        <div class="form-group">
+            <label>Nombre del cliente</label>
+            <input type="text" id="accountEditName">
+        </div>
+        <div class="form-group">
+            <label>Telefono</label>
+            <input type="text" id="accountEditPhone">
+        </div>
+        <div id="accountEditSalesList" style="margin-top:12px;"></div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeAccountEditModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveAccountEdit()">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
 <!-- Checkout Modal -->
 <div class="modal-overlay checkout-modal" id="checkoutModal">
     <div class="modal">
