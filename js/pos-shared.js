@@ -512,7 +512,7 @@ async function syncFromApi() {
             posSales.forEach(ls => { if (ls.creditInfo?.merged) mergeFlags[ls.id] = { merged: true, mergedInto: ls.creditInfo.mergedInto }; });
             const apiSalesMap = {};
             apiSales.forEach(s => { apiSalesMap[s.id] = s; });
-            const localUnsynced = posSales.filter(ls => !apiSalesMap[ls.id] && ls.id < 100000);
+            const localUnsynced = posSales.filter(ls => !apiSalesMap[ls.id] && !ls.apiSynced);
             posSales = apiSales.map(s => {
                 const ci = s.credit_info || null;
                 if (ci) {
