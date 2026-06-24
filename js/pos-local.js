@@ -1511,6 +1511,7 @@ function renderAccountStatus() {
         const sales = filterSalesByScope(posSales.filter(s => s.customerId === c.id && !s.creditInfo?.merged));
         const totalSpent = sales.reduce((sum, s) => sum + s.total, 0);
         const pendingTotal = getCustomerPending(c.id);
+        console.log('[DEBUG renderAccountStatus-local]', c.name, 'totalSpent:', totalSpent, 'pending:', pendingTotal, 'sales:', sales.map(s=>s.id+' tot:'+s.total+' m:'+!!s.creditInfo?.merged));
         const totalPaid = Math.max(0, totalSpent - pendingTotal);
         const purchases = sales.length;
         const lastDate = sales.length > 0 ? Math.max(...sales.map(s => new Date(s.date || s.created_at || 0))) : null;

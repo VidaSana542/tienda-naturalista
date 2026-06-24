@@ -510,6 +510,7 @@ async function syncFromApi() {
         if (apiSales && Array.isArray(apiSales)) {
             const mergeFlags = {};
             posSales.forEach(ls => { if (ls.creditInfo?.merged) mergeFlags[ls.id] = { merged: true, mergedInto: ls.creditInfo.mergedInto }; });
+            console.log('[DEBUG syncFromApi] mergeFlags:', JSON.stringify(mergeFlags), 'posSales ids:', posSales.map(s=>s.id+' m:'+!!s.creditInfo?.merged));
             const apiSalesMap = {};
             apiSales.forEach(s => { apiSalesMap[s.id] = s; });
             const localUnsynced = posSales.filter(ls => !apiSalesMap[ls.id] && ls.id < 100000);
@@ -545,6 +546,7 @@ async function syncFromApi() {
             });
             posSales = [...posSales, ...localUnsynced];
             posSales.forEach(s => { const f = mergeFlags[s.id]; if (f) { if (!s.creditInfo) s.creditInfo = {}; s.creditInfo.merged = f.merged; s.creditInfo.mergedInto = f.mergedInto; } });
+            console.log('[DEBUG syncFromApi] AFTER re-apply. posSales ids:', posSales.map(s=>s.id+' m:'+!!s.creditInfo?.merged+' bal:'+s.creditInfo?.balance));
             localStorage.setItem('posSales', JSON.stringify(posSales));
             const maxApiId = apiSales.reduce((m, s) => Math.max(m, s.id), 0);
             posNextSaleId = Math.max(posNextSaleId, maxApiId + 1);
@@ -967,8 +969,10 @@ function renderCustomerTable() {
 }
 
 function getCustomerPending(cid) {
-    const sales = filterSalesByScope(posSales.filter(s => s.customerId === cid && !s.creditInfo?.merged));
-    return sales.reduce((sum, s) => {
+    const raw = posSales.filter(s => s.customerId === cid);
+    const filtered = filterSalesByScope(raw.filter(s => !s.creditInfo?.merged));
+    console.log('[DEBUG getCustomerPending] cid:', cid, 'raw:', raw.length, 'filtered:', filtered.length, 'raw ids:', raw.map(s=>s.id+' m:'+!!s.creditInfo?.merged), 'filtered ids:', filtered.map(s=>s.id+' bal:'+s.creditInfo?.balance+' pay:'+s.creditInfo?.payments?.reduce((a,p)=>a+p.amount,0)));
+    return filtered.reduce((sum, s) => {
             if (!s.creditInfo) return sum;
             if (s.creditInfo.tipo === 'abono') {
                 const pagado = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
@@ -1664,7 +1668,10 @@ function showCustomerHistory(custId) {
     const cust = posCustomers.find(c => c.id === custId);
     if (!cust) return;
     document.getElementById('custHistoryTitle').textContent = 'Cuenta de Cobro: ' + cust.name;
+    const allSales = filterSalesByScope(posSales.filter(s => s.customerId === custId));
+    console.log('[DEBUG showCustomerHistory] ALL sales:', allSales.map(s=>s.id+' tot:'+s.total+' m:'+!!s.creditInfo?.merged+' bal:'+s.creditInfo?.balance));
     const sales = filterSalesByScope(posSales.filter(s => s.customerId === custId && !s.creditInfo?.merged));
+    console.log('[DEBUG showCustomerHistory] FILTERED sales:', sales.map(s=>s.id+' tot:'+s.total+' m:'+!!s.creditInfo?.merged+' bal:'+s.creditInfo?.balance));
     const creditSales = sales.filter(s => s.creditInfo);
     const totalOwedGlobal = creditSales.reduce((sum, s) => {
         if (s.creditInfo.merged) return sum;
@@ -1804,6 +1811,7 @@ async function mergeSelectedSales() {
 
     const sales = filterSalesByScope(posSales.filter(s => _mergeSelection.includes(s.id)));
     if (sales.length < 2) return;
+    console.log('[DEBUG merge] sales to merge:', sales.map(s=>s.id+' total:'+s.total+' bal:'+s.creditInfo?.balance+' paySum:'+s.creditInfo?.payments?.reduce((a,p)=>a+p.amount,0)));
 
     showMergeConfirmModal(cust.name, sales.length, async () => {
     try {
@@ -1887,6 +1895,7 @@ async function mergeSelectedSales() {
 
         posSales.push(mergedSale);
         saveSales();
+        console.log('[DEBUG merge] AFTER push. Customer sales:', posSales.filter(s=>s.customerId===custId).map(s=>s.id+' tot:'+s.total+' m:'+!!s.creditInfo?.merged+' bal:'+s.creditInfo?.balance));
         showToast('Facturas unidas exitosamente como #' + mergedId);
         _mergeSelection = [];
         showCustomerHistory(custId);
