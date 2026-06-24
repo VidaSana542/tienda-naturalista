@@ -519,7 +519,7 @@ function addCreateSalidaRow() {
                 div.style.borderBottom = '1px solid var(--border)';
                 div.style.fontSize = '12px';
                 div.style.transition = 'background 0.2s';
-                div.innerHTML = `<strong>${p.name}</strong><br><small style="color:var(--text-muted);">Stock: ${p.stock || 0} | ${p.brand || '-'}</small>`;
+                div.innerHTML = `<strong>${p.name}</strong><br><small style="color:var(--text-muted);">Stock: ${p.stock || 0}</small>`;
                 div.onmouseover = () => { div.style.background = '#f0f0f0'; };
                 div.onmouseout = () => { div.style.background = ''; };
                 div.onclick = () => {

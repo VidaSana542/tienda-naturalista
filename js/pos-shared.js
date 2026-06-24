@@ -701,7 +701,7 @@ function renderProductTable() {
         const supp = p.supplier ? posSuppliers.find(s => s.id === p.supplier) : null;
         return `<tr>
             <td><strong>#${idx + 1}</strong></td>
-            <td><strong>${p.name}</strong><br><span style="font-size:11px;color:var(--text-muted);">${p.brand}</span></td>
+            <td><strong>${p.name}</strong></td>
             <td>${getCatLabel(p.category)}</td>
             <td style="font-size:12px;color:var(--text-muted);">${p.subcategory ? (POS_CATEGORIES.find(c => c.key === p.subcategory)?.label || p.subcategory) : '-'}</td>
             <td>${formatPrice(p.price)}</td>
