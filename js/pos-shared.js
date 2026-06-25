@@ -295,7 +295,7 @@ function loadData() {
         posProducts = JSON.parse(localStorage.getItem('posProducts')) || null;
         posSales = JSON.parse(localStorage.getItem('posSales')) || [];
         posCustomers = JSON.parse(localStorage.getItem('posCustomers')) || [];
-        posCart = JSON.parse(localStorage.getItem('posCart')) || [];
+        posCart = JSON.parse(localStorage.getItem('posCart_' + (typeof POS_SCOPE !== 'undefined' ? POS_SCOPE : 'local'))) || [];
         invLog = JSON.parse(localStorage.getItem('invLog')) || [];
         posSuppliers = JSON.parse(localStorage.getItem('posSuppliers')) || [];
         labOrders = JSON.parse(localStorage.getItem('labOrders')) || [];
@@ -658,7 +658,7 @@ async function syncFromApi() {
         console.log('API sync skipped, using local data');
     }
 }
-function saveCart() { localStorage.setItem('posCart', JSON.stringify(posCart)); }
+function saveCart() { localStorage.setItem('posCart_' + (typeof POS_SCOPE !== 'undefined' ? POS_SCOPE : 'local'), JSON.stringify(posCart)); }
 function saveInvLog() {
     const json = JSON.stringify(invLog);
     localStorage.setItem('invLog', json);
