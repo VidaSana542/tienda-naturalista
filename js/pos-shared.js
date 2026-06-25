@@ -2087,6 +2087,7 @@ function buildMobileMenu() {
     });
     html += '<div class="mobile-menu-footer">';
     html += `<a class="nav-item" href="pos.html"><svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg><span>Volver</span></a>`;
+    html += `<a class="nav-item" onclick="refreshSystem()"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg><span>Actualizar</span></a>`;
     html += `<a class="nav-item" onclick="if(confirm('Cerrar sesion?')){localStorage.removeItem('posUser');location.reload();}"><svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg><span>Cerrar Sesion</span></a>`;
     html += '</div>';
     menu.innerHTML = html;
@@ -2606,4 +2607,35 @@ document.getElementById('currentDate').textContent = new Date().toLocaleDateStri
 function initCatFilter() {
     refreshProdCatFilter();
     mergeDuplicateSubcats();
+}
+
+// ============ SYSTEM REFRESH ============
+async function refreshSystem() {
+    const btn = document.getElementById('refreshBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    try {
+        const available = await API.check();
+        if (available) {
+            await syncFromApi();
+        } else {
+            loadData();
+        }
+        if (typeof loadSalidas === 'function') await loadSalidas();
+        applyPosScopeUI();
+        initCatFilter();
+        if (typeof renderDashboard === 'function') renderDashboard();
+        if (typeof renderTpv === 'function') renderTpv();
+        if (typeof renderProductTable === 'function') renderProductTable();
+        if (typeof renderCustomerTable === 'function') renderCustomerTable();
+        if (typeof renderCategoriesTable === 'function') renderCategoriesTable();
+        if (typeof renderAccountStatus === 'function') renderAccountStatus();
+        if (typeof renderSalesTable === 'function') renderSalesTable();
+        if (typeof renderInventory === 'function') renderInventory();
+        if (typeof renderInvLog === 'function') renderInvLog();
+        if (typeof renderSalidas === 'function') renderSalidas();
+        showToast('Sistema actualizado');
+    } catch(e) {
+        showToast('Error al actualizar: ' + (e.message || e), 'error');
+    }
+    if (btn) { btn.disabled = false; btn.textContent = ''; btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" style="vertical-align:middle;"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg> Actualizar'; }
 }
