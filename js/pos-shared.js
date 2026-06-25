@@ -599,16 +599,26 @@ async function syncFromApi() {
                 localStorage.setItem('invLog', JSON.stringify(invLog));
                 invNextLogId = invLog.reduce((m, l) => Math.max(m, l.id), 0) + 1;
             }
-            saveInvLog();
-            const localInvLog = JSON.parse(localStorage.getItem('invLog')) || [];
-            localInvLog.forEach(ll => {
-                if (!ll.synced && !invLog.some(l => l.id === ll.id)) {
-                    delete ll._sending;
-                    invLog.push(ll);
-                }
-            });
-            if (localInvLog.some(ll => !ll.synced)) {
+            await saveInvLog();
+            const freshApi = await API.getInventoryLog();
+            if (freshApi && Array.isArray(freshApi) && freshApi.length > 0) {
+                invLog = freshApi.map(al => ({
+                    id: al.id,
+                    date: al.created_at,
+                    productId: (String(al.product_id).startsWith('p') ? al.product_id : 'p' + al.product_id).toString(),
+                    productName: al.product_name,
+                    type: al.type,
+                    quantity: al.quantity,
+                    previousStock: al.previous_stock,
+                    newStock: al.new_stock,
+                    reason: al.reason,
+                    saleId: al.sale_id,
+                    category: al.category || '',
+                    ventaPorFuera: al.venta_por_fuera || false,
+                    synced: true
+                }));
                 localStorage.setItem('invLog', JSON.stringify(invLog));
+                invNextLogId = invLog.reduce((m, l) => Math.max(m, l.id), 0) + 1;
             }
         } catch(e) { console.error('InvLog sync error:', e.message || e); }
         if (typeof loadCashLocal === 'function') loadCashLocal();
@@ -636,10 +646,11 @@ function saveInvLog() {
     const json = JSON.stringify(invLog);
     localStorage.setItem('invLog', json);
     if (API.isAvailable) {
+        const promises = [];
         invLog.forEach(l => {
             if (!l.synced && !l._sending) {
                 l._sending = true;
-                API.addInventoryLog({
+                const p = API.addInventoryLog({
                     product_id: l.productId,
                     product_name: l.productName,
                     type: l.type,
@@ -661,9 +672,12 @@ function saveInvLog() {
                         console.error('[POS] addInventoryLog error:', e.message || e);
                     }
                 });
+                promises.push(p);
             }
         });
+        return Promise.allSettled(promises);
     }
+    return Promise.resolve();
 }
 function addInvLog(productId, productName, type, quantity, previousStock, newStock, reason, saleId, ventaPorFuera) {
     const prod = posProducts.find(p => p.id === productId);
