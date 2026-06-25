@@ -1606,6 +1606,7 @@ function selectOldPurchaseProduct(id, name, price) {
     row.dataset.prodId = id;
     row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;';
     row.innerHTML = '<input type="text" class="old-prod-name" value="' + name + '" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;" readonly>' +
+        '<input type="number" class="old-prod-qty" value="1" min="1" style="width:50px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;text-align:center;" onchange="updateOldPurchaseTotal()">' +
         '<input type="number" class="old-prod-price" value="' + price + '" min="0" style="width:90px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;" onchange="updateOldPurchaseTotal()">' +
         '<button class="btn btn-sm btn-outline" onclick="removeOldProductRow(this)" style="padding:4px 8px;font-size:16px;line-height:1;">&times;</button>';
     container.appendChild(row);
@@ -1621,6 +1622,7 @@ function addOldProductRow() {
     row.className = 'old-prod-row';
     row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;';
     row.innerHTML = '<input type="text" class="old-prod-name" placeholder="Nombre del producto" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;">' +
+        '<input type="number" class="old-prod-qty" value="1" min="1" style="width:50px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;text-align:center;" onchange="updateOldPurchaseTotal()">' +
         '<input type="number" class="old-prod-price" value="0" min="0" style="width:90px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;" onchange="updateOldPurchaseTotal()">' +
         '<button class="btn btn-sm btn-outline" onclick="removeOldProductRow(this)" style="padding:4px 8px;font-size:16px;line-height:1;">&times;</button>';
     container.appendChild(row);
@@ -1635,7 +1637,9 @@ function updateOldPurchaseTotal() {
     const rows = document.querySelectorAll('.old-prod-row');
     let total = 0;
     rows.forEach(r => {
-        total += parseFloat(r.querySelector('.old-prod-price').value) || 0;
+        const qty = parseFloat(r.querySelector('.old-prod-qty')?.value) || 1;
+        const price = parseFloat(r.querySelector('.old-prod-price').value) || 0;
+        total += qty * price;
     });
     document.getElementById('oldPurchaseTotal').textContent = formatPrice(total);
 }
@@ -1688,11 +1692,12 @@ async function saveOldPurchase() {
     productRows.forEach(row => {
         const name = row.querySelector('.old-prod-name').value.trim();
         const price = parseFloat(row.querySelector('.old-prod-price').value) || 0;
+        const qty = parseInt(row.querySelector('.old-prod-qty')?.value) || 1;
         const prodId = row.dataset.prodId || '';
-        if (name && price > 0) items.push({ id: prodId || 'old-' + Date.now() + '-' + items.length, name: name, qty: 1, price: price, isTemp: !prodId });
+        if (name && price > 0) items.push({ id: prodId || 'old-' + Date.now() + '-' + items.length, name: name, qty: qty, price: price, isTemp: !prodId });
     });
     if (items.length === 0) { _savingOldPurchase = false; document.querySelector('#oldPurchaseModal .btn-primary').disabled = false; showToast('Agrega al menos un producto con nombre y precio'); return; }
-    const total = items.reduce((s, i) => s + i.price, 0);
+    const total = items.reduce((s, i) => s + (i.price * i.qty), 0);
     const status = document.getElementById('oldPurchaseStatus').value;
     let creditInfo = null;
     if (status === 'pendiente') {
