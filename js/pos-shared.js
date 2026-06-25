@@ -2690,6 +2690,7 @@ function renderLabOrders() {
                     '<button class="btn btn-sm" onclick="cancelLabOrder(\'' + o.id + '\')" style="background:var(--danger);color:#fff;padding:4px 8px;font-size:11px;margin-right:4px;border:none;border-radius:4px;cursor:pointer;">Cancelar</button>'
                 : '') +
                 '<button class="edit" onclick="viewLabOrder(\'' + o.id + '\')" title="Ver detalles" style="color:var(--primary);"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>' +
+                '<button class="edit" onclick="deleteLabOrder(\'' + o.id + '\')" title="Eliminar pedido" style="color:var(--danger);margin-left:4px;"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>' +
             '</td></tr>';
     }).join('');
 }
@@ -2901,6 +2902,20 @@ function cancelLabOrder(orderId) {
     showToast('Pedido #' + orderId + ' cancelado');
 }
 
+function deleteLabOrder(orderId) {
+    const order = labOrders.find(o => String(o.id) === String(orderId));
+    if (!order) return;
+    if (!confirm('Eliminar pedido #' + orderId + ' (' + order.lab + ')?\n\nEsta accion no se puede deshacer.')) return;
+    labOrders = labOrders.filter(o => String(o.id) !== String(orderId));
+    saveLabOrders();
+    const apiId = String(order.id).replace('lab_', '');
+    if (API.isAvailable && apiId && !isNaN(apiId)) {
+        API.deleteLabOrder(parseInt(apiId)).catch(e => {});
+    }
+    renderLabOrders();
+    showToast('Pedido #' + orderId + ' eliminado');
+}
+
 function viewLabOrder(orderId) {
     const order = labOrders.find(o => String(o.id) === String(orderId));
     if (!order) return;
@@ -2918,7 +2933,11 @@ function viewLabOrder(orderId) {
         html += '<tr><td style="padding:6px;border-bottom:1px solid var(--border);">' + it.productName + '</td><td style="text-align:center;padding:6px;border-bottom:1px solid var(--border);">' + it.qty + '</td><td style="text-align:right;padding:6px;border-bottom:1px solid var(--border);">' + formatPrice(it.unitPrice) + '</td><td style="text-align:right;padding:6px;border-bottom:1px solid var(--border);font-weight:600;">' + formatPrice(it.unitPrice * it.qty) + '</td></tr>';
     });
     html += '</tbody></table>' +
-        '<p style="text-align:right;font-weight:700;margin-top:10px;font-size:15px;">Total: ' + formatPrice(total) + '</p></div>';
+        '<p style="text-align:right;font-weight:700;margin-top:10px;font-size:15px;">Total: ' + formatPrice(total) + '</p>' +
+        '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">' +
+            '<button onclick="closeLabOrderViewModal()" style="padding:8px 16px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);cursor:pointer;font-size:13px;">Cerrar</button>' +
+            '<button onclick="closeLabOrderViewModal();deleteLabOrder(\'' + order.id + '\')" style="padding:8px 16px;background:var(--danger);border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:13px;">Eliminar pedido</button>' +
+        '</div></div>';
     const modal = document.getElementById('labOrderViewModal');
     modal.querySelector('.lab-order-view-content').innerHTML = html;
     modal.classList.add('open');

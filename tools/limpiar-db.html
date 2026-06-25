@@ -55,6 +55,17 @@
 <p class="subtitle">Eliminar registros de tablas. Los productos y categorias NO se eliminan.</p>
 
 <div class="section">
+  <h2>Limpiar localStorage del POS</h2>
+  <p style="color:#888;font-size:13px;margin-bottom:12px;">Limpia los datos del navegador (localStorage) manteniendo Productos y Categorias.</p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button class="btn btn-primary" onclick="clearPosLocal()">Limpiar POS Local</button>
+    <button class="btn btn-primary" onclick="clearPosFuera()">Limpiar POS Fuera</button>
+    <button class="btn btn-danger" onclick="clearPosAll()">Limpiar AMBOS</button>
+  </div>
+  <div id="posClearLog" style="margin-top:8px;font-size:12px;color:#888;"></div>
+</div>
+
+<div class="section">
   <h2>Registros por tabla</h2>
   <button class="btn btn-primary" onclick="loadCounts()" style="margin-bottom:12px;">Cargar conteos</button>
   <div id="countsBody">Cargando...</div>
@@ -251,6 +262,209 @@ async function executeDelete() {
   document.getElementById('confirmInput').value = '';
   document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
   await loadCounts();
+}
+
+// === Limpiar localStorage + Base de datos del POS ===
+const KEEP_KEYS = ['posProducts', 'posCategories'];
+
+function getPosLocalKeys() {
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('cashBase_')) keys.push(k);
+    if (k && k.startsWith('cashExpenses_')) keys.push(k);
+    if (k && k.startsWith('cashHistory_')) keys.push(k);
+  }
+  return keys;
+}
+
+function getPosFueraKeys() {
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k === 'posSalidas') keys.push(k);
+  }
+  return keys;
+}
+
+function getSharedKeys() {
+  return ['posRegisteredUsers','posCurrentUser','posSidebarCollapsed',
+          'posSales','posCustomers','posCart','invLog','posSuppliers','labOrders'];
+}
+
+function clearLocalKeys(logEl) {
+  const local = getPosLocalKeys();
+  const shared = getSharedKeys();
+  const all = [...local, ...shared];
+  let cleared = 0;
+  all.forEach(k => {
+    if (!KEEP_KEYS.includes(k)) { localStorage.removeItem(k); cleared++; }
+  });
+  logEl.innerHTML += '<div style="color:#22c55e;">localStorage: ' + cleared + ' claves eliminadas</div>';
+}
+
+function clearFueraKeys(logEl) {
+  const fuera = getPosFueraKeys();
+  const shared = getSharedKeys();
+  const all = [...fuera, ...shared];
+  let cleared = 0;
+  all.forEach(k => {
+    if (!KEEP_KEYS.includes(k)) { localStorage.removeItem(k); cleared++; }
+  });
+  logEl.innerHTML += '<div style="color:#22c55e;">localStorage: ' + cleared + ' claves eliminadas</div>';
+}
+
+async function dbDelete(table, filterFn) {
+  try {
+    if (filterFn) {
+      const { data, error: selErr } = await sb.from(table).select('id');
+      if (selErr) { log('Error leyendo ' + table + ': ' + selErr.message, 'log-err'); return 0; }
+      const ids = (data || []).filter(filterFn).map(r => r.id);
+      if (ids.length === 0) return 0;
+      const { error } = await sb.from(table).delete().in('id', ids);
+      if (error) { log('Error eliminando ' + table + ': ' + error.message, 'log-err'); return 0; }
+      return ids.length;
+    } else {
+      const { error, count } = await sb.from(table).delete().neq('id', 0);
+      if (error) { log('Error eliminando ' + table + ': ' + error.message, 'log-err'); return 0; }
+      return count || 0;
+    }
+  } catch(e) {
+    log('Excepcion en ' + table + ': ' + e.message, 'log-err');
+    return 0;
+  }
+}
+
+async function clearPosLocalDB(logEl) {
+  logEl.innerHTML += '<div style="color:#38bdf8;">Limpiando base de datos (Local)...</div>';
+
+  // Ventas locales
+  const salesCount = await dbDelete('sales', r => r.venta_por_fuera === false);
+  logEl.innerHTML += '<div style="color:#22c55e;">sales (local): ' + salesCount + ' eliminadas</div>';
+  log('sales (local): ' + salesCount + ' eliminadas', 'log-ok');
+
+  // Items y pagos se eliminan por CASCADE
+
+  // Log de inventario local
+  const invCount = await dbDelete('inventory_log', r => r.venta_por_fuera === false);
+  logEl.innerHTML += '<div style="color:#22c55e;">inventory_log (local): ' + invCount + ' eliminados</div>';
+  log('inventory_log (local): ' + invCount + ' eliminados', 'log-ok');
+
+  // Salidas (siempre son locales)
+  const salCount = await dbDelete('salidas');
+  logEl.innerHTML += '<div style="color:#22c55e;">salidas: ' + salCount + ' eliminadas</div>';
+  log('salidas: ' + salCount + ' eliminadas', 'log-ok');
+
+  // Caja y gastos (siempre son locales)
+  const cashCount = await dbDelete('cash_base');
+  logEl.innerHTML += '<div style="color:#22c55e;">cash_base: ' + cashCount + ' eliminadas</div>';
+  log('cash_base: ' + cashCount + ' eliminadas', 'log-ok');
+
+  const expCount = await dbDelete('expenses');
+  logEl.innerHTML += '<div style="color:#22c55e;">expenses: ' + expCount + ' eliminados</div>';
+  log('expenses: ' + expCount + ' eliminados', 'log-ok');
+
+  // Clientes solo si no tienen ventas por fuera
+  const { data: custData } = await sb.from('customers').select('id');
+  const { data: fueraSales } = await sb.from('sales').select('customer_id').eq('venta_por_fuera', true);
+  const usedByFuera = new Set((fueraSales || []).map(s => s.customer_id).filter(Boolean));
+  const custToDelete = (custData || []).filter(c => !usedByFuera.has(c.id));
+  if (custToDelete.length > 0) {
+    const { error } = await sb.from('customers').delete().in('id', custToDelete.map(c => c.id));
+    if (!error) {
+      logEl.innerHTML += '<div style="color:#22c55e;">customers: ' + custToDelete.length + ' eliminados</div>';
+      log('customers: ' + custToDelete.length + ' eliminados (sin ventas fuera)', 'log-ok');
+    }
+  }
+
+  logEl.innerHTML += '<div style="color:#38bdf8;margin-top:4px;">Base de datos (Local) limpiada</div>';
+}
+
+async function clearPosFueraDB(logEl) {
+  logEl.innerHTML += '<div style="color:#38bdf8;">Limpiando base de datos (Fuera)...</div>';
+
+  // Ventas por fuera
+  const salesCount = await dbDelete('sales', r => r.venta_por_fuera === true);
+  logEl.innerHTML += '<div style="color:#22c55e;">sales (fuera): ' + salesCount + ' eliminadas</div>';
+  log('sales (fuera): ' + salesCount + ' eliminadas', 'log-ok');
+
+  // Log de inventario por fuera
+  const invCount = await dbDelete('inventory_log', r => r.venta_por_fuera === true);
+  logEl.innerHTML += '<div style="color:#22c55e;">inventory_log (fuera): ' + invCount + ' eliminados</div>';
+  log('inventory_log (fuera): ' + invCount + ' eliminados', 'log-ok');
+
+  // Clientes solo si no tienen ventas locales
+  const { data: custData } = await sb.from('customers').select('id');
+  const { data: localSales } = await sb.from('sales').select('customer_id').eq('venta_por_fuera', false);
+  const usedByLocal = new Set((localSales || []).map(s => s.customer_id).filter(Boolean));
+  const custToDelete = (custData || []).filter(c => !usedByLocal.has(c.id));
+  if (custToDelete.length > 0) {
+    const { error } = await sb.from('customers').delete().in('id', custToDelete.map(c => c.id));
+    if (!error) {
+      logEl.innerHTML += '<div style="color:#22c55e;">customers: ' + custToDelete.length + ' eliminados</div>';
+      log('customers: ' + custToDelete.length + ' eliminados (sin ventas local)', 'log-ok');
+    }
+  }
+
+  logEl.innerHTML += '<div style="color:#38bdf8;margin-top:4px;">Base de datos (Fuera) limpiada</div>';
+}
+
+async function clearPosAllDB(logEl) {
+  logEl.innerHTML += '<div style="color:#f59042;">Limpiando TODA la base de datos...</div>';
+
+  const t1 = await dbDelete('sales');
+  logEl.innerHTML += '<div style="color:#22c55e;">sales: ' + t1 + ' eliminadas</div>';
+
+  const t2 = await dbDelete('inventory_log');
+  logEl.innerHTML += '<div style="color:#22c55e;">inventory_log: ' + t2 + ' eliminados</div>';
+
+  const t3 = await dbDelete('salidas');
+  logEl.innerHTML += '<div style="color:#22c55e;">salidas: ' + t3 + ' eliminadas</div>';
+
+  const t4 = await dbDelete('cash_base');
+  logEl.innerHTML += '<div style="color:#22c55e;">cash_base: ' + t4 + ' eliminadas</div>';
+
+  const t5 = await dbDelete('expenses');
+  logEl.innerHTML += '<div style="color:#22c55e;">expenses: ' + t5 + ' eliminados</div>';
+
+  const t6 = await dbDelete('customers');
+  logEl.innerHTML += '<div style="color:#22c55e;">customers: ' + t6 + ' eliminados</div>';
+
+  logEl.innerHTML += '<div style="color:#f59042;margin-top:4px;">Base de datos completa limpiada</div>';
+}
+
+async function clearPosLocal() {
+  const logEl = document.getElementById('posClearLog');
+  logEl.innerHTML = '<div style="color:#e0e0e0;font-weight:600;">Limpiando POS Local...</div>';
+  clearLocalKeys(logEl);
+  await clearPosLocalDB(logEl);
+  logEl.innerHTML += '<div style="color:#38bdf8;margin-top:8px;">Recarga la pagina para aplicar.</div>';
+}
+
+async function clearPosFuera() {
+  const logEl = document.getElementById('posClearLog');
+  logEl.innerHTML = '<div style="color:#e0e0e0;font-weight:600;">Limpiando POS Fuera...</div>';
+  clearFueraKeys(logEl);
+  await clearPosFueraDB(logEl);
+  logEl.innerHTML += '<div style="color:#38bdf8;margin-top:8px;">Recarga la pagina para aplicar.</div>';
+}
+
+async function clearPosAll() {
+  const logEl = document.getElementById('posClearLog');
+  logEl.innerHTML = '<div style="color:#f59042;font-weight:600;">Limpiando AMBOS + Base de datos...</div>';
+  // localStorage
+  const local = getPosLocalKeys();
+  const fuera = getPosFueraKeys();
+  const shared = getSharedKeys();
+  const all = [...new Set([...local, ...fuera, ...shared])];
+  let cleared = 0;
+  all.forEach(k => {
+    if (!KEEP_KEYS.includes(k)) { localStorage.removeItem(k); cleared++; }
+  });
+  logEl.innerHTML += '<div style="color:#22c55e;">localStorage: ' + cleared + ' claves eliminadas</div>';
+  // DB
+  await clearPosAllDB(logEl);
+  logEl.innerHTML += '<div style="color:#f59042;margin-top:8px;">Todo limpiado. Recarga la pagina.</div>';
 }
 
 loadCounts();
