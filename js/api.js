@@ -701,5 +701,36 @@ const API = {
     const { error } = await _sb.from('salidas').delete().eq('id', id);
     if (error) throw error;
     return { success: true };
+  },
+
+  // ============ LAB ORDERS ============
+  async getLabOrders() {
+    const { data, error } = await _sb.from('lab_orders').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async saveLabOrder(order) {
+    const { data, error } = await _sb.from('lab_orders').insert({
+      lab: order.lab,
+      status: order.status || 'pendiente',
+      items: order.items || [],
+      total: order.total || 0,
+      notes: order.notes || ''
+    }).select().single();
+    if (error) throw error;
+    return data;
+  },
+
+  async updateLabOrder(id, updates) {
+    const { error } = await _sb.from('lab_orders').update(updates).eq('id', id);
+    if (error) throw error;
+    return { success: true };
+  },
+
+  async deleteLabOrder(id) {
+    const { error } = await _sb.from('lab_orders').delete().eq('id', id);
+    if (error) throw error;
+    return { success: true };
   }
 };

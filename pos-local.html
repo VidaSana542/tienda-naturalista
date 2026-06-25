@@ -85,6 +85,10 @@
             <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H4V4h16v16zM6 10h12v2H6v-2zm0 4h12v2H6v-2zm0-8h12v2H6V6z"/></svg>
             <span>Inventario</span>
         </a>
+        <a class="nav-item" data-panel="labOrders" onclick="switchPanel('labOrders')">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+            <span>Pedidos Lab</span>
+        </a>
         <a class="nav-item" data-panel="customers" onclick="switchPanel('customers')">
             <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
             <span>Clientes</span>
@@ -580,6 +584,43 @@
                                 <tbody id="catSubsBody"></tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lab Orders -->
+        <div class="panel" id="panel-labOrders">
+            <div class="stats-grid" id="labOrderStats"></div>
+            <div class="card">
+                <div class="card-header">
+                    <h3>Pedidos a Laboratorios</h3>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <input type="text" id="labOrderSearch" placeholder="Buscar laboratorio o producto..." oninput="renderLabOrders()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:180px;">
+                        <select id="labOrderStatusFilter" onchange="renderLabOrders()" class="filter-select">
+                            <option value="all">Todos</option>
+                            <option value="pendiente">Pendiente</option>
+                            <option value="recibido">Recibido</option>
+                            <option value="cancelado">Cancelado</option>
+                        </select>
+                        <button class="btn btn-primary btn-sm" onclick="openNewLabOrderModal()">+ Nuevo Pedido</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th># / Fecha</th>
+                                    <th>Laboratorio</th>
+                                    <th>Estado</th>
+                                    <th>Total</th>
+                                    <th>Notas</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="labOrdersBody"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -1297,6 +1338,62 @@
 </div>
 
 </div> <!-- /posApp -->
+
+<!-- New Lab Order Modal -->
+<div class="modal-overlay" id="newLabOrderModal" onclick="if(event.target===this)closeNewLabOrderModal()">
+    <div class="modal" style="max-width:700px;max-height:90vh;">
+        <div class="modal-header">
+            <h3>Nuevo Pedido a Laboratorio</h3>
+            <button class="btn-close" onclick="closeNewLabOrderModal()">✕</button>
+        </div>
+        <div class="modal-body" style="overflow-y:auto;max-height:70vh;">
+            <div class="form-group">
+                <label>Laboratorio (Marca)</label>
+                <select id="labOrderLabSelect" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;"></select>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0 8px;">
+                <label style="font-weight:600;font-size:13px;">Productos <span id="labOrderItemsCount" style="color:var(--text-muted);">(0)</span></label>
+                <span style="font-weight:700;font-size:15px;">Total: <span id="labOrderTotal" style="color:var(--primary);">$0</span></span>
+            </div>
+            <div class="table-wrap" style="max-height:300px;overflow-y:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Categoria</th>
+                            <th>Stock</th>
+                            <th>Cant.</th>
+                            <th>Precio Unit.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="labOrderItemsBody"></tbody>
+                </table>
+            </div>
+            <div class="form-group" style="margin-top:12px;">
+                <label>Notas</label>
+                <textarea id="labOrderNotes" rows="2" placeholder="Observaciones del pedido..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;resize:vertical;"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeNewLabOrderModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveNewLabOrder()">Crear Pedido</button>
+        </div>
+    </div>
+</div>
+
+<!-- Lab Order View Modal -->
+<div class="modal-overlay" id="labOrderViewModal" onclick="if(event.target===this)closeLabOrderViewModal()">
+    <div class="modal" style="max-width:500px;">
+        <div class="modal-header">
+            <h3>Detalle del Pedido</h3>
+            <button class="btn-close" onclick="closeLabOrderViewModal()">✕</button>
+        </div>
+        <div class="modal-body lab-order-view-content"></div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeLabOrderViewModal()">Cerrar</button>
+        </div>
+    </div>
+</div>
 
 <script src="js/pos-shared.js"></script>
 <script src="js/cash-history.js"></script>

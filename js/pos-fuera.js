@@ -1926,6 +1926,7 @@ POS_PANEL_RENDERERS['cuentas'] = renderAccountStatus;
 POS_PANEL_RENDERERS['inventory'] = renderInventory;
 POS_PANEL_RENDERERS['sales'] = renderSalesTable;
 POS_PANEL_RENDERERS['salidas'] = renderSalidas;
+POS_PANEL_RENDERERS['labOrders'] = renderLabOrders;
 
 function initPOS() {
     (async function() {

@@ -283,6 +283,8 @@ let posNextProductId = 1;
 let posNextCustomerId = 1;
 let posNextSupplierId = 1;
 let posNextSaleId = 1;
+let labOrders = [];
+let nextLabOrderId = 1;
 
 let cashBase = 0;
 let cashExpenses = [];
@@ -296,6 +298,7 @@ function loadData() {
         posCart = JSON.parse(localStorage.getItem('posCart')) || [];
         invLog = JSON.parse(localStorage.getItem('invLog')) || [];
         posSuppliers = JSON.parse(localStorage.getItem('posSuppliers')) || [];
+        labOrders = JSON.parse(localStorage.getItem('labOrders')) || [];
         const savedCats = JSON.parse(localStorage.getItem('posCategories'));
         if (savedCats && savedCats.length > 0) POS_CATEGORIES = savedCats;
     } catch(e) {}
@@ -316,6 +319,9 @@ function loadData() {
     }
     if (posSuppliers.length > 0) {
         posNextSupplierId = posSuppliers.reduce((m, s) => Math.max(m, parseInt(s.id.replace('s',''))), 0) + 1;
+    }
+    if (labOrders.length > 0) {
+        nextLabOrderId = Math.max(...labOrders.map(o => parseInt(String(o.id).replace('lab_', '')) || 0)) + 1;
     }
     migrateProductSubcats();
     if (typeof loadCashLocal === 'function') loadCashLocal();
@@ -628,6 +634,31 @@ async function syncFromApi() {
                 }
             }
             if (typeof saveCashLocal === 'function') saveCashLocal();
+        } catch(e) {}
+        // Sync lab orders from API
+        try {
+            const apiLabOrders = await API.getLabOrders();
+            if (apiLabOrders && apiLabOrders.length > 0) {
+                apiLabOrders.forEach(ao => {
+                    const existing = labOrders.find(o => String(o.id) === String('lab_' + ao.id));
+                    if (existing) {
+                        existing.status = ao.status || existing.status;
+                        existing.notes = ao.notes || existing.notes;
+                    } else {
+                        labOrders.push({
+                            id: 'lab_' + ao.id,
+                            lab: ao.lab,
+                            date: ao.created_at,
+                            status: ao.status || 'pendiente',
+                            items: ao.items || [],
+                            total: ao.total || 0,
+                            notes: ao.notes || '',
+                            _synced: true
+                        });
+                    }
+                });
+                saveLabOrders();
+            }
         } catch(e) {}
         saveProducts();
         saveCustomers();
@@ -2609,7 +2640,210 @@ function initCatFilter() {
     mergeDuplicateSubcats();
 }
 
-// ============ SYSTEM REFRESH ============
+// ============ LAB ORDERS ============
+function saveLabOrders() {
+    localStorage.setItem('labOrders', JSON.stringify(labOrders));
+}
+
+function getUniqueBrands() {
+    const brands = {};
+    posProducts.forEach(p => {
+        const b = (p.brand || '').trim();
+        if (b) brands[b] = (brands[b] || 0) + 1;
+    });
+    return Object.entries(brands).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count }));
+}
+
+function renderLabOrders() {
+    const tbody = document.getElementById('labOrdersBody');
+    if (!tbody) return;
+    const statusFilter = document.getElementById('labOrderStatusFilter');
+    const searchEl = document.getElementById('labOrderSearch');
+    const status = statusFilter ? statusFilter.value : 'all';
+    const q = searchEl ? searchEl.value.toLowerCase().trim() : '';
+    let filtered = [...labOrders];
+    if (status !== 'all') filtered = filtered.filter(o => o.status === status);
+    if (q) filtered = filtered.filter(o => o.lab.toLowerCase().includes(q) || (o.items || []).some(it => it.productName.toLowerCase().includes(q)));
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:30px;">No hay pedidos a laboratorios</td></tr>';
+        return;
+    }
+    const statusColors = { pendiente: '#e65100', recibido: 'var(--success)', cancelado: 'var(--text-muted)' };
+    const statusLabels = { pendiente: 'Pendiente', recibido: 'Recibido', cancelado: 'Cancelado' };
+    tbody.innerHTML = filtered.map(o => {
+        const total = (o.items || []).reduce((s, it) => s + ((parseFloat(it.unitPrice) || 0) * (parseInt(it.qty) || 0)), 0);
+        return '<tr>' +
+            '<td><strong>#' + o.id + '</strong><br><small style="color:var(--text-muted);">' + shortDate(o.date) + '</small></td>' +
+            '<td><strong>' + o.lab + '</strong><br><small>' + (o.items || []).length + ' productos</small></td>' +
+            '<td style="font-weight:600;color:' + (statusColors[o.status] || 'var(--text-muted)') + ';">' + (statusLabels[o.status] || o.status) + '</td>' +
+            '<td style="font-weight:600;">' + formatPrice(total) + '</td>' +
+            '<td style="font-size:12px;color:var(--text-muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (o.notes || '-') + '</td>' +
+            '<td class="actions" style="white-space:nowrap;">' +
+                (o.status === 'pendiente' ?
+                    '<button class="btn btn-sm" onclick="receiveLabOrder(\'' + o.id + '\')" style="background:var(--success);color:#fff;padding:4px 8px;font-size:11px;margin-right:4px;border:none;border-radius:4px;cursor:pointer;">Recibir</button>' +
+                    '<button class="btn btn-sm" onclick="cancelLabOrder(\'' + o.id + '\')" style="background:var(--danger);color:#fff;padding:4px 8px;font-size:11px;margin-right:4px;border:none;border-radius:4px;cursor:pointer;">Cancelar</button>'
+                : '') +
+                '<button class="edit" onclick="viewLabOrder(\'' + o.id + '\')" title="Ver detalles" style="color:var(--primary);"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>' +
+            '</td></tr>';
+    }).join('');
+}
+
+function openNewLabOrderModal() {
+    const brands = getUniqueBrands();
+    const sel = document.getElementById('labOrderLabSelect');
+    sel.innerHTML = '<option value="">-- Seleccionar laboratorio --</option>' + brands.map(b => '<option value="' + b.name + '">' + b.name + ' (' + b.count + ' productos)</option>').join('');
+    document.getElementById('labOrderNotes').value = '';
+    document.getElementById('labOrderItemsBody').innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">Selecciona un laboratorio para ver sus productos</td></tr>';
+    document.getElementById('labOrderTotal').textContent = formatPrice(0);
+    document.getElementById('labOrderItemsCount').textContent = '0';
+    document.getElementById('newLabOrderModal').classList.add('open');
+    sel.onchange = () => loadLabOrderProducts(sel.value);
+}
+
+function loadLabOrderProducts(brand) {
+    const tbody = document.getElementById('labOrderItemsBody');
+    if (!brand) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">Selecciona un laboratorio para ver sus productos</td></tr>';
+        return;
+    }
+    let products = posProducts.filter(p => (p.brand || '').trim().toLowerCase() === brand.toLowerCase());
+    products.sort((a, b) => {
+        if (a.stock <= 0 && b.stock > 0) return -1;
+        if (a.stock > 0 && b.stock <= 0) return 1;
+        return (a.stock || 0) - (b.stock || 0);
+    });
+    if (products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">No se encontraron productos para este laboratorio</td></tr>';
+        return;
+    }
+    tbody.innerHTML = products.map(p => {
+        const stockClass = p.stock <= 0 ? 'color:var(--danger);font-weight:700;' : p.stock <= 5 ? 'color:#e65100;font-weight:600;' : '';
+        const stockLabel = p.stock <= 0 ? 'Agotado' : 'Stock: ' + p.stock;
+        return '<tr data-lab-prod="' + p.id + '">' +
+            '<td><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" class="lab-prod-check" data-id="' + p.id + '" data-name="' + (p.name || '').replace(/"/g, '&quot;') + '" data-price="' + (p.cost || p.price || 0) + '" onchange="updateLabOrderTotal()"> ' + p.name + '</label></td>' +
+            '<td>' + getCatLabel(p.category) + '</td>' +
+            '<td style="' + stockClass + '">' + stockLabel + '</td>' +
+            '<td><input type="number" min="1" class="lab-prod-qty" data-id="' + p.id + '" value="1" style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:center;" onchange="updateLabOrderTotal()" oninput="updateLabOrderTotal()"></td>' +
+            '<td><input type="number" min="0" class="lab-prod-price" data-id="' + p.id + '" value="' + (p.cost || p.price || 0) + '" style="width:90px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:right;" onchange="updateLabOrderTotal()" oninput="updateLabOrderTotal()"></td>' +
+            '</tr>';
+    }).join('');
+}
+
+function updateLabOrderTotal() {
+    let total = 0;
+    let count = 0;
+    document.querySelectorAll('.lab-prod-check:checked').forEach(cb => {
+        const id = cb.dataset.id;
+        const qty = parseInt(document.querySelector('.lab-prod-qty[data-id="' + id + '"]')?.value) || 0;
+        const price = parseFloat(document.querySelector('.lab-prod-price[data-id="' + id + '"]')?.value) || 0;
+        total += qty * price;
+        count++;
+    });
+    document.getElementById('labOrderTotal').textContent = formatPrice(total);
+    document.getElementById('labOrderItemsCount').textContent = count;
+}
+
+function saveNewLabOrder() {
+    const lab = document.getElementById('labOrderLabSelect').value;
+    if (!lab) { showToast('Selecciona un laboratorio', 'error'); return; }
+    const items = [];
+    document.querySelectorAll('.lab-prod-check:checked').forEach(cb => {
+        const id = cb.dataset.id;
+        const name = cb.dataset.name;
+        const qty = parseInt(document.querySelector('.lab-prod-qty[data-id="' + id + '"]')?.value) || 0;
+        const unitPrice = parseFloat(document.querySelector('.lab-prod-price[data-id="' + id + '"]')?.value) || 0;
+        if (qty > 0) items.push({ productId: id, productName: name, qty, unitPrice });
+    });
+    if (items.length === 0) { showToast('Selecciona al menos un producto', 'error'); return; }
+    const total = items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
+    const notes = document.getElementById('labOrderNotes').value.trim();
+    const order = {
+        id: 'lab_' + nextLabOrderId++,
+        lab,
+        date: now(),
+        status: 'pendiente',
+        items,
+        total,
+        notes
+    };
+    labOrders.unshift(order);
+    saveLabOrders();
+    if (API.isAvailable) API.saveLabOrder({ ...order, id: undefined }).catch(e => {});
+    closeNewLabOrderModal();
+    renderLabOrders();
+    showToast('Pedido #' + order.id + ' creado para ' + lab);
+}
+
+function closeNewLabOrderModal() {
+    document.getElementById('newLabOrderModal').classList.remove('open');
+}
+
+function receiveLabOrder(orderId) {
+    const order = labOrders.find(o => String(o.id) === String(orderId));
+    if (!order) return;
+    if (!confirm('Marcar pedido #' + orderId + ' como recibido? Se actualizara el inventario.')) return;
+    (order.items || []).forEach(item => {
+        const prod = posProducts.find(p => String(p.id) === String(item.productId));
+        if (prod) {
+            const prev = prod.stock;
+            prod.stock += parseInt(item.qty) || 0;
+            addInvLog(item.productId, prod.name, 'entrada', parseInt(item.qty) || 0, prev, prod.stock, 'Recepcion Pedido Lab #' + orderId + ' (' + order.lab + ')', null, false);
+        }
+    });
+    order.status = 'recibido';
+    order.receivedDate = now();
+    saveLabOrders();
+    saveProducts();
+    const apiId = String(order.id).replace('lab_', '');
+    if (API.isAvailable && apiId && !isNaN(apiId)) {
+        API.updateLabOrder(parseInt(apiId), { status: 'recibido' }).catch(e => {});
+    }
+    renderLabOrders();
+    if (typeof renderInventory === 'function') renderInventory();
+    showToast('Pedido #' + orderId + ' recibido. Inventario actualizado.');
+}
+
+function cancelLabOrder(orderId) {
+    const order = labOrders.find(o => String(o.id) === String(orderId));
+    if (!order) return;
+    if (!confirm('Cancelar pedido #' + orderId + '?')) return;
+    order.status = 'cancelado';
+    order.cancelledDate = now();
+    saveLabOrders();
+    const apiId = String(order.id).replace('lab_', '');
+    if (API.isAvailable && apiId && !isNaN(apiId)) {
+        API.updateLabOrder(parseInt(apiId), { status: 'cancelado' }).catch(e => {});
+    }
+    renderLabOrders();
+    showToast('Pedido #' + orderId + ' cancelado');
+}
+
+function viewLabOrder(orderId) {
+    const order = labOrders.find(o => String(o.id) === String(orderId));
+    if (!order) return;
+    const statusLabels = { pendiente: 'Pendiente', recibido: 'Recibido', cancelado: 'Cancelado' };
+    const statusColors = { pendiente: '#e65100', recibido: 'var(--success)', cancelado: 'var(--text-muted)' };
+    const total = (order.items || []).reduce((s, it) => s + ((parseFloat(it.unitPrice) || 0) * (parseInt(it.qty) || 0)), 0);
+    let html = '<div style="padding:4px 0;">' +
+        '<p><strong>Laboratorio:</strong> ' + order.lab + '</p>' +
+        '<p><strong>Fecha:</strong> ' + shortDate(order.date) + '</p>' +
+        '<p><strong>Estado:</strong> <span style="color:' + (statusColors[order.status] || '') + ';font-weight:600;">' + (statusLabels[order.status] || order.status) + '</span></p>' +
+        (order.notes ? '<p><strong>Notas:</strong> ' + order.notes + '</p>' : '') +
+        '<table style="width:100%;border-collapse:collapse;margin-top:10px;">' +
+        '<thead><tr><th style="text-align:left;padding:6px;border-bottom:2px solid var(--border);font-size:12px;">Producto</th><th style="text-align:center;padding:6px;border-bottom:2px solid var(--border);font-size:12px;">Cant.</th><th style="text-align:right;padding:6px;border-bottom:2px solid var(--border);font-size:12px;">Precio</th><th style="text-align:right;padding:6px;border-bottom:2px solid var(--border);font-size:12px;">Subtotal</th></tr></thead><tbody>';
+    (order.items || []).forEach(it => {
+        html += '<tr><td style="padding:6px;border-bottom:1px solid var(--border);">' + it.productName + '</td><td style="text-align:center;padding:6px;border-bottom:1px solid var(--border);">' + it.qty + '</td><td style="text-align:right;padding:6px;border-bottom:1px solid var(--border);">' + formatPrice(it.unitPrice) + '</td><td style="text-align:right;padding:6px;border-bottom:1px solid var(--border);font-weight:600;">' + formatPrice(it.unitPrice * it.qty) + '</td></tr>';
+    });
+    html += '</tbody></table>' +
+        '<p style="text-align:right;font-weight:700;margin-top:10px;font-size:15px;">Total: ' + formatPrice(total) + '</p></div>';
+    const modal = document.getElementById('labOrderViewModal');
+    modal.querySelector('.lab-order-view-content').innerHTML = html;
+    modal.classList.add('open');
+}
+
+function closeLabOrderViewModal() {
+    document.getElementById('labOrderViewModal').classList.remove('open');
+}
 async function refreshSystem() {
     const btn = document.getElementById('refreshBtn');
     if (btn) { btn.disabled = true; btn.textContent = '...'; }
@@ -2633,6 +2867,7 @@ async function refreshSystem() {
         if (typeof renderInventory === 'function') renderInventory();
         if (typeof renderInvLog === 'function') renderInvLog();
         if (typeof renderSalidas === 'function') renderSalidas();
+        if (typeof renderLabOrders === 'function') renderLabOrders();
         showToast('Sistema actualizado');
     } catch(e) {
         showToast('Error al actualizar: ' + (e.message || e), 'error');

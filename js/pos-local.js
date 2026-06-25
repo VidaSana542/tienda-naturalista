@@ -1760,6 +1760,7 @@ POS_PANEL_RENDERERS['categories'] = renderCategoriesTable;
 POS_PANEL_RENDERERS['sales'] = renderSalesTable;
 POS_PANEL_RENDERERS['cuentas'] = renderAccountStatus;
 POS_PANEL_RENDERERS['cash'] = renderCashPanel;
+POS_PANEL_RENDERERS['labOrders'] = renderLabOrders;
 
 function initPOS() {
     (async function() {
