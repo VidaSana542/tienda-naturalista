@@ -1067,26 +1067,29 @@ function openAccountEditModal(cId) {
         listEl.innerHTML = '<label style="font-weight:600;font-size:13px;margin-bottom:8px;display:block;">Ventas del cliente</label>' +
             sales.map(s => {
                 const dateStr = new Date(s.date || s.created_at || '').toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' });
-                const paid = (s.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+                const paid = (s.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
                 const items = (s.items || []);
                 const itemsHtml = items.length > 0
-                    ? items.map((it, idx) =>
-                        '<div style="display:flex;gap:6px;align-items:center;padding:4px 0;' + (idx < items.length - 1 ? 'border-bottom:1px solid var(--border);' : '') + '">' +
+                    ? items.map((it, idx) => {
+                        const ip = parseFloat(it.price) || 0;
+                        const iq = parseInt(it.qty) || 0;
+                        return '<div style="display:flex;gap:6px;align-items:center;padding:4px 0;' + (idx < items.length - 1 ? 'border-bottom:1px solid var(--border);' : '') + '">' +
                             '<span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (it.name || 'Prod') + '">' + (it.name || 'Prod').substring(0, 24) + '</span>' +
-                            '<input type="number" min="0" class="acct-edit-item-qty" data-sale-id="' + s.id + '" data-item-idx="' + idx + '" value="' + it.qty + '" style="width:44px;padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:center;">' +
+                            '<input type="number" min="0" class="acct-edit-item-qty" data-sale-id="' + s.id + '" data-item-idx="' + idx + '" value="' + iq + '" style="width:44px;padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:center;">' +
                             '<span style="font-size:11px;color:var(--text-muted);">x</span>' +
-                            '<input type="number" min="0" step="50" class="acct-edit-item-price" data-sale-id="' + s.id + '" data-item-idx="' + idx + '" value="' + it.price + '" style="width:80px;padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:right;">' +
-                            '<span style="font-size:11px;color:var(--text-muted);min-width:20px;text-align:right;" id="acct-item-sub-' + s.id + '-' + idx + '">' + formatPrice(it.price * it.qty) + '</span>' +
-                        '</div>'
-                    ).join('')
+                            '<input type="number" min="0" step="50" class="acct-edit-item-price" data-sale-id="' + s.id + '" data-item-idx="' + idx + '" value="' + ip + '" style="width:80px;padding:3px 4px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:right;">' +
+                            '<span style="font-size:11px;color:var(--text-muted);min-width:20px;text-align:right;" id="acct-item-sub-' + s.id + '-' + idx + '">' + formatPrice(ip * iq) + '</span>' +
+                        '</div>';
+                    }).join('')
                     : '<p style="font-size:12px;color:var(--text-muted);padding:4px 0;">Sin productos</p>';
+                const saleTotal = parseFloat(s.total) || 0;
                 let currentStatus = 'pendiente';
-                if (paid >= s.total && s.total > 0) currentStatus = 'pagada';
+                if (paid >= saleTotal && saleTotal > 0) currentStatus = 'pagada';
                 else if (paid > 0) currentStatus = 'abonada';
                 return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--bg-alt);">' +
                     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
                         '<span style="font-size:12px;color:var(--text-muted);">' + dateStr + ' &mdash; #' + s.id + '</span>' +
-                        '<span style="font-size:13px;font-weight:600;" id="acct-sale-total-' + s.id + '">' + formatPrice(s.total) + '</span>' +
+                        '<span style="font-size:13px;font-weight:600;" id="acct-sale-total-' + s.id + '">' + formatPrice(saleTotal) + '</span>' +
                     '</div>' +
                     itemsHtml +
                     '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:6px;border-top:1px solid var(--border);flex-wrap:wrap;">' +
@@ -1159,7 +1162,9 @@ function saveAccountEdit() {
     });
     posSales.filter(s => s.customerId === cId && !s.creditInfo?.merged).forEach(s => {
         if (s.items && s.items.length > 0) {
-            s.total = s.items.reduce((sum, it) => sum + (it.price * it.qty), 0);
+            s.total = s.items.reduce((sum, it) => sum + ((parseFloat(it.price) || 0) * (parseInt(it.qty) || 0)), 0);
+        } else {
+            s.total = parseFloat(s.total) || 0;
         }
     });
     document.querySelectorAll('.acct-edit-sale-status').forEach(sel => {
