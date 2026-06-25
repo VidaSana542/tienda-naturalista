@@ -1128,7 +1128,11 @@ function openAccountEditModal(cId) {
                 sale.payments = [{ date: new Date().toISOString(), amount: sale.total }];
                 sale.method = 'Efectivo';
                 sale.creditInfo = null;
-                sale.apiSynced = false;
+                const apiId = sale.id && sale.id < 100000 ? sale.id : null;
+                if (apiId && API.isAvailable) {
+                    API.updateSale(apiId, { method: sale.method, credit_info: null, total: sale.total }).catch(e => {});
+                }
+                sale.apiSynced = true;
                 const sel = listEl.querySelector('.acct-edit-sale-status[data-sale-id="' + saleId + '"]');
                 if (sel) sel.value = 'pagada';
                 showToast('Venta #' + saleId + ' marcada como pagada');
@@ -1171,6 +1175,11 @@ function saveAccountEdit() {
         const sale = posSales.find(s => String(s.id) === sel.dataset.saleId);
         if (!sale) return;
         const status = sel.value;
+        const oldPaid = (sale.payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+        let wasPaid = 'pendiente';
+        if (oldPaid >= (parseFloat(sale.total) || 0) && sale.total > 0) wasPaid = 'pagada';
+        else if (oldPaid > 0) wasPaid = 'abonada';
+        if (status === wasPaid) return;
         sale.payments = sale.payments || [];
         const currentPaid = sale.payments.reduce((s, p) => s + (p.amount || 0), 0);
         if (status === 'pagada') {
@@ -1188,10 +1197,13 @@ function saveAccountEdit() {
                 sale.payments = [{ date: new Date().toISOString(), amount: Math.round(sale.total * 0.5) }];
             }
             sale.method = 'Credito';
-            const abonado = sale.payments.reduce((s, p) => s + (p.amount || 0), 0);
             sale.creditInfo = { tipo: 'abono', totalCuotas: 0, cuotaValor: 0, pagadas: 0, payments: sale.payments.map(p => ({date: p.date, amount: p.amount})), balance: sale.total };
         }
-        sale.apiSynced = false;
+        const apiId = sale.id && sale.id < 100000 ? sale.id : null;
+        if (apiId && API.isAvailable) {
+            API.updateSale(apiId, { method: sale.method, credit_info: sale.creditInfo, total: sale.total }).catch(e => {});
+        }
+        sale.apiSynced = true;
     });
     saveCustomers();
     saveSales();
