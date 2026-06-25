@@ -2305,11 +2305,14 @@ function showCustomerHistory(custId) {
                 }
                 if (s.creditInfo.payments && s.creditInfo.payments.length > 0) {
                     html += '<div style="padding:6px 14px;font-size:12px;color:var(--text-muted);border-bottom:1px solid var(--border);background:var(--hover);">Pagos registrados:</div>';
-                    s.creditInfo.payments.forEach(p => {
-                        html += '<div style="display:flex;justify-content:space-between;padding:5px 14px;font-size:13px;border-bottom:1px solid var(--border);">';
+                    s.creditInfo.payments.forEach((p, pIdx) => {
+                        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 14px;font-size:13px;border-bottom:1px solid var(--border);">';
                         html += '<span>' + shortDate(p.date) + '</span>';
+                        html += '<div style="display:flex;align-items:center;gap:6px;">';
                         html += '<span style="font-weight:500;color:var(--success);">' + formatPrice(p.amount) + '</span>';
-                        html += '</div>';
+                        html += '<button onclick="editSalePayment(' + s.id + ',' + pIdx + ')" title="Editar" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--primary);"><svg viewBox="0 0 24 24" width="13" height="13"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>';
+                        html += '<button onclick="deleteSalePayment(' + s.id + ',' + pIdx + ')" title="Eliminar" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--danger);"><svg viewBox="0 0 24 24" width="13" height="13"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>';
+                        html += '</div></div>';
                     });
                 }
                 html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;">';
@@ -2517,6 +2520,41 @@ function closeCustHistory() {
     document.getElementById('custHistoryModal').classList.remove('open');
     _custHistoryCustomerId = null;
     _mergeSelection = [];
+}
+
+function editSalePayment(saleId, paymentIdx) {
+    const sale = posSales.find(s => s.id === saleId);
+    if (!sale || !sale.creditInfo || !sale.creditInfo.payments || !sale.creditInfo.payments[paymentIdx]) return;
+    const p = sale.creditInfo.payments[paymentIdx];
+    const newAmount = prompt('Editar monto del pago:', p.amount);
+    if (newAmount === null) return;
+    const parsed = parseFloat(newAmount);
+    if (isNaN(parsed) || parsed < 0) { showToast('Monto invalido', 'error'); return; }
+    p.amount = parsed;
+    saveSales();
+    if (API.isAvailable && sale.apiSynced) {
+        API.updateSale(sale.id, { credit_info: sale.creditInfo }).catch(e => {});
+    }
+    if (_custHistoryCustomerId) showCustomerHistory(_custHistoryCustomerId);
+    renderAccountStatus();
+    renderCustomerTable();
+    showToast('Pago actualizado');
+}
+
+function deleteSalePayment(saleId, paymentIdx) {
+    const sale = posSales.find(s => s.id === saleId);
+    if (!sale || !sale.creditInfo || !sale.creditInfo.payments || !sale.creditInfo.payments[paymentIdx]) return;
+    const p = sale.creditInfo.payments[paymentIdx];
+    if (!confirm('Eliminar pago de ' + formatPrice(p.amount) + ' del ' + shortDate(p.date) + '?')) return;
+    sale.creditInfo.payments.splice(paymentIdx, 1);
+    saveSales();
+    if (API.isAvailable && sale.apiSynced) {
+        API.updateSale(sale.id, { credit_info: sale.creditInfo }).catch(e => {});
+    }
+    if (_custHistoryCustomerId) showCustomerHistory(_custHistoryCustomerId);
+    renderAccountStatus();
+    renderCustomerTable();
+    showToast('Pago eliminado');
 }
 
 function openPaymentModalCust(saleId) {
