@@ -118,7 +118,7 @@ let indexCategories = [];
     const grid = document.getElementById('featuredGrid');
     grid.innerHTML = featuredProducts.map(p => `
         <div class="prod-card">
-            <div class="prod-img"><img src="${p.img || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&q=80'}" alt="${p.catalog_name || p.name}" loading="lazy"></div>
+            <div class="prod-img"><img src="${p.img || 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&q=80'}" alt="${p.catalog_name || p.name}" loading="lazy" decoding="async"></div>
             <div class="prod-body">
                 <div class="prod-brand">${p.brand || ''}</div>
                 <div class="prod-name">${p.catalog_name || p.name}</div>

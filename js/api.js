@@ -231,7 +231,7 @@ const API = {
 
     const { error } = await _sb.storage
       .from('product-images')
-      .upload(filename, file, { cacheControl: '3600', upsert: false });
+      .upload(filename, file, { cacheControl: '31536000', upsert: false });
 
     if (error) throw error;
 

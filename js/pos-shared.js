@@ -873,12 +873,36 @@ function renderProdImagesPreview(images) {
 let _prodMainImg = '';
 let _prodImages = [];
 
+function compressImage(file, maxWidth = 600, quality = 0.8) {
+    return new Promise((resolve) => {
+        if (!file.type.startsWith('image/') || file.size < 100000) { resolve(file); return; }
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.onload = () => {
+            let w = img.width, h = img.height;
+            if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+            canvas.width = w; canvas.height = h;
+            ctx.drawImage(img, 0, 0, w, h);
+            canvas.toBlob(b => {
+                if (b && b.size < file.size) {
+                    resolve(new File([b], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+                } else { resolve(file); }
+            }, 'image/jpeg', quality);
+        };
+        img.src = URL.createObjectURL(file);
+    });
+}
+
 function uploadMainImage(input) {
     const file = input.files && input.files[0];
     if (!file) return;
     const status = document.getElementById('prodMainUploadStatus');
-    status.textContent = 'Subiendo...';
-    API.uploadImage(file).then(result => {
+    status.textContent = 'Comprimiendo...';
+    compressImage(file).then(compressed => {
+        status.textContent = 'Subiendo...';
+        return API.uploadImage(compressed);
+    }).then(result => {
         _prodMainImg = result.url;
         const preview = document.getElementById('prodMainPreview');
         const previewImg = document.getElementById('prodMainPreviewImg');
@@ -895,8 +919,12 @@ function uploadMainImage(input) {
 function uploadProdImages(files) {
     const status = document.getElementById('prodUploadStatus');
     if (!files || files.length === 0) return;
-    status.textContent = 'Subiendo ' + files.length + ' imagen(es)...';
-    API.uploadImages(Array.from(files)).then(result => {
+    status.textContent = 'Comprimiendo ' + files.length + ' imagen(es)...';
+    const fileArr = Array.from(files);
+    Promise.all(fileArr.map(f => compressImage(f))).then(compressed => {
+        status.textContent = 'Subiendo ' + compressed.length + ' imagen(es)...';
+        return API.uploadImages(compressed);
+    }).then(result => {
         _prodImages = _prodImages.concat(result.map(r => r.url));
         renderProdImagesPreview(_prodImages);
         status.textContent = 'Subidas exitosamente';
