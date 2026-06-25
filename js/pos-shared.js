@@ -635,28 +635,20 @@ async function syncFromApi() {
             }
             if (typeof saveCashLocal === 'function') saveCashLocal();
         } catch(e) {}
-        // Sync lab orders from API
+        // Sync lab orders from API - always replace with DB data
         try {
             const apiLabOrders = await API.getLabOrders();
-            if (apiLabOrders && apiLabOrders.length > 0) {
-                apiLabOrders.forEach(ao => {
-                    const existing = labOrders.find(o => String(o.id) === String('lab_' + ao.id));
-                    if (existing) {
-                        existing.status = ao.status || existing.status;
-                        existing.notes = ao.notes || existing.notes;
-                    } else {
-                        labOrders.push({
-                            id: 'lab_' + ao.id,
-                            lab: ao.lab,
-                            date: ao.created_at,
-                            status: ao.status || 'pendiente',
-                            items: ao.items || [],
-                            total: ao.total || 0,
-                            notes: ao.notes || '',
-                            _synced: true
-                        });
-                    }
-                });
+            if (apiLabOrders) {
+                labOrders = apiLabOrders.map(ao => ({
+                    id: 'lab_' + ao.id,
+                    lab: ao.lab,
+                    date: ao.created_at,
+                    status: ao.status || 'pendiente',
+                    items: ao.items || [],
+                    total: ao.total || 0,
+                    notes: ao.notes || '',
+                    _synced: true
+                }));
                 saveLabOrders();
             }
         } catch(e) {}
@@ -2884,7 +2876,9 @@ function saveNewLabOrder() {
         API.saveLabOrder({ ...order, id: undefined }).then(res => {
             if (res && res.id) {
                 order.id = 'lab_' + res.id;
+                order._synced = true;
                 saveLabOrders();
+                renderLabOrders();
             }
         }).catch(e => {});
     }
@@ -2915,7 +2909,9 @@ function receiveLabOrder(orderId) {
     saveProducts();
     const apiId = String(order.id).replace('lab_', '');
     if (API.isAvailable && apiId && !isNaN(apiId)) {
-        API.updateLabOrder(parseInt(apiId), { status: 'recibido' }).catch(e => {});
+        API.updateLabOrder(parseInt(apiId), { status: 'recibido' }).then(() => {
+            syncFromApi().then(() => renderLabOrders());
+        }).catch(e => {});
     }
     renderLabOrders();
     if (typeof renderInventory === 'function') renderInventory();
@@ -2931,7 +2927,9 @@ function cancelLabOrder(orderId) {
     saveLabOrders();
     const apiId = String(order.id).replace('lab_', '');
     if (API.isAvailable && apiId && !isNaN(apiId)) {
-        API.updateLabOrder(parseInt(apiId), { status: 'cancelado' }).catch(e => {});
+        API.updateLabOrder(parseInt(apiId), { status: 'cancelado' }).then(() => {
+            syncFromApi().then(() => renderLabOrders());
+        }).catch(e => {});
     }
     renderLabOrders();
     showToast('Pedido #' + orderId + ' cancelado');
@@ -2941,13 +2939,15 @@ function deleteLabOrder(orderId) {
     const order = labOrders.find(o => String(o.id) === String(orderId));
     if (!order) return;
     if (!confirm('Eliminar pedido #' + orderId + ' (' + order.lab + ')?\n\nEsta accion no se puede deshacer.')) return;
+    const apiId = String(order.id).replace('lab_', '');
     labOrders = labOrders.filter(o => String(o.id) !== String(orderId));
     saveLabOrders();
-    const apiId = String(order.id).replace('lab_', '');
-    if (API.isAvailable && apiId && !isNaN(apiId)) {
-        API.deleteLabOrder(parseInt(apiId)).catch(e => {});
-    }
     renderLabOrders();
+    if (API.isAvailable && apiId && !isNaN(apiId)) {
+        API.deleteLabOrder(parseInt(apiId)).then(() => {
+            syncFromApi().then(() => renderLabOrders());
+        }).catch(e => { console.error('delete lab order error:', e); });
+    }
     showToast('Pedido #' + orderId + ' eliminado');
 }
 
