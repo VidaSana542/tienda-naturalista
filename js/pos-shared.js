@@ -551,10 +551,12 @@ async function syncFromApi() {
         }
         try {
             const apiInvLog = await API.getInventoryLog();
+            const apiIds = new Set((apiInvLog || []).map(al => al.id));
             if (apiInvLog && apiInvLog.length > 0) {
                 apiInvLog.forEach(al => {
                     const existing = invLog.find(l =>
                         l.id === al.id ||
+                        l.apiId === al.id ||
                         (l.productId === (String(al.product_id).startsWith('p') ? al.product_id : 'p' + al.product_id) &&
                          l.date && al.created_at &&
                          Math.abs(new Date(l.date) - new Date(al.created_at)) < 60000 &&
@@ -584,9 +586,11 @@ async function syncFromApi() {
                         });
                     }
                 });
-                localStorage.setItem('invLog', JSON.stringify(invLog));
-                invNextLogId = invLog.reduce((m, l) => Math.max(m, l.id), 0) + 1;
             }
+            // Remove entries that have apiId but are no longer in the API (deleted from DB)
+            invLog = invLog.filter(l => !l.apiId || apiIds.has(l.apiId));
+            localStorage.setItem('invLog', JSON.stringify(invLog));
+            invNextLogId = invLog.reduce((m, l) => Math.max(m, l.id), 0) + 1;
             saveInvLog();
             const localInvLog = JSON.parse(localStorage.getItem('invLog')) || [];
             localInvLog.forEach(ll => {
