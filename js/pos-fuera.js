@@ -1823,17 +1823,7 @@ function calcOldPurchaseTotal() {
 
 function onOldPurchaseStatusChange() {
     const status = document.getElementById('oldPurchaseStatus').value;
-    document.getElementById('oldPurchasePaidGroup').style.display = status === 'abono' ? '' : 'none';
-    if (status === 'abono') {
-        const rows = document.querySelectorAll('.old-prod-row');
-        let total = 0;
-        rows.forEach(r => {
-            const qty = parseFloat(r.querySelector('.old-prod-qty')?.value) || 1;
-            const price = parseFloat(r.querySelector('.old-prod-price').value) || 0;
-            total += qty * price;
-        });
-        document.getElementById('oldPurchasePaid').value = Math.round(total / 2);
-    }
+    document.getElementById('oldPurchasePaidGroup').style.display = 'none';
 }
 
 let _savingOldPurchase = false;
@@ -1885,9 +1875,6 @@ async function saveOldPurchase() {
     let creditInfo = null;
     if (status === 'pendiente') {
         creditInfo = { tipo: 'abono', totalCuotas: 0, cuotaValor: 0, pagadas: 0, payments: [], balance: total };
-    } else if (status === 'abono') {
-        const paid = Math.min(parseFloat(document.getElementById('oldPurchasePaid').value) || 0, total);
-        creditInfo = { tipo: 'abono', totalCuotas: 0, cuotaValor: 0, pagadas: paid >= total ? 1 : 0, payments: [{ date: dateVal + 'T00:00:00', amount: Math.round(paid) }], balance: total };
     }
     const nextSaleId = posSales.length > 0 ? Math.max(...posSales.map(s => s.id)) + 1 : 1;
     const customerName = newName || (posCustomers.find(c => c.id === customerId)?.name);
