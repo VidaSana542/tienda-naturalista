@@ -2880,7 +2880,14 @@ function saveNewLabOrder() {
     };
     labOrders.unshift(order);
     saveLabOrders();
-    if (API.isAvailable) API.saveLabOrder({ ...order, id: undefined }).catch(e => {});
+    if (API.isAvailable) {
+        API.saveLabOrder({ ...order, id: undefined }).then(res => {
+            if (res && res.id) {
+                order.id = 'lab_' + res.id;
+                saveLabOrders();
+            }
+        }).catch(e => {});
+    }
     closeNewLabOrderModal();
     renderLabOrders();
     showToast('Pedido #' + order.id + ' creado para ' + lab);
