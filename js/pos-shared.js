@@ -2944,8 +2944,9 @@ function mergeLabs() {
     const list = Object.values(brands).sort((a, b) => a.name.localeCompare(b.name));
     if (list.length < 2) { showToast('Necesitas al menos 2 laboratorios para unir', 'error'); return; }
     const tbody = document.getElementById('mergeLabsList');
-    tbody.innerHTML = list.map(l =>
-        '<label style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border);cursor:pointer;">' +
+    tbody.innerHTML = '<div style="padding:8px;border-bottom:1px solid var(--border);"><input type="text" id="mergeLabsSearchInput" placeholder="Buscar laboratorio..." oninput="filterMergeLabsList()" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;"></div>' +
+        list.map(l =>
+        '<label class="merge-lab-item" style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border);cursor:pointer;">' +
         '<input type="checkbox" class="merge-lab-check" value="' + l.name.replace(/"/g, '&quot;') + '">' +
         '<span><strong>' + l.name + '</strong> <span style="color:var(--text-muted);font-size:12px;">(' + l.count + ' productos)</span></span>' +
         '</label>'
@@ -2956,6 +2957,14 @@ function mergeLabs() {
 
 function closeMergeLabsModal() {
     document.getElementById('mergeLabsModal').classList.remove('open');
+}
+
+function filterMergeLabsList() {
+    const q = document.getElementById('mergeLabsSearchInput') ? document.getElementById('mergeLabsSearchInput').value.toLowerCase().trim() : '';
+    document.querySelectorAll('.merge-lab-item').forEach(el => {
+        const name = el.querySelector('strong').textContent.toLowerCase();
+        el.style.display = name.includes(q) ? '' : 'none';
+    });
 }
 
 function executeMergeLabs() {
