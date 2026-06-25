@@ -1170,6 +1170,14 @@ function saveAccountEdit() {
         } else {
             s.total = parseFloat(s.total) || 0;
         }
+        const apiId = s.id && s.id < 100000 ? s.id : null;
+        if (apiId && API.isAvailable) {
+            API.updateSale(apiId, { total: s.total }).catch(e => {});
+            if (s.items && s.items.length > 0) {
+                API.updateSaleItems(apiId, s.items).catch(e => {});
+            }
+        }
+    });
     });
     document.querySelectorAll('.acct-edit-sale-status').forEach(sel => {
         const sale = posSales.find(s => String(s.id) === sel.dataset.saleId);

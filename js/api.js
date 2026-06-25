@@ -358,6 +358,22 @@ const API = {
     return { message: 'Venta actualizada' };
   },
 
+  async updateSaleItems(saleId, items) {
+    await _sb.from('sale_items').delete().eq('sale_id', saleId);
+    if (items && items.length > 0) {
+      const itemsToInsert = items.map(item => ({
+        sale_id: saleId,
+        product_id: String(item.id),
+        product_name: item.name,
+        qty: item.qty,
+        price: item.price
+      }));
+      const { error } = await _sb.from('sale_items').insert(itemsToInsert);
+      if (error) throw error;
+    }
+    return { message: 'Items actualizados' };
+  },
+
   async deleteSale(id) {
     const { error: itemsErr } = await _sb.from('sale_items').delete().eq('sale_id', id);
     const { error: payErr } = await _sb.from('payments').delete().eq('sale_id', id);
