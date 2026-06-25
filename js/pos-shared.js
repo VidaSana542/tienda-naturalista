@@ -582,6 +582,20 @@ async function syncFromApi() {
                         });
                     }
                 });
+            }
+            if (apiInvLog && Array.isArray(apiInvLog)) {
+                invLog.forEach(l => {
+                    if (l.synced && !apiInvLog.some(al =>
+                        l.id === al.id ||
+                        (l.productId === (String(al.product_id).startsWith('p') ? al.product_id : 'p' + al.product_id) &&
+                         l.date && al.created_at &&
+                         Math.abs(new Date(l.date) - new Date(al.created_at)) < 60000 &&
+                         l.type === al.type &&
+                         l.quantity === al.quantity)
+                    )) {
+                        l.synced = false;
+                    }
+                });
                 localStorage.setItem('invLog', JSON.stringify(invLog));
                 invNextLogId = invLog.reduce((m, l) => Math.max(m, l.id), 0) + 1;
             }
