@@ -623,18 +623,11 @@
 
         <!-- Lab Orders -->
         <div class="panel" id="panel-labOrders">
-            <div class="stats-grid" id="labOrderStats"></div>
             <div class="card">
                 <div class="card-header">
                     <h3>Pedidos a Laboratorios</h3>
                     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <input type="text" id="labOrderSearch" placeholder="Buscar laboratorio o producto..." oninput="renderLabOrders()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:180px;">
-                        <select id="labOrderStatusFilter" onchange="renderLabOrders()" class="filter-select">
-                            <option value="all">Todos</option>
-                            <option value="pendiente">Pendiente</option>
-                            <option value="recibido">Recibido</option>
-                            <option value="cancelado">Cancelado</option>
-                        </select>
+                        <input type="text" id="labOrderSearch" placeholder="Buscar laboratorio o notas..." oninput="renderLabOrders()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:180px;">
                         <button class="btn btn-primary btn-sm" onclick="openNewLabOrderModal()">+ Nuevo Pedido</button>
                     </div>
                 </div>
@@ -643,10 +636,8 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th># / Fecha</th>
+                                    <th>Fecha</th>
                                     <th>Laboratorio</th>
-                                    <th>Estado</th>
-                                    <th>Total</th>
                                     <th>Notas</th>
                                     <th>Acciones</th>
                                 </tr>
@@ -1375,70 +1366,24 @@
 
 <!-- New Lab Order Modal -->
 <div class="modal-overlay" id="newLabOrderModal" onclick="if(event.target===this)closeNewLabOrderModal()">
-    <div class="modal" style="max-width:900px;max-height:90vh;">
+    <div class="modal" style="max-width:500px;">
         <div class="modal-header">
             <h3>Nuevo Pedido a Laboratorio</h3>
             <button class="btn-close" onclick="closeNewLabOrderModal()">✕</button>
         </div>
-        <div class="modal-body" style="overflow-y:auto;max-height:70vh;">
+        <div class="modal-body">
             <div class="form-group">
-                <label>Laboratorio (Marca)</label>
+                <label>Laboratorio</label>
                 <select id="labOrderLabSelect" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;"></select>
-            </div>
-            <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap;">
-                <!-- Product Picker -->
-                <div style="flex:1;min-width:300px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                        <label style="font-weight:600;font-size:13px;">Productos disponibles</label>
-                    </div>
-                    <input type="text" id="labOrderProdSearch" placeholder="Buscar nombre o codigo de barras..." oninput="filterLabOrderProducts()" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;margin-bottom:6px;">
-                    <div class="table-wrap" style="max-height:350px;overflow-y:auto;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th></th>
-                                    <th>Producto</th>
-                                    <th>Stock</th>
-                                    <th>Precio</th>
-                                </tr>
-                            </thead>
-                            <tbody id="labOrderItemsBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-                <!-- Selected Products -->
-                <div style="flex:1;min-width:280px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                        <label style="font-weight:600;font-size:13px;">Seleccionados <span id="labOrderItemsCount" style="color:var(--text-muted);">(0)</span></label>
-                        <span style="font-weight:700;font-size:15px;">Total: <span id="labOrderTotal" style="color:var(--primary);">$0</span></span>
-                    </div>
-                    <div id="labOrderSelectedBody" style="border:1px solid var(--border);border-radius:6px;min-height:100px;max-height:396px;overflow-y:auto;">
-                        <div style="text-align:center;color:var(--text-muted);padding:30px 10px;font-size:13px;">Selecciona productos de la lista</div>
-                    </div>
-                </div>
             </div>
             <div class="form-group" style="margin-top:12px;">
                 <label>Notas</label>
-                <textarea id="labOrderNotes" rows="2" placeholder="Observaciones del pedido..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;resize:vertical;"></textarea>
+                <textarea id="labOrderNotes" rows="4" placeholder="Describe el pedido..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;resize:vertical;"></textarea>
             </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeNewLabOrderModal()">Cancelar</button>
-            <button class="btn btn-primary" onclick="saveNewLabOrder()">Crear Pedido</button>
-        </div>
-    </div>
-</div>
-
-<!-- Lab Order View Modal -->
-<div class="modal-overlay" id="labOrderViewModal" onclick="if(event.target===this)closeLabOrderViewModal()">
-    <div class="modal" style="max-width:500px;">
-        <div class="modal-header">
-            <h3>Detalle del Pedido</h3>
-            <button class="btn-close" onclick="closeLabOrderViewModal()">✕</button>
-        </div>
-        <div class="modal-body lab-order-view-content"></div>
-        <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeLabOrderViewModal()">Cerrar</button>
+            <button class="btn btn-primary" onclick="saveNewLabOrder()">Guardar</button>
         </div>
     </div>
 </div>

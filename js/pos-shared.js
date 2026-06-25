@@ -2689,34 +2689,21 @@ function getUniqueBrands() {
 function renderLabOrders() {
     const tbody = document.getElementById('labOrdersBody');
     if (!tbody) return;
-    const statusFilter = document.getElementById('labOrderStatusFilter');
     const searchEl = document.getElementById('labOrderSearch');
-    const status = statusFilter ? statusFilter.value : 'all';
     const q = searchEl ? searchEl.value.toLowerCase().trim() : '';
     let filtered = [...labOrders];
-    if (status !== 'all') filtered = filtered.filter(o => o.status === status);
-    if (q) filtered = filtered.filter(o => o.lab.toLowerCase().includes(q) || (o.items || []).some(it => it.productName.toLowerCase().includes(q)));
+    if (q) filtered = filtered.filter(o => o.lab.toLowerCase().includes(q) || (o.notes || '').toLowerCase().includes(q));
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:30px;">No hay pedidos a laboratorios</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:30px;">No hay pedidos a laboratorios</td></tr>';
         return;
     }
-    const statusColors = { pendiente: '#e65100', recibido: 'var(--success)', cancelado: 'var(--text-muted)' };
-    const statusLabels = { pendiente: 'Pendiente', recibido: 'Recibido', cancelado: 'Cancelado' };
     tbody.innerHTML = filtered.map(o => {
-        const total = (o.items || []).reduce((s, it) => s + ((parseFloat(it.unitPrice) || 0) * (parseInt(it.qty) || 0)), 0);
         return '<tr>' +
-            '<td><strong>#' + o.id + '</strong><br><small style="color:var(--text-muted);">' + shortDate(o.date) + '</small></td>' +
-            '<td><strong>' + o.lab + '</strong><br><small>' + (o.items || []).length + ' productos</small></td>' +
-            '<td style="font-weight:600;color:' + (statusColors[o.status] || 'var(--text-muted)') + ';">' + (statusLabels[o.status] || o.status) + '</td>' +
-            '<td style="font-weight:600;">' + formatPrice(total) + '</td>' +
-            '<td style="font-size:12px;color:var(--text-muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (o.notes || '-') + '</td>' +
+            '<td><strong>' + shortDate(o.date) + '</strong></td>' +
+            '<td><strong>' + o.lab + '</strong></td>' +
+            '<td style="font-size:13px;color:var(--text-muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (o.notes || '-') + '</td>' +
             '<td class="actions" style="white-space:nowrap;">' +
-                (o.status === 'pendiente' ?
-                    '<button class="btn btn-sm" onclick="receiveLabOrder(\'' + o.id + '\')" style="background:var(--success);color:#fff;padding:4px 8px;font-size:11px;margin-right:4px;border:none;border-radius:4px;cursor:pointer;">Recibir</button>' +
-                    '<button class="btn btn-sm" onclick="cancelLabOrder(\'' + o.id + '\')" style="background:var(--danger);color:#fff;padding:4px 8px;font-size:11px;margin-right:4px;border:none;border-radius:4px;cursor:pointer;">Cancelar</button>'
-                : '') +
-                '<button class="edit" onclick="viewLabOrder(\'' + o.id + '\')" title="Ver detalles" style="color:var(--primary);"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>' +
-                '<button class="edit" onclick="deleteLabOrder(\'' + o.id + '\')" title="Eliminar pedido" style="color:var(--danger);margin-left:4px;"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>' +
+                '<button class="edit" onclick="deleteLabOrder(\'' + o.id + '\')" title="Eliminar" style="color:var(--danger);"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>' +
             '</td></tr>';
     }).join('');
 }
@@ -2724,156 +2711,20 @@ function renderLabOrders() {
 function openNewLabOrderModal() {
     const brands = getUniqueBrands();
     const sel = document.getElementById('labOrderLabSelect');
-    sel.innerHTML = '<option value="">-- Seleccionar laboratorio --</option>' + brands.map(b => '<option value="' + b.name + '">' + b.name + ' (' + b.count + ' productos)</option>').join('');
+    sel.innerHTML = '<option value="">-- Seleccionar laboratorio --</option>' + brands.map(b => '<option value="' + b.name + '">' + b.name + '</option>').join('');
     document.getElementById('labOrderNotes').value = '';
-    document.getElementById('labOrderItemsBody').innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">Selecciona un laboratorio para ver sus productos</td></tr>';
-    document.getElementById('labOrderTotal').textContent = formatPrice(0);
-    document.getElementById('labOrderItemsCount').textContent = '0';
     document.getElementById('newLabOrderModal').classList.add('open');
-    sel.onchange = () => loadLabOrderProducts(sel.value);
-}
-
-let _labOrderProducts = [];
-let _labOrderSelected = {};
-
-function loadLabOrderProducts(brand) {
-    const tbody = document.getElementById('labOrderItemsBody');
-    const searchEl = document.getElementById('labOrderProdSearch');
-    if (searchEl) searchEl.value = '';
-    _labOrderSelected = {};
-    if (!brand) {
-        _labOrderProducts = [];
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px;">Selecciona un laboratorio para ver sus productos</td></tr>';
-        renderLabOrderSelected();
-        return;
-    }
-    _labOrderProducts = posProducts.filter(p => (p.brand || '').trim().toLowerCase() === brand.toLowerCase());
-    _labOrderProducts.sort((a, b) => {
-        if (a.stock <= 0 && b.stock > 0) return -1;
-        if (a.stock > 0 && b.stock <= 0) return 1;
-        return (a.stock || 0) - (b.stock || 0);
-    });
-    renderLabOrderProducts(_labOrderProducts);
-    renderLabOrderSelected();
-}
-
-function renderLabOrderProducts(products) {
-    const tbody = document.getElementById('labOrderItemsBody');
-    if (products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px;">No se encontraron productos</td></tr>';
-        return;
-    }
-    tbody.innerHTML = products.map(p => {
-        const stockClass = p.stock <= 0 ? 'color:var(--danger);font-weight:700;' : p.stock <= 5 ? 'color:#e65100;font-weight:600;' : '';
-        const stockLabel = p.stock <= 0 ? 'Agotado' : p.stock;
-        const isSelected = _labOrderSelected[p.id];
-        const btnStyle = isSelected
-            ? 'background:var(--danger);color:#fff;'
-            : 'background:var(--primary);color:#fff;';
-        const btnText = isSelected ? '−' : '+';
-        return '<tr style="' + (isSelected ? 'background:#e8f5e9;' : '') + '">' +
-            '<td style="text-align:center;"><button onclick="toggleLabOrderProduct(\'' + p.id + '\')" style="' + btnStyle + 'border:none;border-radius:50%;width:26px;height:26px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">' + btnText + '</button></td>' +
-            '<td><strong>' + p.name + '</strong>' + (p.barcode ? ' <span style="color:var(--text-muted);font-size:11px;">[' + p.barcode + ']</span>' : '') + '<br><small style="color:var(--text-muted);">' + getCatLabel(p.category) + '</small></td>' +
-            '<td style="' + stockClass + '">' + stockLabel + '</td>' +
-            '<td>' + formatPrice(p.cost || p.price || 0) + '</td>' +
-            '</tr>';
-    }).join('');
-}
-
-function toggleLabOrderProduct(productId) {
-    if (_labOrderSelected[productId]) {
-        delete _labOrderSelected[productId];
-    } else {
-        const prod = posProducts.find(p => String(p.id) === String(productId));
-        if (prod) _labOrderSelected[productId] = { qty: 1, price: prod.cost || prod.price || 0 };
-    }
-    renderLabOrderProducts(_labOrderProducts);
-    renderLabOrderSelected();
-}
-
-function renderLabOrderSelected() {
-    const container = document.getElementById('labOrderSelectedBody');
-    const countEl = document.getElementById('labOrderItemsCount');
-    const keys = Object.keys(_labOrderSelected);
-    if (countEl) countEl.textContent = '(' + keys.length + ')';
-    if (keys.length === 0) {
-        container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px 10px;font-size:13px;">Selecciona productos de la lista</div>';
-        updateLabOrderTotal();
-        return;
-    }
-    container.innerHTML = keys.map(id => {
-        const item = _labOrderSelected[id];
-        const prod = posProducts.find(p => String(p.id) === String(id));
-        const name = prod ? prod.name : id;
-        return '<div style="display:flex;align-items:center;gap:6px;padding:8px;border-bottom:1px solid var(--border);font-size:13px;">' +
-            '<div style="flex:1;"><strong>' + name + '</strong></div>' +
-            '<input type="number" min="1" value="' + item.qty + '" onchange="updateLabOrderSelectedQty(\'' + id + '\', this.value)" oninput="updateLabOrderSelectedQty(\'' + id + '\', this.value)" style="width:50px;padding:4px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:center;">' +
-            '<input type="number" min="0" value="' + item.price + '" onchange="updateLabOrderSelectedPrice(\'' + id + '\', this.value)" oninput="updateLabOrderSelectedPrice(\'' + id + '\', this.value)" style="width:70px;padding:4px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:right;">' +
-            '<button onclick="removeLabOrderProduct(\'' + id + '\')" style="background:var(--danger);color:#fff;border:none;border-radius:4px;width:22px;height:22px;font-size:14px;cursor:pointer;flex-shrink:0;">×</button>' +
-            '</div>';
-    }).join('');
-    updateLabOrderTotal();
-}
-
-function updateLabOrderSelectedQty(id, val) {
-    if (_labOrderSelected[id]) _labOrderSelected[id].qty = parseInt(val) || 1;
-    updateLabOrderTotal();
-}
-
-function updateLabOrderSelectedPrice(id, val) {
-    if (_labOrderSelected[id]) _labOrderSelected[id].price = parseFloat(val) || 0;
-    updateLabOrderTotal();
-}
-
-function removeLabOrderProduct(id) {
-    delete _labOrderSelected[id];
-    renderLabOrderProducts(_labOrderProducts);
-    renderLabOrderSelected();
-}
-
-function updateLabOrderTotal() {
-    let total = 0;
-    let count = 0;
-    Object.values(_labOrderSelected).forEach(item => {
-        total += (item.qty || 0) * (item.price || 0);
-        count++;
-    });
-    const countEl = document.getElementById('labOrderItemsCount');
-    const totalEl = document.getElementById('labOrderTotal');
-    if (countEl) countEl.textContent = '(' + count + ')';
-    if (totalEl) totalEl.textContent = formatPrice(total);
-}
-
-function filterLabOrderProducts() {
-    const q = document.getElementById('labOrderProdSearch') ? document.getElementById('labOrderProdSearch').value.toLowerCase().trim() : '';
-    if (!q) { renderLabOrderProducts(_labOrderProducts); return; }
-    const filtered = _labOrderProducts.filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        (p.barcode && p.barcode.includes(q)) ||
-        (p.category && p.category.toLowerCase().includes(q))
-    );
-    renderLabOrderProducts(filtered);
 }
 
 function saveNewLabOrder() {
     const lab = document.getElementById('labOrderLabSelect').value;
     if (!lab) { showToast('Selecciona un laboratorio', 'error'); return; }
-    const items = [];
-    Object.entries(_labOrderSelected).forEach(([id, item]) => {
-        const prod = posProducts.find(p => String(p.id) === String(id));
-        const name = prod ? prod.name : id;
-        if (item.qty > 0) items.push({ productId: id, productName: name, qty: item.qty, unitPrice: item.price });
-    });
-    if (items.length === 0) { showToast('Selecciona al menos un producto', 'error'); return; }
-    const total = items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
     const notes = document.getElementById('labOrderNotes').value.trim();
+    if (!notes) { showToast('Escribe una nota', 'error'); return; }
     const order = {
         id: 'lab_' + nextLabOrderId++,
         lab,
         date: now(),
-        status: 'pendiente',
-        items,
-        total,
         notes
     };
     labOrders.unshift(order);
@@ -2890,61 +2741,13 @@ function saveNewLabOrder() {
     }
     closeNewLabOrderModal();
     renderLabOrders();
-    showToast('Pedido #' + order.id + ' creado para ' + lab);
-}
-
-function closeNewLabOrderModal() {
-    document.getElementById('newLabOrderModal').classList.remove('open');
-}
-
-function receiveLabOrder(orderId) {
-    const order = labOrders.find(o => String(o.id) === String(orderId));
-    if (!order) return;
-    if (!confirm('Marcar pedido #' + orderId + ' como recibido? Se actualizara el inventario.')) return;
-    (order.items || []).forEach(item => {
-        const prod = posProducts.find(p => String(p.id) === String(item.productId));
-        if (prod) {
-            const prev = prod.stock;
-            prod.stock += parseInt(item.qty) || 0;
-            addInvLog(item.productId, prod.name, 'entrada', parseInt(item.qty) || 0, prev, prod.stock, 'Recepcion Pedido Lab #' + orderId + ' (' + order.lab + ')', null, false);
-        }
-    });
-    order.status = 'recibido';
-    order.receivedDate = now();
-    saveLabOrders();
-    saveProducts();
-    const apiId = String(order.id).replace('lab_', '');
-    if (API.isAvailable && apiId && !isNaN(apiId)) {
-        API.updateLabOrder(parseInt(apiId), { status: 'recibido' }).then(() => {
-            syncFromApi().then(() => renderLabOrders());
-        }).catch(e => {});
-    }
-    renderLabOrders();
-    if (typeof renderInventory === 'function') renderInventory();
-    showToast('Pedido #' + orderId + ' recibido. Inventario actualizado.');
-}
-
-function cancelLabOrder(orderId) {
-    const order = labOrders.find(o => String(o.id) === String(orderId));
-    if (!order) return;
-    if (!confirm('Cancelar pedido #' + orderId + '?')) return;
-    order.status = 'cancelado';
-    order.cancelledDate = now();
-    saveLabOrders();
-    const apiId = String(order.id).replace('lab_', '');
-    if (API.isAvailable && apiId && !isNaN(apiId)) {
-        API.updateLabOrder(parseInt(apiId), { status: 'cancelado' }).then(() => {
-            syncFromApi().then(() => renderLabOrders());
-        }).catch(e => {});
-    }
-    renderLabOrders();
-    showToast('Pedido #' + orderId + ' cancelado');
+    showToast('Pedido registrado para ' + lab);
 }
 
 function deleteLabOrder(orderId) {
     const order = labOrders.find(o => String(o.id) === String(orderId));
     if (!order) return;
-    if (!confirm('Eliminar pedido #' + orderId + ' (' + order.lab + ')?\n\nEsta accion no se puede deshacer.')) return;
+    if (!confirm('Eliminar pedido de "' + order.lab + '"?')) return;
     const apiId = String(order.id).replace('lab_', '');
     labOrders = labOrders.filter(o => String(o.id) !== String(orderId));
     saveLabOrders();
@@ -2952,40 +2755,9 @@ function deleteLabOrder(orderId) {
     if (API.isAvailable && apiId && !isNaN(apiId)) {
         API.deleteLabOrder(parseInt(apiId)).then(() => {
             syncFromApi().then(() => renderLabOrders());
-        }).catch(e => { console.error('delete lab order error:', e); });
+        }).catch(e => {});
     }
-    showToast('Pedido #' + orderId + ' eliminado');
-}
-
-function viewLabOrder(orderId) {
-    const order = labOrders.find(o => String(o.id) === String(orderId));
-    if (!order) return;
-    const statusLabels = { pendiente: 'Pendiente', recibido: 'Recibido', cancelado: 'Cancelado' };
-    const statusColors = { pendiente: '#e65100', recibido: 'var(--success)', cancelado: 'var(--text-muted)' };
-    const total = (order.items || []).reduce((s, it) => s + ((parseFloat(it.unitPrice) || 0) * (parseInt(it.qty) || 0)), 0);
-    let html = '<div style="padding:4px 0;">' +
-        '<p><strong>Laboratorio:</strong> ' + order.lab + '</p>' +
-        '<p><strong>Fecha:</strong> ' + shortDate(order.date) + '</p>' +
-        '<p><strong>Estado:</strong> <span style="color:' + (statusColors[order.status] || '') + ';font-weight:600;">' + (statusLabels[order.status] || order.status) + '</span></p>' +
-        (order.notes ? '<p><strong>Notas:</strong> ' + order.notes + '</p>' : '') +
-        '<table style="width:100%;border-collapse:collapse;margin-top:10px;">' +
-        '<thead><tr><th style="text-align:left;padding:6px;border-bottom:2px solid var(--border);font-size:12px;">Producto</th><th style="text-align:center;padding:6px;border-bottom:2px solid var(--border);font-size:12px;">Cant.</th><th style="text-align:right;padding:6px;border-bottom:2px solid var(--border);font-size:12px;">Precio</th><th style="text-align:right;padding:6px;border-bottom:2px solid var(--border);font-size:12px;">Subtotal</th></tr></thead><tbody>';
-    (order.items || []).forEach(it => {
-        html += '<tr><td style="padding:6px;border-bottom:1px solid var(--border);">' + it.productName + '</td><td style="text-align:center;padding:6px;border-bottom:1px solid var(--border);">' + it.qty + '</td><td style="text-align:right;padding:6px;border-bottom:1px solid var(--border);">' + formatPrice(it.unitPrice) + '</td><td style="text-align:right;padding:6px;border-bottom:1px solid var(--border);font-weight:600;">' + formatPrice(it.unitPrice * it.qty) + '</td></tr>';
-    });
-    html += '</tbody></table>' +
-        '<p style="text-align:right;font-weight:700;margin-top:10px;font-size:15px;">Total: ' + formatPrice(total) + '</p>' +
-        '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">' +
-            '<button onclick="closeLabOrderViewModal()" style="padding:8px 16px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);cursor:pointer;font-size:13px;">Cerrar</button>' +
-            '<button onclick="closeLabOrderViewModal();deleteLabOrder(\'' + order.id + '\')" style="padding:8px 16px;background:var(--danger);border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:13px;">Eliminar pedido</button>' +
-        '</div></div>';
-    const modal = document.getElementById('labOrderViewModal');
-    modal.querySelector('.lab-order-view-content').innerHTML = html;
-    modal.classList.add('open');
-}
-
-function closeLabOrderViewModal() {
-    document.getElementById('labOrderViewModal').classList.remove('open');
+    showToast('Pedido eliminado');
 }
 
 // ============ LABS MANAGEMENT (Brands) ============
