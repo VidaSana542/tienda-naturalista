@@ -1040,7 +1040,8 @@ function renderCustomerTable() {
         const lastDate = sales.length > 0 ? Math.max(...sales.map(s => new Date(s.date || s.created_at || 0))) : null;
         const lastStr = lastDate ? new Date(lastDate).toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' }) : 'Nunca';
         const pendingHtml = pendingTotal > 0 ? '<span style="color:var(--warning);font-weight:600;">' + formatPrice(pendingTotal) + '</span>' : '<span style="color:var(--success);">Al dia</span>';
-        return `<tr>
+        const rowBg = pendingTotal > 0 ? 'background:rgba(255,165,0,0.08);' : 'background:rgba(34,197,94,0.06);';
+        return `<tr style="${rowBg}">
             <td><strong style="cursor:pointer;" onclick="showCustomerHistory('${c.id}')">${c.name}</strong></td>
             <td>${c.phone || '-'}</td>
             <td>${purchases}</td>
