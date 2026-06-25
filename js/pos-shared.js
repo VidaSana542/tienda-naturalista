@@ -1359,6 +1359,34 @@ function saveSaleEdit() {
     showToast('Venta #' + saleId + ' actualizada');
 }
 
+// ============ VOID SALE ============
+function voidSale(saleId) {
+    const sale = posSales.find(s => String(s.id) === String(saleId));
+    if (!sale) { showToast('Venta no encontrada', 'error'); return; }
+    if (!confirm('Anular venta #' + saleId + '? Se devolveran los productos al inventario.')) return;
+    if (!confirm('Confirmar anulacion de venta #' + saleId + '? Esta accion no se puede deshacer.')) return;
+    (sale.items || []).forEach(item => {
+        if (item.isTemp) return;
+        const prod = posProducts.find(p => String(p.id) === String(item.id));
+        if (prod) {
+            const prev = prod.stock;
+            prod.stock += parseInt(item.qty) || 0;
+            addInvLog(item.id, prod.name, 'retorno', parseInt(item.qty) || 0, prev, prod.stock, 'Anulacion Venta #' + saleId, null, sale.ventaPorFuera || false);
+        }
+    });
+    const apiId = sale.id && sale.id < 100000 ? sale.id : null;
+    if (apiId && API.isAvailable) {
+        API.deleteSale(apiId).catch(e => console.error('[POS] deleteSale error:', e));
+    }
+    posSales = posSales.filter(s => String(s.id) !== String(saleId));
+    saveSales();
+    saveProducts();
+    if (typeof renderSalesTable === 'function') renderSalesTable();
+    if (typeof renderAccountStatus === 'function') renderAccountStatus();
+    if (typeof renderInventory === 'function') renderInventory();
+    showToast('Venta #' + saleId + ' anulada');
+}
+
 // ============ SUPPLIERS ============
 function renderSupplierTable() {
     const q = document.getElementById('suppSearch').value.toLowerCase().trim();
