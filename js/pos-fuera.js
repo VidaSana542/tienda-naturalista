@@ -131,6 +131,9 @@ function openSalidaDetail(id) {
     document.getElementById('returnSalidaModal').dataset.salidaId = id;
     document.getElementById('returnSalidaModal').dataset.status = s.status;
     document.body.style.overflow = 'hidden';
+    // Hide "Vender en TPV" for employees
+    const btnVender = document.getElementById('salidaVenderTpvBtn');
+    if (btnVender) btnVender.style.display = (currentUser && currentUser.role === 'empleado') ? 'none' : '';
     switchSalidaTab('devolver');
 }
 
