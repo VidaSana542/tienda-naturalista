@@ -1,6 +1,6 @@
 // ============ POS POR FUERA - Config ============
 const POS_SCOPE = 'fuera';
-const POS_RESTRICTED_PANELS = ['tpv', 'dashboard', 'products', 'customers', 'cuentas', 'categories', 'sales'];
+const POS_RESTRICTED_PANELS = ['tpv', 'dashboard', 'products', 'customers', 'cuentas', 'categories', 'sales', 'labOrders'];
 const POS_PANEL_TITLES = { dashboard:'Dashboard', orders:'Pedidos', tpv:'TPV / Pedido', salidas:'Salidas', products:'Productos', customers:'Clientes', cuentas:'Estado de Cuentas', inventory:'Inventario', sales:'Historial de Ventas' };
 const POS_PANEL_RENDERERS = {};
 
