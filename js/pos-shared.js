@@ -3100,14 +3100,29 @@ function executeMergeLabs() {
     const display = selected.join('", "') + '" → "' + newName + '"';
     if (!confirm('Unir laboratorios?\n\n"' + display + '\n\n' + selected.length + ' laboratorios se fusionaran en uno solo.')) return;
     let count = 0;
+    const changed = [];
     posProducts.forEach(p => {
         const b = (p.brand || '').trim();
         if (selected.some(s => s.toLowerCase() === b.toLowerCase())) {
             p.brand = newName;
             count++;
+            changed.push(p);
         }
     });
     saveProducts();
+    // Also save changed products to API immediately
+    if (API.isAvailable && changed.length > 0) {
+        changed.forEach(p => {
+            const apiId = p.id && p.id.startsWith('p') ? parseInt(p.id.replace('p','')) : null;
+            if (!apiId) return;
+            API.saveProduct({
+                id: apiId, name: p.name, brand: newName, category: p.category,
+                price: p.price, cost: p.cost || 0, stock: p.stock,
+                img: p.img || '', images: p.images || [], barcode: p.barcode || '',
+                description: p.desc || '', featured: p.featured || false, visible: p.visible !== false
+            }).catch(e => console.error('merge lab save error:', e));
+        });
+    }
     closeMergeLabsModal();
     renderLabsList();
     showToast(count + ' productos unidos bajo "' + newName + '"');
@@ -3138,13 +3153,27 @@ function renameLab(oldName) {
     const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase() && (p.brand || '').trim().toLowerCase() !== oldName.toLowerCase());
     if (exists) { showToast('Ya existe un laboratorio con ese nombre', 'error'); return; }
     let count = 0;
+    const changed = [];
     posProducts.forEach(p => {
         if ((p.brand || '').trim().toLowerCase() === oldName.toLowerCase()) {
             p.brand = trimmed;
             count++;
+            changed.push(p);
         }
     });
     saveProducts();
+    if (API.isAvailable && changed.length > 0) {
+        changed.forEach(p => {
+            const apiId = p.id && p.id.startsWith('p') ? parseInt(p.id.replace('p','')) : null;
+            if (!apiId) return;
+            API.saveProduct({
+                id: apiId, name: p.name, brand: trimmed, category: p.category,
+                price: p.price, cost: p.cost || 0, stock: p.stock,
+                img: p.img || '', images: p.images || [], barcode: p.barcode || '',
+                description: p.desc || '', featured: p.featured || false, visible: p.visible !== false
+            }).catch(e => console.error('rename lab save error:', e));
+        });
+    }
     showToast(count + ' productos renombrados de "' + oldName + '" a "' + trimmed + '"');
     renderLabsList();
 }
@@ -3152,13 +3181,27 @@ function renameLab(oldName) {
 function deleteLab(name) {
     if (!confirm('Eliminar laboratorio "' + name + '"?\nSe quitara la marca de todos sus productos.')) return;
     let count = 0;
+    const changed = [];
     posProducts.forEach(p => {
         if ((p.brand || '').trim().toLowerCase() === name.toLowerCase()) {
             p.brand = '';
             count++;
+            changed.push(p);
         }
     });
     saveProducts();
+    if (API.isAvailable && changed.length > 0) {
+        changed.forEach(p => {
+            const apiId = p.id && p.id.startsWith('p') ? parseInt(p.id.replace('p','')) : null;
+            if (!apiId) return;
+            API.saveProduct({
+                id: apiId, name: p.name, brand: '', category: p.category,
+                price: p.price, cost: p.cost || 0, stock: p.stock,
+                img: p.img || '', images: p.images || [], barcode: p.barcode || '',
+                description: p.desc || '', featured: p.featured || false, visible: p.visible !== false
+            }).catch(e => console.error('delete lab save error:', e));
+        });
+    }
     showToast(count + ' productos quedaron sin laboratorio');
     renderLabsList();
 }
@@ -3179,6 +3222,17 @@ function assignProductToLab(productId) {
     if (!name || name.trim() === current) return;
     prod.brand = name.trim();
     saveProducts();
+    if (API.isAvailable) {
+        const apiId = prod.id && prod.id.startsWith('p') ? parseInt(prod.id.replace('p','')) : null;
+        if (apiId) {
+            API.saveProduct({
+                id: apiId, name: prod.name, brand: prod.brand, category: prod.category,
+                price: prod.price, cost: prod.cost || 0, stock: prod.stock,
+                img: prod.img || '', images: prod.images || [], barcode: prod.barcode || '',
+                description: prod.desc || '', featured: prod.featured || false, visible: prod.visible !== false
+            }).catch(e => console.error('assign lab save error:', e));
+        }
+    }
     renderProductTable();
     showToast('"' + prod.name + '" asignado a "' + prod.brand + '"');
 }
