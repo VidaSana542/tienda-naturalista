@@ -792,6 +792,10 @@ function openProductModal(id) {
     catSelect.onchange = updateSubcatSelect;
     const suppSelect = document.getElementById('prodSupplier');
     suppSelect.innerHTML = '<option value="">Sin proveedor</option>' + posSuppliers.map(s => '<option value="' + s.id + '">' + s.name + '</option>').join('');
+    // Populate lab select
+    const labSelect = document.getElementById('prodBrand');
+    const brands = getUniqueBrands();
+    labSelect.innerHTML = '<option value="">Sin laboratorio</option>' + brands.map(b => '<option value="' + b.name + '">' + b.name + ' (' + b.count + ')</option>').join('');
     _prodMainImg = '';
     document.getElementById('prodMainPreview').style.display = 'none';
     document.getElementById('prodMainUploadStatus').textContent = '';
