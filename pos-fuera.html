@@ -1321,6 +1321,20 @@
     </div>
 </div>
 
+<!-- Lab Order View Modal -->
+<div class="modal-overlay" id="labOrderViewModal" onclick="if(event.target===this)closeLabOrderViewModal()">
+    <div class="modal" style="max-width:450px;">
+        <div class="modal-header">
+            <h3>Detalle del Pedido</h3>
+            <button class="btn-close" onclick="closeLabOrderViewModal()">✕</button>
+        </div>
+        <div class="modal-body lab-order-view-content"></div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeLabOrderViewModal()">Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <!-- Merge Labs Modal -->
 <div class="modal-overlay" id="mergeLabsModal" onclick="if(event.target===this)closeMergeLabsModal()">
     <div class="modal" style="max-width:500px;max-height:80vh;">
