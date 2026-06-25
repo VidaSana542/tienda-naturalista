@@ -894,7 +894,7 @@ function saveProduct() {
             Object.assign(p, { name, catalogName, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, visible, subcategory });
             if (stock !== prevStock) {
                 const diff = stock - prevStock;
-                addInvLog(p.id, p.name, diff > 0 ? 'entrada' : 'salida', diff, prevStock, stock, 'Ajuste manual desde productos');
+                addInvLog(p.id, p.name, diff > 0 ? 'entrada' : 'salida', diff, prevStock, stock, 'Ajuste manual desde productos', null, getPosScope() === 'fuera');
             }
         }
     } else {
@@ -1872,7 +1872,7 @@ function confirmInvMov() {
     const prev = p.stock;
     if (type === 'entrada') {
         p.stock += qty;
-        addInvLog(pid, p.name, 'entrada', qty, prev, p.stock, fullReason);
+        addInvLog(pid, p.name, 'entrada', qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera');
         saveProducts();
         closeInvMovModal();
         renderInventory();
@@ -1881,7 +1881,7 @@ function confirmInvMov() {
     } else {
         if (p.stock < qty) { showToast('Stock insuficiente (disponible: ' + p.stock + ')'); return; }
         p.stock -= qty;
-        addInvLog(pid, p.name, 'salida', -qty, prev, p.stock, fullReason);
+        addInvLog(pid, p.name, 'salida', -qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera');
         saveProducts();
         closeInvMovModal();
         renderInventory();
