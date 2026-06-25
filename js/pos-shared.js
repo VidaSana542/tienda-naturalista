@@ -1330,9 +1330,31 @@ function saveSaleEdit() {
     const sale = posSales.find(s => String(s.id) === String(saleId));
     if (!sale) return;
     const items = sale.items || [];
+    // Snapshot old quantities before edit
+    const oldQtys = {};
+    items.forEach((it, idx) => { oldQtys[idx] = parseInt(it.qty) || 0; });
+    // Read new quantities from DOM and validate stock
+    const newQtys = {};
     document.querySelectorAll('.se-item-qty').forEach(inp => {
         const idx = parseInt(inp.dataset.idx);
-        if (items[idx]) items[idx].qty = parseFloat(inp.value) || 0;
+        newQtys[idx] = parseFloat(inp.value) || 0;
+    });
+    for (const idx in newQtys) {
+        const oldQty = oldQtys[idx] || 0;
+        const newQty = newQtys[idx] || 0;
+        const diff = newQty - oldQty;
+        if (diff <= 0) continue;
+        const item = items[parseInt(idx)];
+        if (!item) continue;
+        const prod = posProducts.find(p => String(p.id) === String(item.id));
+        if (prod && prod.stock < diff) {
+            showToast('Stock insuficiente para ' + (item.name || prod.name) + ' (disponible: ' + prod.stock + ', necesario: ' + diff + ')', 'error');
+            return;
+        }
+    }
+    // Apply changes
+    items.forEach((it, idx) => {
+        if (newQtys[idx] !== undefined) it.qty = newQtys[idx];
     });
     document.querySelectorAll('.se-item-price').forEach(inp => {
         const idx = parseInt(inp.dataset.idx);
@@ -1341,6 +1363,20 @@ function saveSaleEdit() {
     if (sale.items && sale.items.length > 0) {
         sale.total = sale.items.reduce((sum, it) => sum + ((parseFloat(it.price) || 0) * (parseInt(it.qty) || 0)), 0);
     }
+    // Adjust inventory for quantity changes
+    items.forEach((item, idx) => {
+        const oldQty = oldQtys[idx] || 0;
+        const newQty = parseInt(item.qty) || 0;
+        const diff = newQty - oldQty;
+        if (diff === 0) return;
+        const prod = posProducts.find(p => String(p.id) === String(item.id));
+        if (prod) {
+            const prev = prod.stock;
+            prod.stock -= diff;
+            const type = diff > 0 ? 'salida' : 'retorno';
+            addInvLog(item.id, prod.name, type, diff > 0 ? -diff : Math.abs(diff), prev, prod.stock, 'Edicion Venta #' + saleId + ' (' + (item.name || prod.name) + ': ' + oldQty + '→' + newQty + ')', null, sale.ventaPorFuera || false);
+        }
+    });
     const status = document.getElementById('saleEditStatus').value;
     sale.payments = sale.payments || [];
     const currentPaid = sale.payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
@@ -1369,9 +1405,11 @@ function saveSaleEdit() {
     }
     sale.apiSynced = true;
     saveSales();
+    saveProducts();
     closeSaleEditModal();
     if (typeof renderSalesTable === 'function') renderSalesTable();
     if (typeof renderAccountStatus === 'function') renderAccountStatus();
+    if (typeof renderInventory === 'function') renderInventory();
     showToast('Venta #' + saleId + ' actualizada');
 }
 
