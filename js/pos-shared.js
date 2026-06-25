@@ -2932,6 +2932,42 @@ function mergeLabVariants(canonical) {
     renderLabsList();
 }
 
+function mergeLabs() {
+    // Get all unique labs
+    const brands = {};
+    posProducts.forEach(p => {
+        const b = (p.brand || '').trim();
+        if (!b) return;
+        const key = b.toLowerCase();
+        if (!brands[key]) brands[key] = { name: b, count: 0 };
+        brands[key].count++;
+    });
+    const list = Object.values(brands).sort((a, b) => a.name.localeCompare(b.name));
+    if (list.length < 2) { showToast('Necesitas al menos 2 laboratorios para unir', 'error'); return; }
+    const labNames = list.map(l => l.name);
+    // Prompt: source lab to merge FROM
+    const from = prompt('Laboratorio ORIGEN (se eliminara):\n\nOpciones: ' + labNames.join(', '));
+    if (!from || !from.trim()) return;
+    const fromMatch = list.find(l => l.name.toLowerCase() === from.trim().toLowerCase());
+    if (!fromMatch) { showToast('Laboratorio "' + from + '" no encontrado', 'error'); return; }
+    // Prompt: target lab to merge INTO
+    const to = prompt('Laboratorio DESTINO (se mantendra):\n\nOpciones: ' + labNames.filter(n => n.toLowerCase() !== fromMatch.name.toLowerCase()).join(', '));
+    if (!to || !to.trim()) return;
+    const toMatch = list.find(l => l.name.toLowerCase() === to.trim().toLowerCase() && l.name.toLowerCase() !== fromMatch.name.toLowerCase());
+    if (!toMatch) { showToast('Laboratorio "' + to + '" no encontrado', 'error'); return; }
+    if (!confirm('Unir "' + fromMatch.name + '" en "' + toMatch.name + '"?\n\n' + fromMatch.count + ' productos cambiaran a "' + toMatch.name + '".')) return;
+    let count = 0;
+    posProducts.forEach(p => {
+        if ((p.brand || '').trim().toLowerCase() === fromMatch.name.toLowerCase()) {
+            p.brand = toMatch.name;
+            count++;
+        }
+    });
+    saveProducts();
+    showToast(count + ' productos de "' + fromMatch.name + '" unidos en "' + toMatch.name + '"');
+    renderLabsList();
+}
+
 function createNewLab() {
     const name = prompt('Nombre del nuevo laboratorio:');
     if (!name || !name.trim()) return;
