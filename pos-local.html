@@ -1365,7 +1365,7 @@
 </div> <!-- /posApp -->
 
 <!-- New Lab Order Modal -->
-<div class="modal-overlay" id="newLabOrderModal" onclick="if(event.target===this)closeNewLabOrderModal()">
+<div class="modal-overlay" id="newLabOrderModal" onclick="if(event.target===this){closeNewLabOrderModal();} var dd=document.getElementById('labOrderLabDropdown'); if(dd && !event.target.closest('#labOrderLabSearch')) dd.style.display='none';">
     <div class="modal" style="max-width:500px;">
         <div class="modal-header">
             <h3>Nuevo Pedido a Laboratorio</h3>
@@ -1374,7 +1374,11 @@
         <div class="modal-body">
             <div class="form-group">
                 <label>Laboratorio</label>
-                <select id="labOrderLabSelect" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;"></select>
+                <div style="position:relative;">
+                    <input type="text" id="labOrderLabSearch" placeholder="Buscar laboratorio..." oninput="filterLabOrderLabs()" onfocus="filterLabOrderLabs()" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;">
+                    <input type="hidden" id="labOrderLabSelect">
+                    <div id="labOrderLabDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>
+                </div>
             </div>
             <div class="form-group" style="margin-top:12px;">
                 <label>Notas</label>

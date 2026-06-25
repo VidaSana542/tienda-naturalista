@@ -2709,11 +2709,36 @@ function renderLabOrders() {
 }
 
 function openNewLabOrderModal() {
-    const brands = getUniqueBrands();
-    const sel = document.getElementById('labOrderLabSelect');
-    sel.innerHTML = '<option value="">-- Seleccionar laboratorio --</option>' + brands.map(b => '<option value="' + b.name + '">' + b.name + '</option>').join('');
+    document.getElementById('labOrderLabSearch').value = '';
+    document.getElementById('labOrderLabSelect').value = '';
+    document.getElementById('labOrderLabDropdown').style.display = 'none';
     document.getElementById('labOrderNotes').value = '';
     document.getElementById('newLabOrderModal').classList.add('open');
+}
+
+function closeNewLabOrderModal() {
+    document.getElementById('newLabOrderModal').classList.remove('open');
+    const dd = document.getElementById('labOrderLabDropdown');
+    if (dd) dd.style.display = 'none';
+}
+
+function filterLabOrderLabs() {
+    const q = document.getElementById('labOrderLabSearch').value.toLowerCase().trim();
+    const brands = getUniqueBrands();
+    const filtered = q ? brands.filter(b => b.name.toLowerCase().includes(q)) : brands;
+    const dd = document.getElementById('labOrderLabDropdown');
+    if (filtered.length === 0) {
+        dd.innerHTML = '<div style="padding:10px;color:var(--text-muted);font-size:13px;">No se encontraron laboratorios</div>';
+    } else {
+        dd.innerHTML = filtered.map(b => '<div onclick="selectLabOrderLab(\'' + b.name.replace(/'/g, "\\'") + '\')" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);">' + b.name + ' <span style="color:var(--text-muted);">(' + b.count + ')</span></div>').join('');
+    }
+    dd.style.display = 'block';
+}
+
+function selectLabOrderLab(name) {
+    document.getElementById('labOrderLabSearch').value = name;
+    document.getElementById('labOrderLabSelect').value = name;
+    document.getElementById('labOrderLabDropdown').style.display = 'none';
 }
 
 function saveNewLabOrder() {
