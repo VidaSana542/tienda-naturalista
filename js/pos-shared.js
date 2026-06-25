@@ -2706,33 +2706,54 @@ function openNewLabOrderModal() {
     sel.onchange = () => loadLabOrderProducts(sel.value);
 }
 
+let _labOrderProducts = [];
+
 function loadLabOrderProducts(brand) {
     const tbody = document.getElementById('labOrderItemsBody');
+    const searchEl = document.getElementById('labOrderProdSearch');
+    if (searchEl) searchEl.value = '';
     if (!brand) {
+        _labOrderProducts = [];
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">Selecciona un laboratorio para ver sus productos</td></tr>';
         return;
     }
-    let products = posProducts.filter(p => (p.brand || '').trim().toLowerCase() === brand.toLowerCase());
-    products.sort((a, b) => {
+    _labOrderProducts = posProducts.filter(p => (p.brand || '').trim().toLowerCase() === brand.toLowerCase());
+    _labOrderProducts.sort((a, b) => {
         if (a.stock <= 0 && b.stock > 0) return -1;
         if (a.stock > 0 && b.stock <= 0) return 1;
         return (a.stock || 0) - (b.stock || 0);
     });
+    renderLabOrderProducts(_labOrderProducts);
+}
+
+function renderLabOrderProducts(products) {
+    const tbody = document.getElementById('labOrderItemsBody');
     if (products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">No se encontraron productos para este laboratorio</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">No se encontraron productos</td></tr>';
         return;
     }
     tbody.innerHTML = products.map(p => {
         const stockClass = p.stock <= 0 ? 'color:var(--danger);font-weight:700;' : p.stock <= 5 ? 'color:#e65100;font-weight:600;' : '';
         const stockLabel = p.stock <= 0 ? 'Agotado' : 'Stock: ' + p.stock;
         return '<tr data-lab-prod="' + p.id + '">' +
-            '<td><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" class="lab-prod-check" data-id="' + p.id + '" data-name="' + (p.name || '').replace(/"/g, '&quot;') + '" data-price="' + (p.cost || p.price || 0) + '" onchange="updateLabOrderTotal()"> ' + p.name + '</label></td>' +
+            '<td><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" class="lab-prod-check" data-id="' + p.id + '" data-name="' + (p.name || '').replace(/"/g, '&quot;') + '" data-price="' + (p.cost || p.price || 0) + '" onchange="updateLabOrderTotal()"> ' + p.name + (p.barcode ? ' <span style="color:var(--text-muted);font-size:11px;">[' + p.barcode + ']</span>' : '') + '</label></td>' +
             '<td>' + getCatLabel(p.category) + '</td>' +
             '<td style="' + stockClass + '">' + stockLabel + '</td>' +
             '<td><input type="number" min="1" class="lab-prod-qty" data-id="' + p.id + '" value="1" style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:center;" onchange="updateLabOrderTotal()" oninput="updateLabOrderTotal()"></td>' +
             '<td><input type="number" min="0" class="lab-prod-price" data-id="' + p.id + '" value="' + (p.cost || p.price || 0) + '" style="width:90px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:right;" onchange="updateLabOrderTotal()" oninput="updateLabOrderTotal()"></td>' +
             '</tr>';
     }).join('');
+}
+
+function filterLabOrderProducts() {
+    const q = document.getElementById('labOrderProdSearch') ? document.getElementById('labOrderProdSearch').value.toLowerCase().trim() : '';
+    if (!q) { renderLabOrderProducts(_labOrderProducts); return; }
+    const filtered = _labOrderProducts.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        (p.barcode && p.barcode.includes(q)) ||
+        (p.category && p.category.toLowerCase().includes(q))
+    );
+    renderLabOrderProducts(filtered);
 }
 
 function updateLabOrderTotal() {
