@@ -2933,7 +2933,6 @@ function mergeLabVariants(canonical) {
 }
 
 function mergeLabs() {
-    // Get all unique labs
     const brands = {};
     posProducts.forEach(p => {
         const b = (p.brand || '').trim();
@@ -2944,28 +2943,41 @@ function mergeLabs() {
     });
     const list = Object.values(brands).sort((a, b) => a.name.localeCompare(b.name));
     if (list.length < 2) { showToast('Necesitas al menos 2 laboratorios para unir', 'error'); return; }
-    const labNames = list.map(l => l.name);
-    // Prompt: source lab to merge FROM
-    const from = prompt('Laboratorio ORIGEN (se eliminara):\n\nOpciones: ' + labNames.join(', '));
-    if (!from || !from.trim()) return;
-    const fromMatch = list.find(l => l.name.toLowerCase() === from.trim().toLowerCase());
-    if (!fromMatch) { showToast('Laboratorio "' + from + '" no encontrado', 'error'); return; }
-    // Prompt: target lab to merge INTO
-    const to = prompt('Laboratorio DESTINO (se mantendra):\n\nOpciones: ' + labNames.filter(n => n.toLowerCase() !== fromMatch.name.toLowerCase()).join(', '));
-    if (!to || !to.trim()) return;
-    const toMatch = list.find(l => l.name.toLowerCase() === to.trim().toLowerCase() && l.name.toLowerCase() !== fromMatch.name.toLowerCase());
-    if (!toMatch) { showToast('Laboratorio "' + to + '" no encontrado', 'error'); return; }
-    if (!confirm('Unir "' + fromMatch.name + '" en "' + toMatch.name + '"?\n\n' + fromMatch.count + ' productos cambiaran a "' + toMatch.name + '".')) return;
+    const tbody = document.getElementById('mergeLabsList');
+    tbody.innerHTML = list.map(l =>
+        '<label style="display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--border);cursor:pointer;">' +
+        '<input type="checkbox" class="merge-lab-check" value="' + l.name.replace(/"/g, '&quot;') + '">' +
+        '<span><strong>' + l.name + '</strong> <span style="color:var(--text-muted);font-size:12px;">(' + l.count + ' productos)</span></span>' +
+        '</label>'
+    ).join('');
+    document.getElementById('mergeLabsNewName').value = '';
+    document.getElementById('mergeLabsModal').classList.add('open');
+}
+
+function closeMergeLabsModal() {
+    document.getElementById('mergeLabsModal').classList.remove('open');
+}
+
+function executeMergeLabs() {
+    const checked = document.querySelectorAll('.merge-lab-check:checked');
+    const newName = document.getElementById('mergeLabsNewName').value.trim();
+    if (checked.length < 2) { showToast('Selecciona al menos 2 laboratorios', 'error'); return; }
+    if (!newName) { showToast('Escribe el nombre nuevo para el laboratorio', 'error'); return; }
+    const selected = Array.from(checked).map(cb => cb.value);
+    const display = selected.join('", "') + '" → "' + newName + '"';
+    if (!confirm('Unir laboratorios?\n\n"' + display + '\n\n' + selected.length + ' laboratorios se fusionaran en uno solo.')) return;
     let count = 0;
     posProducts.forEach(p => {
-        if ((p.brand || '').trim().toLowerCase() === fromMatch.name.toLowerCase()) {
-            p.brand = toMatch.name;
+        const b = (p.brand || '').trim();
+        if (selected.some(s => s.toLowerCase() === b.toLowerCase())) {
+            p.brand = newName;
             count++;
         }
     });
     saveProducts();
-    showToast(count + ' productos de "' + fromMatch.name + '" unidos en "' + toMatch.name + '"');
+    closeMergeLabsModal();
     renderLabsList();
+    showToast(count + ' productos unidos bajo "' + newName + '"');
 }
 
 function createNewLab() {
