@@ -2704,23 +2704,11 @@ function renderLabOrders() {
             '<td><strong>' + o.lab + '</strong></td>' +
             '<td style="font-size:13px;color:var(--text-muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (o.notes || '-') + '</td>' +
             '<td class="actions" style="white-space:nowrap;">' +
+                '<button class="edit" onclick="viewLabOrder(\'' + o.id + '\')" title="Ver" style="color:var(--primary);margin-right:4px;"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>' +
+                '<button class="edit" onclick="editLabOrder(\'' + o.id + '\')" title="Editar" style="color:var(--primary);margin-right:4px;"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>' +
                 '<button class="edit" onclick="deleteLabOrder(\'' + o.id + '\')" title="Eliminar" style="color:var(--danger);"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>' +
             '</td></tr>';
     }).join('');
-}
-
-function openNewLabOrderModal() {
-    document.getElementById('labOrderLabSearch').value = '';
-    document.getElementById('labOrderLabSelect').value = '';
-    document.getElementById('labOrderLabDropdown').style.display = 'none';
-    document.getElementById('labOrderNotes').value = '';
-    document.getElementById('newLabOrderModal').classList.add('open');
-}
-
-function closeNewLabOrderModal() {
-    document.getElementById('newLabOrderModal').classList.remove('open');
-    const dd = document.getElementById('labOrderLabDropdown');
-    if (dd) dd.style.display = 'none';
 }
 
 function filterLabOrderLabs() {
@@ -2742,11 +2730,96 @@ function selectLabOrderLab(name) {
     document.getElementById('labOrderLabDropdown').style.display = 'none';
 }
 
+function openNewLabOrderModal() {
+    document.getElementById('labOrderLabSearch').value = '';
+    document.getElementById('labOrderLabSelect').value = '';
+    document.getElementById('labOrderLabDropdown').style.display = 'none';
+    document.getElementById('labOrderNotes').value = '';
+    document.getElementById('newLabOrderModal').classList.add('open');
+}
+
+function deleteLabOrder(orderId) {
+    const order = labOrders.find(o => String(o.id) === String(orderId));
+    if (!order) return;
+    if (!confirm('Eliminar pedido de "' + order.lab + '"?')) return;
+    const apiId = String(order.id).replace('lab_', '');
+    labOrders = labOrders.filter(o => String(o.id) !== String(orderId));
+    saveLabOrders();
+    renderLabOrders();
+    if (API.isAvailable && apiId && !isNaN(apiId)) {
+        API.deleteLabOrder(parseInt(apiId)).then(() => {
+            syncFromApi().then(() => renderLabOrders());
+        }).catch(e => {});
+    }
+    showToast('Pedido eliminado');
+}
+
+function viewLabOrder(orderId) {
+    const order = labOrders.find(o => String(o.id) === String(orderId));
+    if (!order) return;
+    let html = '<div style="padding:4px 0;">' +
+        '<p><strong>Laboratorio:</strong> ' + order.lab + '</p>' +
+        '<p><strong>Fecha:</strong> ' + shortDate(order.date) + '</p>' +
+        (order.notes ? '<p><strong>Notas:</strong> ' + order.notes + '</p>' : '<p style="color:var(--text-muted);">Sin notas</p>') +
+        '</div>';
+    const modal = document.getElementById('labOrderViewModal');
+    modal.querySelector('.lab-order-view-content').innerHTML = html;
+    modal.classList.add('open');
+}
+
+function closeLabOrderViewModal() {
+    document.getElementById('labOrderViewModal').classList.remove('open');
+}
+
+let _editingLabOrderId = null;
+
+function editLabOrder(orderId) {
+    const order = labOrders.find(o => String(o.id) === String(orderId));
+    if (!order) return;
+    _editingLabOrderId = orderId;
+    const brands = getUniqueBrands();
+    const searchEl = document.getElementById('labOrderLabSearch');
+    const selectEl = document.getElementById('labOrderLabSelect');
+    searchEl.value = order.lab;
+    selectEl.value = order.lab;
+    document.getElementById('labOrderNotes').value = order.notes || '';
+    document.getElementById('newLabOrderModal').classList.add('open');
+    document.querySelector('#newLabOrderModal .modal-header h3').textContent = 'Editar Pedido';
+    document.querySelector('#newLabOrderModal .btn-primary').textContent = 'Guardar cambios';
+}
+
+function closeNewLabOrderModal() {
+    document.getElementById('newLabOrderModal').classList.remove('open');
+    const dd = document.getElementById('labOrderLabDropdown');
+    if (dd) dd.style.display = 'none';
+    _editingLabOrderId = null;
+    document.querySelector('#newLabOrderModal .modal-header h3').textContent = 'Nuevo Pedido a Laboratorio';
+    document.querySelector('#newLabOrderModal .btn-primary').textContent = 'Guardar';
+}
+
 function saveNewLabOrder() {
     const lab = document.getElementById('labOrderLabSelect').value;
     if (!lab) { showToast('Selecciona un laboratorio', 'error'); return; }
     const notes = document.getElementById('labOrderNotes').value.trim();
     if (!notes) { showToast('Escribe una nota', 'error'); return; }
+
+    if (_editingLabOrderId) {
+        const order = labOrders.find(o => String(o.id) === String(_editingLabOrderId));
+        if (order) {
+            order.lab = lab;
+            order.notes = notes;
+            saveLabOrders();
+            const apiId = String(order.id).replace('lab_', '');
+            if (API.isAvailable && apiId && !isNaN(apiId)) {
+                API.updateLabOrder(parseInt(apiId), { lab, notes }).catch(e => {});
+            }
+            renderLabOrders();
+            showToast('Pedido actualizado');
+        }
+        closeNewLabOrderModal();
+        return;
+    }
+
     const order = {
         id: 'lab_' + nextLabOrderId++,
         lab,
@@ -2768,22 +2841,6 @@ function saveNewLabOrder() {
     closeNewLabOrderModal();
     renderLabOrders();
     showToast('Pedido registrado para ' + lab);
-}
-
-function deleteLabOrder(orderId) {
-    const order = labOrders.find(o => String(o.id) === String(orderId));
-    if (!order) return;
-    if (!confirm('Eliminar pedido de "' + order.lab + '"?')) return;
-    const apiId = String(order.id).replace('lab_', '');
-    labOrders = labOrders.filter(o => String(o.id) !== String(orderId));
-    saveLabOrders();
-    renderLabOrders();
-    if (API.isAvailable && apiId && !isNaN(apiId)) {
-        API.deleteLabOrder(parseInt(apiId)).then(() => {
-            syncFromApi().then(() => renderLabOrders());
-        }).catch(e => {});
-    }
-    showToast('Pedido eliminado');
 }
 
 // ============ LABS MANAGEMENT (Brands) ============
