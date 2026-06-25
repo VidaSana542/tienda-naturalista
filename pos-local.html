@@ -656,71 +656,79 @@
 
         <!-- Caja -->
         <div class="panel" id="panel-cash">
-            <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));" id="cashStats">
-                <div class="stat-card"><div class="stat-icon" style="background:#e8f5e9;"><svg viewBox="0 0 24 24" style="fill:#2e7d32;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div class="stat-info"><span class="stat-label">Base del dia</span><h3 id="cashBaseDisplay">$0</h3></div></div>
-                <div class="stat-card"><div class="stat-icon" style="background:#fff3e0;"><svg viewBox="0 0 24 24" style="fill:#e65100;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div class="stat-info"><span class="stat-label">Gastos del dia</span><h3 id="cashExpensesDisplay">$0</h3></div></div>
-                <div class="stat-card"><div class="stat-icon" style="background:#e3f2fd;"><svg viewBox="0 0 24 24" style="fill:#1565c0;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div class="stat-info"><span class="stat-label">Disponible</span><h3 id="cashAvailableDisplay">$0</h3></div></div>
+            <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border);">
+                <button class="cash-subtab active" data-cash-tab="main" onclick="showCashSubTab('main')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-weight:600;font-size:14px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;">Caja</button>
+                <button class="cash-subtab" data-cash-tab="history" onclick="showCashSubTab('history')" style="padding:10px 20px;border:none;background:none;cursor:pointer;font-weight:600;font-size:14px;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;">Historial</button>
             </div>
-            <div class="card">
-                <div class="card-header">
-                    <h3>Base de Caja</h3>
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <span style="font-size:13px;color:var(--text-muted);" id="cashDateLabel"></span>
-                        <input type="number" id="cashBaseInput" placeholder="Valor base" style="width:140px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
-                        <button class="btn btn-primary" onclick="setCashBase()">Establecer Base</button>
+            <div id="cash-sub-main">
+                <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));" id="cashStats">
+                    <div class="stat-card"><div class="stat-icon" style="background:#e8f5e9;"><svg viewBox="0 0 24 24" style="fill:#2e7d32;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div class="stat-info"><span class="stat-label">Base del dia</span><h3 id="cashBaseDisplay">$0</h3></div></div>
+                    <div class="stat-card"><div class="stat-icon" style="background:#fff3e0;"><svg viewBox="0 0 24 24" style="fill:#e65100;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div class="stat-info"><span class="stat-label">Gastos del dia</span><h3 id="cashExpensesDisplay">$0</h3></div></div>
+                    <div class="stat-card"><div class="stat-icon" style="background:#e3f2fd;"><svg viewBox="0 0 24 24" style="fill:#1565c0;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div class="stat-info"><span class="stat-label">Disponible</span><h3 id="cashAvailableDisplay">$0</h3></div></div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Base de Caja</h3>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                            <span style="font-size:13px;color:var(--text-muted);" id="cashDateLabel"></span>
+                            <input type="number" id="cashBaseInput" placeholder="Valor base" style="width:140px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+                            <button class="btn btn-primary" onclick="setCashBase()">Establecer Base</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Registrar Gasto</h3>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                            <input type="text" id="expenseDesc" placeholder="Descripcion" style="width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+                            <input type="number" id="expenseAmount" placeholder="Valor" style="width:120px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+                            <select id="expenseCat" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+                                <option value="suministros">Suministros</option>
+                                <option value="servicios">Servicios</option>
+                                <option value="transporte">Transporte</option>
+                                <option value="otros">Otros</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="addExpense()">+ Agregar Gasto</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Descripcion</th>
+                                        <th>Categoria</th>
+                                        <th>Valor</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cashExpensesBody"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="card">
-                <div class="card-header">
-                    <h3>Registrar Gasto</h3>
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <input type="text" id="expenseDesc" placeholder="Descripcion" style="width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
-                        <input type="number" id="expenseAmount" placeholder="Valor" style="width:120px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
-                        <select id="expenseCat" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
-                            <option value="suministros">Suministros</option>
-                            <option value="servicios">Servicios</option>
-                            <option value="transporte">Transporte</option>
-                            <option value="otros">Otros</option>
-                        </select>
-                        <button class="btn btn-primary" onclick="addExpense()">+ Agregar Gasto</button>
+            <div id="cash-sub-history" style="display:none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Historial de Caja</h3>
+                        <button class="btn btn-sm btn-outline" onclick="clearCashHistory()" style="font-size:12px;">Limpiar</button>
                     </div>
-                </div>
-                <div class="card-body">
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Descripcion</th>
-                                    <th>Categoria</th>
-                                    <th>Valor</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="cashExpensesBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-header">
-                    <h3>Historial de Caja</h3>
-                    <button class="btn btn-sm btn-outline" onclick="clearCashHistory()" style="font-size:12px;">Limpiar</button>
-                </div>
-                <div class="card-body">
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Fecha/Hora</th>
-                                    <th>Tipo</th>
-                                    <th>Descripcion</th>
-                                    <th>Monto</th>
-                                    <th>Saldo</th>
-                                </tr>
-                            </thead>
-                            <tbody id="cashHistoryBody"></tbody>
-                        </table>
+                    <div class="card-body">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Fecha/Hora</th>
+                                        <th>Tipo</th>
+                                        <th>Descripcion</th>
+                                        <th>Monto</th>
+                                        <th>Saldo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cashHistoryBody"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>

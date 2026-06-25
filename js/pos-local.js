@@ -1432,7 +1432,18 @@ function renderCashPanel() {
             });
         }
     });
-    renderCashHistory();
+}
+
+function showCashSubTab(tab) {
+    document.querySelectorAll('.cash-subtab').forEach(el => {
+        el.style.color = 'var(--text-muted)';
+        el.style.borderBottomColor = 'transparent';
+    });
+    document.querySelector('.cash-subtab[data-cash-tab="' + tab + '"]').style.color = 'var(--text)';
+    document.querySelector('.cash-subtab[data-cash-tab="' + tab + '"]').style.borderBottomColor = 'var(--primary)';
+    document.getElementById('cash-sub-main').style.display = tab === 'main' ? '' : 'none';
+    document.getElementById('cash-sub-history').style.display = tab === 'history' ? '' : 'none';
+    if (tab === 'history') renderCashHistory();
 }
 
 function setCashBase() {
