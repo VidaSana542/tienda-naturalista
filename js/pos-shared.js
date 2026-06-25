@@ -1177,13 +1177,14 @@ function saveAccountEdit() {
         } else if (status === 'pendiente') {
             sale.payments = [];
             sale.method = 'Credito';
-            sale.creditInfo = { balance: sale.total };
+            sale.creditInfo = { tipo: 'fijo', totalCuotas: 1, cuotaValor: sale.total, pagadas: 0, payments: [], balance: sale.total };
         } else if (status === 'abonada') {
             if (currentPaid <= 0) {
                 sale.payments = [{ date: new Date().toISOString(), amount: Math.round(sale.total * 0.5) }];
             }
             sale.method = 'Credito';
-            sale.creditInfo = { balance: Math.max(0, sale.total - sale.payments.reduce((s, p) => s + (p.amount || 0), 0)) };
+            const abonado = sale.payments.reduce((s, p) => s + (p.amount || 0), 0);
+            sale.creditInfo = { tipo: 'abono', totalCuotas: 0, cuotaValor: 0, pagadas: 0, payments: sale.payments.map(p => ({date: p.date, amount: p.amount})), balance: sale.total };
         }
         sale.apiSynced = false;
     });
