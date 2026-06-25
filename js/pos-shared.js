@@ -753,16 +753,18 @@ function renderProductTable() {
     }
     const tbody = document.getElementById('prodTableBody');
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:30px;">No hay productos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:30px;">No hay productos</td></tr>';
         return;
     }
     tbody.innerHTML = filtered.map((p, idx) => {
         const stockTag = p.stock <= 0 ? 'tag-danger' : p.stock <= 5 ? 'tag-warning' : 'tag-success';
         const stockText = p.stock <= 0 ? 'Agotado' : p.stock <= 5 ? 'Stock Bajo' : 'Disponible';
         const supp = p.supplier ? posSuppliers.find(s => s.id === p.supplier) : null;
+        const brandTag = p.brand ? '<span style="background:var(--bg-alt,#e8f5e9);color:var(--primary,#0b513b);padding:2px 8px;border-radius:10px;font-size:11px;cursor:pointer;" onclick="assignProductToLab(\'' + p.id + '\')" title="Cambiar laboratorio">' + p.brand + '</span>' : '<button onclick="assignProductToLab(\'' + p.id + '\')" style="background:none;border:1px dashed var(--border);border-radius:10px;padding:2px 8px;font-size:11px;color:var(--text-muted);cursor:pointer;" title="Asignar laboratorio">+ Lab</button>';
         return `<tr>
             <td><strong>#${idx + 1}</strong></td>
             <td><strong>${p.name}</strong></td>
+            <td>${brandTag}</td>
             <td>${getCatLabel(p.category)}</td>
             <td style="font-size:12px;color:var(--text-muted);">${p.subcategory ? (POS_CATEGORIES.find(c => c.key === p.subcategory)?.label || p.subcategory) : '-'}</td>
             <td>${formatPrice(p.price)}</td>
@@ -2843,6 +2845,123 @@ function viewLabOrder(orderId) {
 
 function closeLabOrderViewModal() {
     document.getElementById('labOrderViewModal').classList.remove('open');
+}
+
+// ============ LABS MANAGEMENT (Brands) ============
+function switchProdTab(tab) {
+    document.querySelectorAll('[data-prodtab]').forEach(t => t.classList.toggle('active', t.dataset.prodtab === tab));
+    const isLabs = tab === 'labs';
+    document.getElementById('prodSection').style.display = isLabs ? 'none' : '';
+    document.getElementById('prodSectionActions').style.display = isLabs ? 'none' : 'flex';
+    document.getElementById('labSection').style.display = isLabs ? '' : 'none';
+    document.getElementById('labSectionActions').style.display = isLabs ? 'flex' : 'none';
+    if (isLabs) renderLabsList();
+    else renderProductTable();
+}
+
+function renderLabsList() {
+    const tbody = document.getElementById('labsListBody');
+    if (!tbody) return;
+    const q = document.getElementById('labSearch') ? document.getElementById('labSearch').value.toLowerCase().trim() : '';
+    const brands = {};
+    posProducts.forEach(p => {
+        const b = (p.brand || '').trim();
+        if (!b) return;
+        if (!brands[b]) brands[b] = { name: b, total: 0, low: 0, out: 0 };
+        brands[b].total++;
+        if (p.stock <= 0) brands[b].out++;
+        else if (p.stock <= 5) brands[b].low++;
+    });
+    let list = Object.values(brands).sort((a, b) => a.name.localeCompare(b.name));
+    if (q) list = list.filter(l => l.name.toLowerCase().includes(q));
+    if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:30px;">No hay laboratorios creados. Crea uno con "+ Nuevo Laboratorio"</td></tr>';
+        return;
+    }
+    tbody.innerHTML = list.map(l => {
+        const lowTag = l.low > 0 ? '<span style="color:#e65100;font-weight:600;">' + l.low + '</span>' : '<span style="color:var(--text-muted);">0</span>';
+        const outTag = l.out > 0 ? '<span style="color:var(--danger);font-weight:600;">' + l.out + '</span>' : '<span style="color:var(--text-muted);">0</span>';
+        return '<tr>' +
+            '<td><strong>' + l.name + '</strong></td>' +
+            '<td>' + l.total + '</td>' +
+            '<td>' + lowTag + '</td>' +
+            '<td>' + outTag + '</td>' +
+            '<td class="actions" style="white-space:nowrap;">' +
+                '<button onclick="viewLabProducts(\'' + l.name.replace(/'/g, "\\'") + '\')" title="Ver productos" style="background:var(--primary);color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;margin-right:4px;">Ver</button>' +
+                '<button onclick="renameLab(\'' + l.name.replace(/'/g, "\\'") + '\')" title="Renombrar" style="background:#f5f5f5;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;margin-right:4px;">Renombrar</button>' +
+                '<button onclick="deleteLab(\'' + l.name.replace(/'/g, "\\'") + '\')" title="Eliminar" style="background:var(--danger);color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;">Eliminar</button>' +
+            '</td></tr>';
+    }).join('');
+}
+
+function createNewLab() {
+    const name = prompt('Nombre del nuevo laboratorio:');
+    if (!name || !name.trim()) return;
+    const trimmed = name.trim();
+    const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase());
+    if (exists) { showToast('Ya existe un laboratorio con ese nombre', 'error'); return; }
+    const count = parseInt(prompt('Cuantos productos quieres asignar a "' + trimmed + '"? (0 para crear vacio)', '0')) || 0;
+    if (count > 0) {
+        const prods = posProducts.filter(p => !(p.brand || '').trim());
+        if (prods.length === 0) { showToast('No hay productos sin laboratorio para asignar', 'error'); return; }
+        const selectProds = prods.slice(0, count);
+        selectProds.forEach(p => { p.brand = trimmed; });
+        saveProducts();
+    }
+    showToast('Laboratorio "' + trimmed + '" creado');
+    renderLabsList();
+}
+
+function renameLab(oldName) {
+    const newName = prompt('Nuevo nombre para "' + oldName + '":', oldName);
+    if (!newName || !newName.trim() || newName.trim() === oldName) return;
+    const trimmed = newName.trim();
+    const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase() && (p.brand || '').trim().toLowerCase() !== oldName.toLowerCase());
+    if (exists) { showToast('Ya existe un laboratorio con ese nombre', 'error'); return; }
+    let count = 0;
+    posProducts.forEach(p => {
+        if ((p.brand || '').trim().toLowerCase() === oldName.toLowerCase()) {
+            p.brand = trimmed;
+            count++;
+        }
+    });
+    saveProducts();
+    showToast(count + ' productos renombrados de "' + oldName + '" a "' + trimmed + '"');
+    renderLabsList();
+}
+
+function deleteLab(name) {
+    if (!confirm('Eliminar laboratorio "' + name + '"?\nSe quitara la marca de todos sus productos.')) return;
+    let count = 0;
+    posProducts.forEach(p => {
+        if ((p.brand || '').trim().toLowerCase() === name.toLowerCase()) {
+            p.brand = '';
+            count++;
+        }
+    });
+    saveProducts();
+    showToast(count + ' productos quedaron sin laboratorio');
+    renderLabsList();
+}
+
+function viewLabProducts(brand) {
+    switchProdTab('products');
+    const searchEl = document.getElementById('prodSearch');
+    if (searchEl) { searchEl.value = brand; renderProductTable(); }
+}
+
+function assignProductToLab(productId) {
+    const prod = posProducts.find(p => String(p.id) === String(productId));
+    if (!prod) return;
+    const current = (prod.brand || '').trim();
+    const brands = getUniqueBrands();
+    const list = brands.map(b => b.name).join(', ');
+    const name = prompt('Asignar laboratorio a "' + prod.name + '"\n\nLaboratorios existentes: ' + (list || 'Ninguno') + '\n\nEscribe el nombre del laboratorio:', current);
+    if (!name || name.trim() === current) return;
+    prod.brand = name.trim();
+    saveProducts();
+    renderProductTable();
+    showToast('"' + prod.name + '" asignado a "' + prod.brand + '"');
 }
 async function refreshSystem() {
     const btn = document.getElementById('refreshBtn');

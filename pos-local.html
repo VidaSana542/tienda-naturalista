@@ -322,39 +322,70 @@
         </div>
         <div class="panel" id="panel-products">
             <div class="card">
-                <div class="card-header">
-                    <h3>Productos</h3>
+                <div class="card-header" style="flex-direction:column;align-items:stretch;gap:8px;">
                     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                        <div class="search-field">
-                            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                            <input type="text" id="prodSearch" placeholder="Buscar por nombre o marca..." oninput="renderProductTable()">
+                        <div style="display:flex;gap:4px;">
+                            <button class="inv-tab active" data-prodtab="products" onclick="switchProdTab('products')">Productos</button>
+                            <button class="inv-tab" data-prodtab="labs" onclick="switchProdTab('labs')">Laboratorios</button>
                         </div>
-                        <select id="prodCatFilter" onchange="renderProductTable()" class="filter-select">
-                            <option value="all">Todas las categorias</option>
-                        </select>
-                        <button class="btn btn-primary" onclick="openProductModal()">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Nuevo Producto
-                        </button>
+                        <div id="prodSectionActions" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;flex:1;">
+                            <div class="search-field">
+                                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                                <input type="text" id="prodSearch" placeholder="Buscar por nombre o marca..." oninput="renderProductTable()">
+                            </div>
+                            <select id="prodCatFilter" onchange="renderProductTable()" class="filter-select">
+                                <option value="all">Todas las categorias</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="openProductModal()">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg> Nuevo Producto
+                            </button>
+                        </div>
+                        <div id="labSectionActions" style="display:none;gap:10px;align-items:center;flex-wrap:wrap;flex:1;">
+                            <div class="search-field">
+                                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                                <input type="text" id="labSearch" placeholder="Buscar laboratorio..." oninput="renderLabsList()">
+                            </div>
+                            <button class="btn btn-primary" onclick="createNewLab()">+ Nuevo Laboratorio</button>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Nombre / Marca</th>
-                                    <th>Categoria</th>
-                                    <th>Subcategoria</th>
-                                    <th>Precio</th>
-                                    <th>Stock</th>
-                                    <th>Estado</th>
-                                    <th>Proveedor</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="prodTableBody"></tbody>
-                        </table>
+                    <div id="prodSection">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Nombre</th>
+                                        <th>Laboratorio</th>
+                                        <th>Categoria</th>
+                                        <th>Subcategoria</th>
+                                        <th>Precio</th>
+                                        <th>Stock</th>
+                                        <th>Estado</th>
+                                        <th>Proveedor</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="prodTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="labSection" style="display:none;">
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Laboratorio</th>
+                                        <th>Productos</th>
+                                        <th>Stock Bajo</th>
+                                        <th>Agotados</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="labsListBody"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
