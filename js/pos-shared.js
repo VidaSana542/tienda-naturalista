@@ -1178,7 +1178,6 @@ function saveAccountEdit() {
             }
         }
     });
-    });
     document.querySelectorAll('.acct-edit-sale-status').forEach(sel => {
         const sale = posSales.find(s => String(s.id) === sel.dataset.saleId);
         if (!sale) return;
