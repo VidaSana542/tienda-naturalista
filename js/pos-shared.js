@@ -2707,14 +2707,17 @@ function openNewLabOrderModal() {
 }
 
 let _labOrderProducts = [];
+let _labOrderSelected = {};
 
 function loadLabOrderProducts(brand) {
     const tbody = document.getElementById('labOrderItemsBody');
     const searchEl = document.getElementById('labOrderProdSearch');
     if (searchEl) searchEl.value = '';
+    _labOrderSelected = {};
     if (!brand) {
         _labOrderProducts = [];
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">Selecciona un laboratorio para ver sus productos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px;">Selecciona un laboratorio para ver sus productos</td></tr>';
+        renderLabOrderSelected();
         return;
     }
     _labOrderProducts = posProducts.filter(p => (p.brand || '').trim().toLowerCase() === brand.toLowerCase());
@@ -2724,25 +2727,94 @@ function loadLabOrderProducts(brand) {
         return (a.stock || 0) - (b.stock || 0);
     });
     renderLabOrderProducts(_labOrderProducts);
+    renderLabOrderSelected();
 }
 
 function renderLabOrderProducts(products) {
     const tbody = document.getElementById('labOrderItemsBody');
     if (products.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">No se encontraron productos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px;">No se encontraron productos</td></tr>';
         return;
     }
     tbody.innerHTML = products.map(p => {
         const stockClass = p.stock <= 0 ? 'color:var(--danger);font-weight:700;' : p.stock <= 5 ? 'color:#e65100;font-weight:600;' : '';
-        const stockLabel = p.stock <= 0 ? 'Agotado' : 'Stock: ' + p.stock;
-        return '<tr data-lab-prod="' + p.id + '">' +
-            '<td><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" class="lab-prod-check" data-id="' + p.id + '" data-name="' + (p.name || '').replace(/"/g, '&quot;') + '" data-price="' + (p.cost || p.price || 0) + '" onchange="updateLabOrderTotal()"> ' + p.name + (p.barcode ? ' <span style="color:var(--text-muted);font-size:11px;">[' + p.barcode + ']</span>' : '') + '</label></td>' +
-            '<td>' + getCatLabel(p.category) + '</td>' +
+        const stockLabel = p.stock <= 0 ? 'Agotado' : p.stock;
+        const isSelected = _labOrderSelected[p.id];
+        const btnStyle = isSelected
+            ? 'background:var(--danger);color:#fff;'
+            : 'background:var(--primary);color:#fff;';
+        const btnText = isSelected ? '−' : '+';
+        return '<tr style="' + (isSelected ? 'background:#e8f5e9;' : '') + '">' +
+            '<td style="text-align:center;"><button onclick="toggleLabOrderProduct(\'' + p.id + '\')" style="' + btnStyle + 'border:none;border-radius:50%;width:26px;height:26px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">' + btnText + '</button></td>' +
+            '<td><strong>' + p.name + '</strong>' + (p.barcode ? ' <span style="color:var(--text-muted);font-size:11px;">[' + p.barcode + ']</span>' : '') + '<br><small style="color:var(--text-muted);">' + getCatLabel(p.category) + '</small></td>' +
             '<td style="' + stockClass + '">' + stockLabel + '</td>' +
-            '<td><input type="number" min="1" class="lab-prod-qty" data-id="' + p.id + '" value="1" style="width:60px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:center;" onchange="updateLabOrderTotal()" oninput="updateLabOrderTotal()"></td>' +
-            '<td><input type="number" min="0" class="lab-prod-price" data-id="' + p.id + '" value="' + (p.cost || p.price || 0) + '" style="width:90px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:right;" onchange="updateLabOrderTotal()" oninput="updateLabOrderTotal()"></td>' +
+            '<td>' + formatPrice(p.cost || p.price || 0) + '</td>' +
             '</tr>';
     }).join('');
+}
+
+function toggleLabOrderProduct(productId) {
+    if (_labOrderSelected[productId]) {
+        delete _labOrderSelected[productId];
+    } else {
+        const prod = posProducts.find(p => String(p.id) === String(productId));
+        if (prod) _labOrderSelected[productId] = { qty: 1, price: prod.cost || prod.price || 0 };
+    }
+    renderLabOrderProducts(_labOrderProducts);
+    renderLabOrderSelected();
+}
+
+function renderLabOrderSelected() {
+    const container = document.getElementById('labOrderSelectedBody');
+    const countEl = document.getElementById('labOrderItemsCount');
+    const keys = Object.keys(_labOrderSelected);
+    if (countEl) countEl.textContent = '(' + keys.length + ')';
+    if (keys.length === 0) {
+        container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px 10px;font-size:13px;">Selecciona productos de la lista</div>';
+        updateLabOrderTotal();
+        return;
+    }
+    container.innerHTML = keys.map(id => {
+        const item = _labOrderSelected[id];
+        const prod = posProducts.find(p => String(p.id) === String(id));
+        const name = prod ? prod.name : id;
+        return '<div style="display:flex;align-items:center;gap:6px;padding:8px;border-bottom:1px solid var(--border);font-size:13px;">' +
+            '<div style="flex:1;"><strong>' + name + '</strong></div>' +
+            '<input type="number" min="1" value="' + item.qty + '" onchange="updateLabOrderSelectedQty(\'' + id + '\', this.value)" oninput="updateLabOrderSelectedQty(\'' + id + '\', this.value)" style="width:50px;padding:4px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:center;">' +
+            '<input type="number" min="0" value="' + item.price + '" onchange="updateLabOrderSelectedPrice(\'' + id + '\', this.value)" oninput="updateLabOrderSelectedPrice(\'' + id + '\', this.value)" style="width:70px;padding:4px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:right;">' +
+            '<button onclick="removeLabOrderProduct(\'' + id + '\')" style="background:var(--danger);color:#fff;border:none;border-radius:4px;width:22px;height:22px;font-size:14px;cursor:pointer;flex-shrink:0;">×</button>' +
+            '</div>';
+    }).join('');
+    updateLabOrderTotal();
+}
+
+function updateLabOrderSelectedQty(id, val) {
+    if (_labOrderSelected[id]) _labOrderSelected[id].qty = parseInt(val) || 1;
+    updateLabOrderTotal();
+}
+
+function updateLabOrderSelectedPrice(id, val) {
+    if (_labOrderSelected[id]) _labOrderSelected[id].price = parseFloat(val) || 0;
+    updateLabOrderTotal();
+}
+
+function removeLabOrderProduct(id) {
+    delete _labOrderSelected[id];
+    renderLabOrderProducts(_labOrderProducts);
+    renderLabOrderSelected();
+}
+
+function updateLabOrderTotal() {
+    let total = 0;
+    let count = 0;
+    Object.values(_labOrderSelected).forEach(item => {
+        total += (item.qty || 0) * (item.price || 0);
+        count++;
+    });
+    const countEl = document.getElementById('labOrderItemsCount');
+    const totalEl = document.getElementById('labOrderTotal');
+    if (countEl) countEl.textContent = '(' + count + ')';
+    if (totalEl) totalEl.textContent = formatPrice(total);
 }
 
 function filterLabOrderProducts() {
@@ -2756,30 +2828,14 @@ function filterLabOrderProducts() {
     renderLabOrderProducts(filtered);
 }
 
-function updateLabOrderTotal() {
-    let total = 0;
-    let count = 0;
-    document.querySelectorAll('.lab-prod-check:checked').forEach(cb => {
-        const id = cb.dataset.id;
-        const qty = parseInt(document.querySelector('.lab-prod-qty[data-id="' + id + '"]')?.value) || 0;
-        const price = parseFloat(document.querySelector('.lab-prod-price[data-id="' + id + '"]')?.value) || 0;
-        total += qty * price;
-        count++;
-    });
-    document.getElementById('labOrderTotal').textContent = formatPrice(total);
-    document.getElementById('labOrderItemsCount').textContent = count;
-}
-
 function saveNewLabOrder() {
     const lab = document.getElementById('labOrderLabSelect').value;
     if (!lab) { showToast('Selecciona un laboratorio', 'error'); return; }
     const items = [];
-    document.querySelectorAll('.lab-prod-check:checked').forEach(cb => {
-        const id = cb.dataset.id;
-        const name = cb.dataset.name;
-        const qty = parseInt(document.querySelector('.lab-prod-qty[data-id="' + id + '"]')?.value) || 0;
-        const unitPrice = parseFloat(document.querySelector('.lab-prod-price[data-id="' + id + '"]')?.value) || 0;
-        if (qty > 0) items.push({ productId: id, productName: name, qty, unitPrice });
+    Object.entries(_labOrderSelected).forEach(([id, item]) => {
+        const prod = posProducts.find(p => String(p.id) === String(id));
+        const name = prod ? prod.name : id;
+        if (item.qty > 0) items.push({ productId: id, productName: name, qty: item.qty, unitPrice: item.price });
     });
     if (items.length === 0) { showToast('Selecciona al menos un producto', 'error'); return; }
     const total = items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
