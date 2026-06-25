@@ -443,6 +443,28 @@ const API = {
     if (error) throw error;
   },
 
+  async updateInventoryLog(id, data) {
+    const productIdNum = parseInt(String(data.product_id).replace(/^p/i, ''));
+    const { error } = await _sb
+      .from('inventory_log')
+      .update({
+        product_id: productIdNum,
+        product_name: data.product_name,
+        type: data.type,
+        quantity: data.quantity,
+        previous_stock: data.previous_stock,
+        new_stock: data.new_stock,
+        reason: data.reason || '',
+        sale_id: data.sale_id || null,
+        venta_por_fuera: data.venta_por_fuera || false
+      })
+      .eq('id', id);
+    if (error) {
+      console.error('[API] updateInventoryLog:', error.message);
+      throw error;
+    }
+  },
+
   async getInventoryStats() {
     const { data: products, error } = await _sb
       .from('products')

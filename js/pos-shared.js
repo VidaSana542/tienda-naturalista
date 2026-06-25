@@ -1594,7 +1594,7 @@ function renderInvLog() {
     if (dateTo) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) <= dateTo);
     filtered.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">Sin movimientos registrados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px;">Sin movimientos registrados</td></tr>';
         return;
     }
     tbody.innerHTML = (_invLogSortDesc ? filtered.slice().reverse() : filtered).slice(0, 200).map(l => {
@@ -1611,6 +1611,7 @@ function renderInvLog() {
             '<td>' + l.previousStock + '</td>' +
             '<td>' + l.newStock + '</td>' +
             '<td style="font-size:12px;color:var(--text-muted);">' + (l.reason || '-') + vpfTag + '</td>' +
+            '<td class="actions"><button class="edit" onclick="openInvLogEditModal(' + l.id + ')" title="Editar" style="color:var(--primary);"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button></td>' +
             '</tr>';
     }).join('');
 }
@@ -1624,6 +1625,110 @@ function clearInvLog() {
     saveInvLog();
     renderInventory();
     showToast('Historial de inventario limpiado');
+}
+
+// ============ INVENTORY LOG EDIT ============
+function openInvLogEditModal(id) {
+    const entry = invLog.find(l => l.id === id);
+    if (!entry) { showToast('Movimiento no encontrado', 'error'); return; }
+    document.getElementById('invLogEditId').value = entry.id;
+    document.getElementById('invLogEditType').value = entry.type === 'salida_temp' || entry.type === 'venta_ruta' ? 'salida' : entry.type;
+    document.getElementById('invLogEditQty').value = entry.quantity;
+    document.getElementById('invLogEditReason').value = entry.reason || '';
+    const prodSelect = document.getElementById('invLogEditProduct');
+    if (prodSelect) {
+        prodSelect.innerHTML = posProducts.map(p => '<option value="' + p.id + '" ' + (String(p.id) === String(entry.productId) ? 'selected' : '') + '>' + p.name + '</option>').join('');
+    }
+    document.getElementById('invLogEditModal').style.display = 'flex';
+}
+function closeInvLogEditModal() {
+    document.getElementById('invLogEditModal').style.display = 'none';
+}
+function filterInvLogEditProduct() {
+    const search = document.getElementById('invLogEditProductSearch').value.toLowerCase().trim();
+    const sel = document.getElementById('invLogEditProduct');
+    const currentVal = sel.value;
+    sel.innerHTML = posProducts.filter(p => !search || p.name.toLowerCase().includes(search)).map(p => '<option value="' + p.id + '">' + p.name + '</option>').join('');
+    if (currentVal && posProducts.some(p => String(p.id) === currentVal)) sel.value = currentVal;
+}
+function saveInvLogEdit() {
+    const id = parseInt(document.getElementById('invLogEditId').value);
+    const entry = invLog.find(l => l.id === id);
+    if (!entry) { showToast('Movimiento no encontrado', 'error'); return; }
+    const newProductId = document.getElementById('invLogEditProduct').value;
+    const newType = document.getElementById('invLogEditType').value;
+    const newQty = parseInt(document.getElementById('invLogEditQty').value) || 0;
+    const newReason = document.getElementById('invLogEditReason').value.trim();
+    const oldType = entry.type;
+    const oldQty = entry.quantity;
+    const oldProdId = entry.productId;
+    const product = posProducts.find(p => String(p.id) === String(newProductId));
+    if (!product) { showToast('Selecciona un producto valido', 'error'); return; }
+    if (newQty <= 0) { showToast('La cantidad debe ser mayor a 0', 'error'); return; }
+
+    // Undo old effect on old product stock
+    const oldProd = posProducts.find(p => String(p.id) === String(oldProdId));
+    if (oldProd) {
+        if (oldType === 'entrada' || oldType === 'retorno') oldProd.stock -= oldQty;
+        else oldProd.stock += oldQty;
+    }
+
+    // Apply new effect on new product stock
+    if (newType === 'entrada' || newType === 'retorno') product.stock += newQty;
+    else product.stock -= newQty;
+
+    // Calculate previous/new stock for audit
+    let newPrevStock, newNewStock;
+    if (String(newProductId) === String(oldProdId)) {
+        newPrevStock = entry.previousStock;
+        newNewStock = newPrevStock + (newType === 'entrada' || newType === 'retorno' ? newQty : -newQty);
+    } else {
+        newPrevStock = product.stock + (newType === 'entrada' || newType === 'retorno' ? -newQty : newQty);
+        newNewStock = product.stock;
+    }
+
+    if (newPrevStock < 0) {
+        // Revert
+        if (oldProd) {
+            if (oldType === 'entrada' || oldType === 'retorno') oldProd.stock += oldQty;
+            else oldProd.stock -= oldQty;
+        }
+        if (newType === 'entrada' || newType === 'retorno') product.stock -= newQty;
+        else product.stock += newQty;
+        showToast('El stock no puede quedar negativo', 'error');
+        return;
+    }
+
+    entry.productId = newProductId;
+    entry.productName = product.name;
+    entry.category = product.category || '';
+    entry.type = newType;
+    entry.quantity = newQty;
+    entry.previousStock = newPrevStock;
+    entry.newStock = newNewStock;
+    entry.reason = newReason;
+    entry.synced = false;
+
+    if (entry.apiId) {
+        API.updateInventoryLog(entry.apiId, {
+            product_id: entry.productId,
+            product_name: entry.productName,
+            type: entry.type,
+            quantity: entry.quantity,
+            previous_stock: entry.previousStock,
+            new_stock: entry.newStock,
+            reason: entry.reason,
+            sale_id: entry.saleId || null,
+            venta_por_fuera: entry.ventaPorFuera || false
+        }).catch(e => console.error('[POS] updateInventoryLog error:', e));
+    }
+
+    saveInvLog();
+    saveProducts();
+    renderInventory();
+    renderInvLog();
+    closeInvLogEditModal();
+    showToast('Movimiento actualizado');
 }
 
 // ============ INVENTORY STOCK TABLE ============
