@@ -552,11 +552,19 @@ async function syncFromApi() {
         try {
             const apiInvLog = await API.getInventoryLog();
             if (apiInvLog && apiInvLog.length > 0) {
-                const apiLogMap = {};
-                apiInvLog.forEach(l => { apiLogMap[l.id] = l; });
-                const localIds = new Set(invLog.map(l => l.id));
                 apiInvLog.forEach(al => {
-                    if (!localIds.has(al.id)) {
+                    const existing = invLog.find(l =>
+                        l.id === al.id ||
+                        (l.productId === (String(al.product_id).startsWith('p') ? al.product_id : 'p' + al.product_id) &&
+                         l.date && al.created_at &&
+                         Math.abs(new Date(l.date) - new Date(al.created_at)) < 60000 &&
+                         l.type === al.type &&
+                         l.quantity === al.quantity)
+                    );
+                    if (existing) {
+                        existing.synced = true;
+                        if (!existing.id || existing.id !== al.id) existing.id = al.id;
+                    } else {
                         invLog.push({
                             id: al.id,
                             date: al.created_at,
@@ -574,7 +582,6 @@ async function syncFromApi() {
                         });
                     }
                 });
-                invLog.forEach(l => { l.synced = true; });
                 localStorage.setItem('invLog', JSON.stringify(invLog));
                 invNextLogId = invLog.reduce((m, l) => Math.max(m, l.id), 0) + 1;
             }
