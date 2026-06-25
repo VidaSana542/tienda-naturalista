@@ -1249,6 +1249,11 @@ function openSaleEditModal(saleId) {
     if (paid >= total && total > 0) currentStatus = 'pagada';
     else if (paid > 0) currentStatus = 'abonada';
     document.getElementById('saleEditStatus').value = currentStatus;
+    const abonoInput = document.getElementById('saleEditAbonoAmount');
+    if (abonoInput) {
+        abonoInput.value = paid > 0 ? paid : Math.round(total * 0.5);
+        toggleSaleEditAbono();
+    }
     const markBtn = document.getElementById('saleEditMarkPaidBtn');
     markBtn.onclick = function() {
         sale.payments = [{ date: new Date().toISOString(), amount: sale.total }];
@@ -1278,6 +1283,12 @@ function recalcSaleEditTotal() {
         newTotal += price * qty;
     });
     document.getElementById('saleEditTotal').textContent = formatPrice(newTotal);
+}
+
+function toggleSaleEditAbono() {
+    const sel = document.getElementById('saleEditStatus');
+    const section = document.getElementById('saleEditAbonoSection');
+    if (section) section.style.display = sel.value === 'abonada' ? '' : 'none';
 }
 
 function closeSaleEditModal() {
@@ -1314,9 +1325,8 @@ function saveSaleEdit() {
         sale.method = 'Credito';
         sale.creditInfo = { tipo: 'fijo', totalCuotas: 1, cuotaValor: sale.total, pagadas: 0, payments: [], balance: sale.total };
     } else if (status === 'abonada') {
-        if (currentPaid <= 0) {
-            sale.payments = [{ date: new Date().toISOString(), amount: Math.round(sale.total * 0.5) }];
-        }
+        const abonoAmount = parseFloat(document.getElementById('saleEditAbonoAmount')?.value) || Math.round(sale.total * 0.5);
+        sale.payments = [{ date: new Date().toISOString(), amount: Math.min(abonoAmount, sale.total) }];
         sale.method = 'Credito';
         sale.creditInfo = { tipo: 'abono', totalCuotas: 0, cuotaValor: 0, pagadas: 0, payments: sale.payments.map(p => ({date: p.date, amount: p.amount})), balance: sale.total };
     }
