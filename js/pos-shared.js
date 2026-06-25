@@ -268,7 +268,7 @@ function refreshProdCatFilter() {
     if (POS_CATEGORIES.find(c => c.key === current)) sel.value = current;
 }
 
-const DEFAULT_IMG = 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?w=200&q=80';
+const DEFAULT_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect fill='%23e8f5e9' width='200' height='200'/%3E%3Cpath fill='%234caf50' d='M100 40c-33 0-60 27-60 60s27 60 60 60 60-27 60-60-27-60-60-60zm0 110c-27.6 0-50-22.4-50-50s22.4-50 50-50 50 22.4 50 50-22.4 50-50 50z'/%3E%3Cpath fill='%234caf50' d='M90 85h20v40H90zm0-20h20v15H90z'/%3E%3C/svg%3E";
 
 // ============ STATE ============
 let posProducts = [];

@@ -232,7 +232,7 @@ function renderProducts() {
         <div class="prod-card">
             ${badgeHtml}
             <div class="prod-img-wrap">
-                <img src="${p.img}" alt="${dn(p)}" loading="lazy">
+                <img src="${p.img || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22%3E%3Crect fill=%22%23e8f5e9%22 width=%22200%22 height=%22200%22/%3E%3Cpath fill=%22%234caf50%22 d=%22M100 40c-33 0-60 27-60 60s27 60 60 60 60-27 60-60-27-60-60-60zm0 110c-27.6 0-50-22.4-50-50s22.4-50 50-50 50 22.4 50 50-22.4 50-50 50z%22/%3E%3Cpath fill=%22%234caf50%22 d=%22M90 85h20v40H90zm0-20h20v15H90z%22/%3E%3C/svg%3E'}" alt="${dn(p)}" loading="lazy" decoding="async" onerror="this.style.display='none'">
             </div>
             <div class="prod-body">
                 <div class="prod-brand">${p.brand}</div>
@@ -339,7 +339,7 @@ function renderCartPanel() {
     }
     container.innerHTML = cart.map(c => `
         <div class="cart-item">
-            <div class="cart-item-img"><img src="${c.img}" alt="${dn(c)}" loading="lazy"></div>
+            <div class="cart-item-img"><img src="${c.img || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22%3E%3Crect fill=%22%23e8f5e9%22 width=%22200%22 height=%22200%22/%3E%3Cpath fill=%22%234caf50%22 d=%22M100 40c-33 0-60 27-60 60s27 60 60 60 60-27 60-60-27-60-60-60zm0 110c-27.6 0-50-22.4-50-50s22.4-50 50-50 50 22.4 50 50-22.4 50-50 50z%22/%3E%3Cpath fill=%22%234caf50%22 d=%22M90 85h20v40H90zm0-20h20v15H90z%22/%3E%3C/svg%3E'}" alt="${dn(c)}" loading="lazy" decoding="async" onerror="this.style.display='none'"></div>
             <div class="cart-item-info">
                 <div class="cart-item-name">${dn(c)}</div>
                 <div class="cart-item-brand">${c.brand}</div>
@@ -416,7 +416,7 @@ function submitOrder() {
 function openModal(id) {
     const p = products.find(x => x.id === id);
     if (!p) return;
-    document.getElementById('modalImg').src = p.img;
+    document.getElementById('modalImg').src = p.img || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 200 200%22%3E%3Crect fill=%22%23e8f5e9%22 width=%22200%22 height=%22200%22/%3E%3Cpath fill=%22%234caf50%22 d=%22M100 40c-33 0-60 27-60 60s27 60 60 60 60-27 60-60-27-60-60-60zm0 110c-27.6 0-50-22.4-50-50s22.4-50 50-50 50 22.4 50 50-22.4 50-50 50z%22/%3E%3Cpath fill=%22%234caf50%22 d=%22M90 85h20v40H90zm0-20h20v15H90z%22/%3E%3C/svg%3E';
     document.getElementById('modalImg').alt = dn(p);
     document.getElementById('modalBrand').textContent = p.brand;
     document.getElementById('modalName').textContent = dn(p);

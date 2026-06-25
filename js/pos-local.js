@@ -90,7 +90,7 @@ function renderTpvProducts() {
     grid.innerHTML = filtered.map(p => {
         const out = p.stock <= 0;
         return `<div class="tpv-item ${out ? 'out-of-stock' : ''}" onclick="${out ? '' : "addToCart('" + p.id + "')"}">
-            <div class="thumb"><img src="${p.img || DEFAULT_IMG}" alt="${p.name}" loading="lazy"></div>
+            <div class="thumb"><img src="${p.img || DEFAULT_IMG}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.style.display='none'"></div>
             <div class="tpv-name">${p.name}</div>
             <div class="tpv-price">${formatPrice(p.price)}</div>
             <div class="tpv-stock">${out ? 'Agotado' : 'Stock: ' + p.stock}</div>
