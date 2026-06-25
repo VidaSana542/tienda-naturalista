@@ -1904,7 +1904,6 @@ function openInvMovModal(type) {
             '<option value="Registro de pedido">Registro de pedido</option>' +
             '<option value="Compra a proveedor">Compra a proveedor</option>' +
             '<option value="Devolucion de cliente">Devolucion de cliente</option>' +
-            '<option value="Transferencia entrante">Transferencia entrante</option>' +
             '<option value="Ajuste por inventario inicial">Ajuste por inventario inicial</option>' +
             '<option value="Otro">Otro</option>';
     } else {
