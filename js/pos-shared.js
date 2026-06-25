@@ -48,8 +48,8 @@ function filterSalesByScope(sales) {
 }
 function filterInvLogByScope(log) {
     const scope = getPosScope();
-    if (!scope) return log;
-    return log.filter(l => scope === 'local' ? !l.ventaPorFuera : !!l.ventaPorFuera);
+    if (!scope) return log.filter(l => l.synced);
+    return log.filter(l => l.synced && (scope === 'local' ? !l.ventaPorFuera : !!l.ventaPorFuera));
 }
 function getDefaultCustomerTipo() {
     return getPosScope() === 'fuera' ? 'fuera' : 'local';
@@ -589,6 +589,18 @@ async function syncFromApi() {
             }
             // Remove entries that have apiId but are no longer in the API (deleted from DB)
             invLog = invLog.filter(l => !l.apiId || apiIds.has(l.apiId));
+            // Clean up synced entries without apiId (pre-apiId era) that don't match any API entry by content
+            if (apiInvLog) {
+                invLog = invLog.filter(l => {
+                    if (!(l.synced && !l.apiId)) return true;
+                    return apiInvLog.some(al =>
+                        l.productId === (String(al.product_id).startsWith('p') ? al.product_id : 'p' + al.product_id) &&
+                        l.type === al.type &&
+                        l.quantity === al.quantity &&
+                        Math.abs(new Date(l.date) - new Date(al.created_at)) < 60000
+                    );
+                });
+            }
             localStorage.setItem('invLog', JSON.stringify(invLog));
             invNextLogId = invLog.reduce((m, l) => Math.max(m, l.id), 0) + 1;
             saveInvLog();
