@@ -438,6 +438,11 @@ const API = {
     return data;
   },
 
+  async clearInventoryLog() {
+    const { error } = await _sb.from('inventory_log').delete().neq('id', -1);
+    if (error) throw error;
+  },
+
   async getInventoryStats() {
     const { data: products, error } = await _sb
       .from('products')

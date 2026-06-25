@@ -563,6 +563,7 @@ async function syncFromApi() {
                     );
                     if (existing) {
                         existing.synced = true;
+                        existing.apiId = al.id;
                         if (!existing.id || existing.id !== al.id) existing.id = al.id;
                     } else {
                         invLog.push({
@@ -578,47 +579,24 @@ async function syncFromApi() {
                             saleId: al.sale_id,
                             category: al.category || '',
                             ventaPorFuera: al.venta_por_fuera || false,
-                            synced: true
+                            synced: true,
+                            apiId: al.id
                         });
                     }
                 });
-            }
-            if (apiInvLog && Array.isArray(apiInvLog)) {
-                invLog.forEach(l => {
-                    if (l.synced && !apiInvLog.some(al =>
-                        l.id === al.id ||
-                        (l.productId === (String(al.product_id).startsWith('p') ? al.product_id : 'p' + al.product_id) &&
-                         l.date && al.created_at &&
-                         Math.abs(new Date(l.date) - new Date(al.created_at)) < 60000 &&
-                         l.type === al.type &&
-                         l.quantity === al.quantity)
-                    )) {
-                        l.synced = false;
-                    }
-                });
                 localStorage.setItem('invLog', JSON.stringify(invLog));
                 invNextLogId = invLog.reduce((m, l) => Math.max(m, l.id), 0) + 1;
             }
-            await saveInvLog();
-            const freshApi = await API.getInventoryLog();
-            if (freshApi && Array.isArray(freshApi) && freshApi.length > 0) {
-                invLog = freshApi.map(al => ({
-                    id: al.id,
-                    date: al.created_at,
-                    productId: (String(al.product_id).startsWith('p') ? al.product_id : 'p' + al.product_id).toString(),
-                    productName: al.product_name,
-                    type: al.type,
-                    quantity: al.quantity,
-                    previousStock: al.previous_stock,
-                    newStock: al.new_stock,
-                    reason: al.reason,
-                    saleId: al.sale_id,
-                    category: al.category || '',
-                    ventaPorFuera: al.venta_por_fuera || false,
-                    synced: true
-                }));
+            saveInvLog();
+            const localInvLog = JSON.parse(localStorage.getItem('invLog')) || [];
+            localInvLog.forEach(ll => {
+                if (!ll.synced && !invLog.some(l => l.id === ll.id)) {
+                    delete ll._sending;
+                    invLog.push(ll);
+                }
+            });
+            if (localInvLog.some(ll => !ll.synced)) {
                 localStorage.setItem('invLog', JSON.stringify(invLog));
-                invNextLogId = invLog.reduce((m, l) => Math.max(m, l.id), 0) + 1;
             }
         } catch(e) { console.error('InvLog sync error:', e.message || e); }
         if (typeof loadCashLocal === 'function') loadCashLocal();
@@ -660,9 +638,10 @@ function saveInvLog() {
                     reason: l.reason || '',
                     sale_id: l.saleId || null,
                     venta_por_fuera: l.ventaPorFuera || false
-                }).then(() => {
+                }).then((resp) => {
                     l.synced = true;
                     l._sending = false;
+                    if (resp && resp.id) l.apiId = resp.id;
                     localStorage.setItem('invLog', JSON.stringify(invLog));
                 }).catch(e => {
                     l._sending = false;
@@ -1639,6 +1618,9 @@ function clearInvLog() {
     if (!confirm('Esto eliminara todo el historial de entradas y salidas. Continuar?')) return;
     invLog = [];
     invNextLogId = 1;
+    if (API.isAvailable) {
+        API.clearInventoryLog().catch(e => console.error('[POS] clearInvLog API error:', e));
+    }
     saveInvLog();
     renderInventory();
     showToast('Historial de inventario limpiado');
