@@ -2728,9 +2728,9 @@ function filterLabOrderLabs() {
     const filtered = q ? brands.filter(b => b.name.toLowerCase().includes(q)) : brands;
     const dd = document.getElementById('labOrderLabDropdown');
     if (filtered.length === 0) {
-        dd.innerHTML = '<div style="padding:10px;color:var(--text-muted);font-size:13px;">No se encontraron laboratorios</div>';
+        dd.innerHTML = '<div style="padding:10px 12px;color:var(--text-muted);font-size:13px;">No se encontraron laboratorios</div>';
     } else {
-        dd.innerHTML = filtered.map(b => '<div onclick="selectLabOrderLab(\'' + b.name.replace(/'/g, "\\'") + '\')" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);">' + b.name + ' <span style="color:var(--text-muted);">(' + b.count + ')</span></div>').join('');
+        dd.innerHTML = filtered.map(b => '<div onclick="selectLabOrderLab(\'' + b.name.replace(/'/g, "\\'") + '\')" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #eee;" onmouseover="this.style.background=\'#f0f7f0\'" onmouseout="this.style.background=\'#fff\'">' + b.name + ' <span style="color:#888;">(' + b.count + ')</span></div>').join('');
     }
     dd.style.display = 'block';
 }
