@@ -418,6 +418,9 @@
                                 <option value="all">Todas las ventas</option>
                                 <option value="local">Local</option>
                             </select>
+                            <input type="date" id="invLogDateFrom" onchange="renderInvLog()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;" title="Fecha desde">
+                            <input type="date" id="invLogDateTo" onchange="renderInvLog()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;" title="Fecha hasta">
+                            <button class="btn btn-sm" id="invLogSortBtn" onclick="toggleInvLogSort()" style="white-space:nowrap;" title="Ordenar por fecha">⬇ Más reciente</button>
                         </div>
                         <div class="table-wrap">
                             <table>
