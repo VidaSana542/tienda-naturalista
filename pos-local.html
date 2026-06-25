@@ -950,6 +950,33 @@
     </div>
 </div>
 
+<!-- Sale Edit Modal -->
+<div class="modal-overlay" id="saleEditModal" onclick="if(event.target===this)closeSaleEditModal()">
+    <div class="modal" style="max-width:560px;">
+        <button class="modal-close" onclick="closeSaleEditModal()">&times;</button>
+        <h3><svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg> Editar Venta #<span id="saleEditId"></span></h3>
+        <input type="hidden" id="saleEditSaleId">
+        <div id="saleEditItems" style="margin-top:8px;"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;margin-top:8px;border-top:1px solid var(--border);">
+            <span style="font-weight:600;">Total</span>
+            <span style="font-weight:700;font-size:16px;" id="saleEditTotal">$0</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);flex-wrap:wrap;">
+            <label style="font-size:13px;color:var(--text-muted);white-space:nowrap;">Estado:</label>
+            <select id="saleEditStatus" style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-weight:600;">
+                <option value="pagada">Pagada</option>
+                <option value="abonada">Abonada</option>
+                <option value="pendiente">Pendiente</option>
+            </select>
+            <button type="button" id="saleEditMarkPaidBtn" class="btn btn-sm btn-outline" style="font-size:11px;padding:4px 10px;color:var(--success);border-color:var(--success);">Marcar pagada</button>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeSaleEditModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveSaleEdit()">Guardar Cambios</button>
+        </div>
+    </div>
+</div>
+
 <!-- Inventory Movement Modal -->
 <div class="modal-overlay" id="invMovModal">
     <div class="modal">

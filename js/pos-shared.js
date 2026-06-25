@@ -1215,6 +1215,126 @@ function saveAccountEdit() {
     showToast('Cambios guardados');
 }
 
+// ============ SALE EDIT (single sale) ============
+function openSaleEditModal(saleId) {
+    const sale = posSales.find(s => String(s.id) === String(saleId));
+    if (!sale) { showToast('Venta no encontrada'); return; }
+    document.getElementById('saleEditSaleId').value = sale.id;
+    document.getElementById('saleEditId').textContent = sale.id;
+    const items = sale.items || [];
+    const container = document.getElementById('saleEditItems');
+    if (items.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:16px;">Esta venta no tiene productos.</p>';
+    } else {
+        container.innerHTML = '<label style="font-weight:600;font-size:13px;margin-bottom:8px;display:block;">Productos</label>' +
+            items.map((it, idx) => {
+                const ip = parseFloat(it.price) || 0;
+                const iq = parseInt(it.qty) || 0;
+                return '<div style="display:flex;gap:6px;align-items:center;padding:6px 0;' + (idx < items.length - 1 ? 'border-bottom:1px solid var(--border);' : '') + '">' +
+                    '<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + (it.name || 'Prod') + '">' + (it.name || 'Prod').substring(0, 28) + '</span>' +
+                    '<input type="number" min="0" class="se-item-qty" data-idx="' + idx + '" value="' + iq + '" style="width:48px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:center;">' +
+                    '<span style="font-size:12px;color:var(--text-muted);">x</span>' +
+                    '<input type="number" min="0" step="50" class="se-item-price" data-idx="' + idx + '" value="' + ip + '" style="width:90px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:right;">' +
+                    '<span style="font-size:12px;color:var(--text-muted);min-width:60px;text-align:right;" id="se-item-sub-' + idx + '">' + formatPrice(ip * iq) + '</span>' +
+                '</div>';
+            }).join('');
+        recalcSaleEditTotal();
+        container.querySelectorAll('.se-item-price, .se-item-qty').forEach(inp => {
+            inp.addEventListener('input', recalcSaleEditTotal);
+        });
+    }
+    const paid = (sale.payments || []).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    const total = parseFloat(sale.total) || 0;
+    let currentStatus = 'pendiente';
+    if (paid >= total && total > 0) currentStatus = 'pagada';
+    else if (paid > 0) currentStatus = 'abonada';
+    document.getElementById('saleEditStatus').value = currentStatus;
+    const markBtn = document.getElementById('saleEditMarkPaidBtn');
+    markBtn.onclick = function() {
+        sale.payments = [{ date: new Date().toISOString(), amount: sale.total }];
+        sale.method = 'Efectivo';
+        sale.creditInfo = null;
+        const apiId = sale.id && sale.id < 100000 ? sale.id : null;
+        if (apiId && API.isAvailable) {
+            API.updateSale(apiId, { method: sale.method, credit_info: null, total: sale.total }).catch(e => {});
+        }
+        sale.apiSynced = true;
+        document.getElementById('saleEditStatus').value = 'pagada';
+        showToast('Venta #' + sale.id + ' marcada como pagada');
+    };
+    document.getElementById('saleEditModal').classList.add('open');
+}
+
+function recalcSaleEditTotal() {
+    const saleId = document.getElementById('saleEditSaleId').value;
+    const sale = posSales.find(s => String(s.id) === String(saleId));
+    if (!sale || !sale.items) return;
+    let newTotal = 0;
+    sale.items.forEach((it, idx) => {
+        const qty = parseFloat(document.querySelector('.se-item-qty[data-idx="' + idx + '"]')?.value) || 0;
+        const price = parseFloat(document.querySelector('.se-item-price[data-idx="' + idx + '"]')?.value) || 0;
+        const sub = document.getElementById('se-item-sub-' + idx);
+        if (sub) sub.textContent = formatPrice(price * qty);
+        newTotal += price * qty;
+    });
+    document.getElementById('saleEditTotal').textContent = formatPrice(newTotal);
+}
+
+function closeSaleEditModal() {
+    document.getElementById('saleEditModal').classList.remove('open');
+}
+
+function saveSaleEdit() {
+    const saleId = document.getElementById('saleEditSaleId').value;
+    const sale = posSales.find(s => String(s.id) === String(saleId));
+    if (!sale) return;
+    const items = sale.items || [];
+    document.querySelectorAll('.se-item-qty').forEach(inp => {
+        const idx = parseInt(inp.dataset.idx);
+        if (items[idx]) items[idx].qty = parseFloat(inp.value) || 0;
+    });
+    document.querySelectorAll('.se-item-price').forEach(inp => {
+        const idx = parseInt(inp.dataset.idx);
+        if (items[idx]) items[idx].price = parseFloat(inp.value) || 0;
+    });
+    if (sale.items && sale.items.length > 0) {
+        sale.total = sale.items.reduce((sum, it) => sum + ((parseFloat(it.price) || 0) * (parseInt(it.qty) || 0)), 0);
+    }
+    const status = document.getElementById('saleEditStatus').value;
+    sale.payments = sale.payments || [];
+    const currentPaid = sale.payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    if (status === 'pagada') {
+        if (currentPaid < sale.total) {
+            sale.payments.push({ date: new Date().toISOString(), amount: sale.total - currentPaid });
+        }
+        if (sale.method === 'Credito') sale.method = 'Efectivo';
+        sale.creditInfo = null;
+    } else if (status === 'pendiente') {
+        sale.payments = [];
+        sale.method = 'Credito';
+        sale.creditInfo = { tipo: 'fijo', totalCuotas: 1, cuotaValor: sale.total, pagadas: 0, payments: [], balance: sale.total };
+    } else if (status === 'abonada') {
+        if (currentPaid <= 0) {
+            sale.payments = [{ date: new Date().toISOString(), amount: Math.round(sale.total * 0.5) }];
+        }
+        sale.method = 'Credito';
+        sale.creditInfo = { tipo: 'abono', totalCuotas: 0, cuotaValor: 0, pagadas: 0, payments: sale.payments.map(p => ({date: p.date, amount: p.amount})), balance: sale.total };
+    }
+    const apiId = sale.id && sale.id < 100000 ? sale.id : null;
+    if (apiId && API.isAvailable) {
+        API.updateSale(apiId, { method: sale.method, credit_info: sale.creditInfo, total: sale.total }).catch(e => {});
+        if (sale.items && sale.items.length > 0) {
+            API.updateSaleItems(apiId, sale.items).catch(e => {});
+        }
+    }
+    sale.apiSynced = true;
+    saveSales();
+    closeSaleEditModal();
+    if (typeof renderSalesTable === 'function') renderSalesTable();
+    if (typeof renderAccountStatus === 'function') renderAccountStatus();
+    showToast('Venta #' + saleId + ' actualizada');
+}
+
 // ============ SUPPLIERS ============
 function renderSupplierTable() {
     const q = document.getElementById('suppSearch').value.toLowerCase().trim();
