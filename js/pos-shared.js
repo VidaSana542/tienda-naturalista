@@ -48,8 +48,8 @@ function filterSalesByScope(sales) {
 }
 function filterInvLogByScope(log) {
     const scope = getPosScope();
-    if (!scope) return log.filter(l => l.synced);
-    return log.filter(l => l.synced && (scope === 'local' ? !l.ventaPorFuera : !!l.ventaPorFuera));
+    if (!scope) return log;
+    return log.filter(l => scope === 'local' ? !l.ventaPorFuera : !!l.ventaPorFuera);
 }
 function getDefaultCustomerTipo() {
     return getPosScope() === 'fuera' ? 'fuera' : 'local';
@@ -550,7 +550,7 @@ async function syncFromApi() {
             posNextSaleId = Math.max(posNextSaleId, maxApiId + 1);
         }
         try {
-            const apiInvLog = await API.getInventoryLog();
+            const apiInvLog = await API.getInventoryLog(null, getPosScope());
             const apiIds = new Set((apiInvLog || []).map(al => al.id));
             if (apiInvLog && apiInvLog.length > 0) {
                 apiInvLog.forEach(al => {
@@ -662,13 +662,12 @@ function saveInvLog() {
     }
     return Promise.resolve();
 }
-async function addInvLog(productId, productName, type, quantity, previousStock, newStock, reason, saleId, ventaPorFuera) {
+function addInvLog(productId, productName, type, quantity, previousStock, newStock, reason, saleId, ventaPorFuera) {
     const prod = posProducts.find(p => p.id === productId);
     const category = prod ? prod.category : '';
     const validSaleId = (saleId && posSales.some(s => s.id === saleId && (s.apiSynced || s._synced))) ? saleId : null;
-    const entry = { id: invNextLogId++, date: now(), productId, productName, type, quantity, previousStock, newStock, reason, saleId: validSaleId, category, ventaPorFuera: ventaPorFuera || false, synced: false };
-    invLog.push(entry);
-    await saveInvLog();
+    invLog.push({ id: invNextLogId++, date: now(), productId, productName, type, quantity, previousStock, newStock, reason, saleId: validSaleId, category, ventaPorFuera: ventaPorFuera || false, synced: false });
+    saveInvLog();
 }
 
 // ============ UTILS ============
@@ -1365,20 +1364,20 @@ function saveSaleEdit() {
 }
 
 // ============ VOID SALE ============
-async function voidSale(saleId) {
+function voidSale(saleId) {
     const sale = posSales.find(s => String(s.id) === String(saleId));
     if (!sale) { showToast('Venta no encontrada', 'error'); return; }
     if (!confirm('Anular venta #' + saleId + '? Se devolveran los productos al inventario.')) return;
     if (!confirm('Confirmar anulacion de venta #' + saleId + '? Esta accion no se puede deshacer.')) return;
-    for (const item of (sale.items || [])) {
-        if (item.isTemp) continue;
+    (sale.items || []).forEach(item => {
+        if (item.isTemp) return;
         const prod = posProducts.find(p => String(p.id) === String(item.id));
         if (prod) {
             const prev = prod.stock;
             prod.stock += parseInt(item.qty) || 0;
-            await addInvLog(item.id, prod.name, 'retorno', parseInt(item.qty) || 0, prev, prod.stock, 'Anulacion Venta #' + saleId, null, sale.ventaPorFuera || false);
+            addInvLog(item.id, prod.name, 'retorno', parseInt(item.qty) || 0, prev, prod.stock, 'Anulacion Venta #' + saleId, null, sale.ventaPorFuera || false);
         }
-    }
+    });
     const apiId = sale.id && sale.id < 100000 ? sale.id : null;
     if (apiId && API.isAvailable) {
         API.deleteSale(apiId).catch(e => console.error('[POS] deleteSale error:', e));
@@ -1891,7 +1890,7 @@ function closeInvMovModal() {
     modal.style.display = 'none';
     document.body.style.overflow = '';
 }
-async function confirmInvMov() {
+function confirmInvMov() {
     const type = document.getElementById('invMovType').value;
     const pid = document.getElementById('invMovProduct').value;
     const qty = parseInt(document.getElementById('invMovQty').value);
@@ -1905,7 +1904,7 @@ async function confirmInvMov() {
     const prev = p.stock;
     if (type === 'entrada') {
         p.stock += qty;
-        await addInvLog(pid, p.name, 'entrada', qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera');
+        addInvLog(pid, p.name, 'entrada', qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera');
         saveProducts();
         closeInvMovModal();
         renderInventory();
@@ -1914,7 +1913,7 @@ async function confirmInvMov() {
     } else {
         if (p.stock < qty) { showToast('Stock insuficiente (disponible: ' + p.stock + ')'); return; }
         p.stock -= qty;
-        await addInvLog(pid, p.name, 'salida', -qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera');
+        addInvLog(pid, p.name, 'salida', -qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera');
         saveProducts();
         closeInvMovModal();
         renderInventory();

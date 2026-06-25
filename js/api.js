@@ -398,11 +398,17 @@ const API = {
   },
 
   // ---- Inventario ----
-  async getInventoryLog(limit) {
+  async getInventoryLog(limit, scope) {
     let query = _sb
       .from('inventory_log')
       .select('*')
       .order('created_at', { ascending: false });
+
+    if (scope === 'local') {
+      query = query.eq('venta_por_fuera', false);
+    } else if (scope === 'fuera') {
+      query = query.eq('venta_por_fuera', true);
+    }
 
     if (limit) {
       query = query.limit(limit);
