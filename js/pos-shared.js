@@ -1175,11 +1175,6 @@ function saveAccountEdit() {
         const sale = posSales.find(s => String(s.id) === sel.dataset.saleId);
         if (!sale) return;
         const status = sel.value;
-        const oldPaid = (sale.payments || []).reduce((s, p) => s + (p.amount || 0), 0);
-        let wasPaid = 'pendiente';
-        if (oldPaid >= (parseFloat(sale.total) || 0) && sale.total > 0) wasPaid = 'pagada';
-        else if (oldPaid > 0) wasPaid = 'abonada';
-        if (status === wasPaid) return;
         sale.payments = sale.payments || [];
         const currentPaid = sale.payments.reduce((s, p) => s + (p.amount || 0), 0);
         if (status === 'pagada') {
