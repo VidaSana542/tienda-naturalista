@@ -792,6 +792,9 @@ function openProductModal(id) {
     document.getElementById('prodMainPreview').style.display = 'none';
     document.getElementById('prodMainUploadStatus').textContent = '';
     updateSubcatSelect();
+    // Hide cost for employees
+    const costGroup = document.getElementById('prodCostGroup');
+    if (costGroup) costGroup.style.display = (currentUser && currentUser.role === 'empleado') ? 'none' : '';
     if (id) {
         const p = posProducts.find(pr => pr.id === id);
         if (p) {
@@ -944,7 +947,10 @@ function saveProduct() {
     const brand = document.getElementById('prodBrand').value.trim();
     const category = document.getElementById('prodCategory').value;
     const price = parseFloat(document.getElementById('prodPrice').value);
-    const cost = parseFloat(document.getElementById('prodCost').value) || 0;
+    const costField = document.getElementById('prodCost');
+    const cost = (currentUser && currentUser.role === 'empleado' && id)
+        ? (posProducts.find(pr => pr.id === id)?.cost || 0)
+        : (parseFloat(costField.value) || 0);
     const stock = parseInt(document.getElementById('prodStock').value) || 0;
     const img = document.getElementById('prodImg').value.trim();
     const desc = document.getElementById('prodDesc').value.trim();
