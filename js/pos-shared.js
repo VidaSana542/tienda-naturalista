@@ -48,8 +48,8 @@ function filterSalesByScope(sales) {
 }
 function filterInvLogByScope(log) {
     const scope = getPosScope();
-    if (!scope) return log;
-    return log.filter(l => scope === 'local' ? !l.ventaPorFuera : !!l.ventaPorFuera);
+    if (!scope) return log.filter(l => l.synced);
+    return log.filter(l => l.synced && (scope === 'local' ? !l.ventaPorFuera : !!l.ventaPorFuera));
 }
 function getDefaultCustomerTipo() {
     return getPosScope() === 'fuera' ? 'fuera' : 'local';
@@ -658,12 +658,13 @@ function saveInvLog() {
     }
     return Promise.resolve();
 }
-function addInvLog(productId, productName, type, quantity, previousStock, newStock, reason, saleId, ventaPorFuera) {
+async function addInvLog(productId, productName, type, quantity, previousStock, newStock, reason, saleId, ventaPorFuera) {
     const prod = posProducts.find(p => p.id === productId);
     const category = prod ? prod.category : '';
     const validSaleId = (saleId && posSales.some(s => s.id === saleId && (s.apiSynced || s._synced))) ? saleId : null;
-    invLog.push({ id: invNextLogId++, date: now(), productId, productName, type, quantity, previousStock, newStock, reason, saleId: validSaleId, category, ventaPorFuera: ventaPorFuera || false, synced: false });
-    saveInvLog();
+    const entry = { id: invNextLogId++, date: now(), productId, productName, type, quantity, previousStock, newStock, reason, saleId: validSaleId, category, ventaPorFuera: ventaPorFuera || false, synced: false };
+    invLog.push(entry);
+    await saveInvLog();
 }
 
 // ============ UTILS ============
@@ -1360,20 +1361,20 @@ function saveSaleEdit() {
 }
 
 // ============ VOID SALE ============
-function voidSale(saleId) {
+async function voidSale(saleId) {
     const sale = posSales.find(s => String(s.id) === String(saleId));
     if (!sale) { showToast('Venta no encontrada', 'error'); return; }
     if (!confirm('Anular venta #' + saleId + '? Se devolveran los productos al inventario.')) return;
     if (!confirm('Confirmar anulacion de venta #' + saleId + '? Esta accion no se puede deshacer.')) return;
-    (sale.items || []).forEach(item => {
-        if (item.isTemp) return;
+    for (const item of (sale.items || [])) {
+        if (item.isTemp) continue;
         const prod = posProducts.find(p => String(p.id) === String(item.id));
         if (prod) {
             const prev = prod.stock;
             prod.stock += parseInt(item.qty) || 0;
-            addInvLog(item.id, prod.name, 'retorno', parseInt(item.qty) || 0, prev, prod.stock, 'Anulacion Venta #' + saleId, null, sale.ventaPorFuera || false);
+            await addInvLog(item.id, prod.name, 'retorno', parseInt(item.qty) || 0, prev, prod.stock, 'Anulacion Venta #' + saleId, null, sale.ventaPorFuera || false);
         }
-    });
+    }
     const apiId = sale.id && sale.id < 100000 ? sale.id : null;
     if (apiId && API.isAvailable) {
         API.deleteSale(apiId).catch(e => console.error('[POS] deleteSale error:', e));
@@ -1886,7 +1887,7 @@ function closeInvMovModal() {
     modal.style.display = 'none';
     document.body.style.overflow = '';
 }
-function confirmInvMov() {
+async function confirmInvMov() {
     const type = document.getElementById('invMovType').value;
     const pid = document.getElementById('invMovProduct').value;
     const qty = parseInt(document.getElementById('invMovQty').value);
@@ -1900,7 +1901,7 @@ function confirmInvMov() {
     const prev = p.stock;
     if (type === 'entrada') {
         p.stock += qty;
-        addInvLog(pid, p.name, 'entrada', qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera');
+        await addInvLog(pid, p.name, 'entrada', qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera');
         saveProducts();
         closeInvMovModal();
         renderInventory();
@@ -1909,7 +1910,7 @@ function confirmInvMov() {
     } else {
         if (p.stock < qty) { showToast('Stock insuficiente (disponible: ' + p.stock + ')'); return; }
         p.stock -= qty;
-        addInvLog(pid, p.name, 'salida', -qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera');
+        await addInvLog(pid, p.name, 'salida', -qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera');
         saveProducts();
         closeInvMovModal();
         renderInventory();
