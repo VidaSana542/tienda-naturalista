@@ -2867,17 +2867,22 @@ function renderLabsList() {
     const tbody = document.getElementById('labsListBody');
     if (!tbody) return;
     const q = document.getElementById('labSearch') ? document.getElementById('labSearch').value.toLowerCase().trim() : '';
+    // Group brands case-insensitively
     const brands = {};
     posProducts.forEach(p => {
         const b = (p.brand || '').trim();
         if (!b) return;
-        if (!brands[b]) brands[b] = { name: b, total: 0, low: 0, out: 0 };
-        brands[b].total++;
-        if (p.stock <= 0) brands[b].out++;
-        else if (p.stock <= 5) brands[b].low++;
+        const key = b.toLowerCase();
+        if (!brands[key]) brands[key] = { name: b, canonical: b, total: 0, low: 0, out: 0, variants: {} };
+        brands[key].total++;
+        brands[key].variants[b] = (brands[key].variants[b] || 0) + 1;
+        // Keep the most common casing as canonical
+        if (brands[key].variants[b] > (brands[key].variants[brands[key].canonical] || 0)) brands[key].canonical = b;
+        if (p.stock <= 0) brands[key].out++;
+        else if (p.stock <= 5) brands[key].low++;
     });
-    let list = Object.values(brands).sort((a, b) => a.name.localeCompare(b.name));
-    if (q) list = list.filter(l => l.name.toLowerCase().includes(q));
+    let list = Object.values(brands).sort((a, b) => a.canonical.localeCompare(b.canonical));
+    if (q) list = list.filter(l => l.canonical.toLowerCase().includes(q));
     if (list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:30px;">No hay laboratorios creados. Crea uno con "+ Nuevo Laboratorio"</td></tr>';
         return;
@@ -2885,17 +2890,46 @@ function renderLabsList() {
     tbody.innerHTML = list.map(l => {
         const lowTag = l.low > 0 ? '<span style="color:#e65100;font-weight:600;">' + l.low + '</span>' : '<span style="color:var(--text-muted);">0</span>';
         const outTag = l.out > 0 ? '<span style="color:var(--danger);font-weight:600;">' + l.out + '</span>' : '<span style="color:var(--text-muted);">0</span>';
+        const variantCount = Object.keys(l.variants).length;
+        const variantTag = variantCount > 1 ? ' <span style="color:#e65100;font-size:10px;" title="Variantes: ' + Object.keys(l.variants).join(', ') + '">⚠ ' + variantCount + ' variantes</span>' : '';
         return '<tr>' +
-            '<td><strong>' + l.name + '</strong></td>' +
+            '<td><strong>' + l.canonical + '</strong>' + variantTag + '</td>' +
             '<td>' + l.total + '</td>' +
             '<td>' + lowTag + '</td>' +
             '<td>' + outTag + '</td>' +
             '<td class="actions" style="white-space:nowrap;">' +
-                '<button onclick="viewLabProducts(\'' + l.name.replace(/'/g, "\\'") + '\')" title="Ver productos" style="background:var(--primary);color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;margin-right:4px;">Ver</button>' +
-                '<button onclick="renameLab(\'' + l.name.replace(/'/g, "\\'") + '\')" title="Renombrar" style="background:#f5f5f5;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;margin-right:4px;">Renombrar</button>' +
-                '<button onclick="deleteLab(\'' + l.name.replace(/'/g, "\\'") + '\')" title="Eliminar" style="background:var(--danger);color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;">Eliminar</button>' +
+                '<button onclick="viewLabProducts(\'' + l.canonical.replace(/'/g, "\\'") + '\')" title="Ver productos" style="background:var(--primary);color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;margin-right:4px;">Ver</button>' +
+                (variantCount > 1 ? '<button onclick="mergeLabVariants(\'' + l.canonical.replace(/'/g, "\\'") + '\')" title="Unir variantes" style="background:#e65100;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;margin-right:4px;">Unir</button>' : '') +
+                '<button onclick="renameLab(\'' + l.canonical.replace(/'/g, "\\'") + '\')" title="Renombrar" style="background:#f5f5f5;border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;margin-right:4px;">Renombrar</button>' +
+                '<button onclick="deleteLab(\'' + l.canonical.replace(/'/g, "\\'") + '\')" title="Eliminar" style="background:var(--danger);color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;">Eliminar</button>' +
             '</td></tr>';
     }).join('');
+}
+
+function mergeLabVariants(canonical) {
+    const brands = {};
+    posProducts.forEach(p => {
+        const b = (p.brand || '').trim();
+        if (!b) return;
+        const key = b.toLowerCase();
+        if (!brands[key]) brands[key] = [];
+        brands[key].push(b);
+    });
+    const key = canonical.toLowerCase();
+    const variants = [...new Set(brands[key] || [])];
+    if (variants.length <= 1) { showToast('No hay variantes para unir', 'error'); return; }
+    if (!confirm('Unir variantes de "' + canonical + '"?\n\nVariantes: ' + variants.join(', ') + '\n\nTodas se cambiaran a "' + canonical + '".')) return;
+    let count = 0;
+    posProducts.forEach(p => {
+        const b = (p.brand || '').trim();
+        if (b.toLowerCase() === key && b !== canonical) {
+            p.brand = canonical;
+            count++;
+        }
+    });
+    saveProducts();
+    showToast(count + ' productos unidos bajo "' + canonical + '"');
+    renderLabsList();
 }
 
 function createNewLab() {
