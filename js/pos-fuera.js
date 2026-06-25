@@ -1687,7 +1687,7 @@ function renderAccountStatus() {
             ? '<span style="color:var(--warning);font-weight:600;">' + formatPrice(pendingTotal) + '</span>'
             : '<span style="color:var(--success);">Pagado</span>';
         const hasPending = pendingTotal > 0;
-        const rowBg = hasPending ? 'background:rgba(255,165,0,0.08);' : 'background:rgba(34,197,94,0.06);';
+        const rowBg = hasPending ? 'background:rgba(255,165,0,0.20);' : 'background:rgba(34,197,94,0.15);';
         return '<tr style="' + rowBg + '">' +
             '<td><strong style="cursor:pointer;" onclick="showCustomerHistory(\'' + c.id + '\')">' + c.name + '</strong></td>' +
             '<td>' + (c.phone || '-') + '</td>' +
