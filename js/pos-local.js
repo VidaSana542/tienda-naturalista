@@ -1338,7 +1338,11 @@ function confirmPayment() {
     }
     saveSales();
     if (API.isAvailable) {
-        API.addPayment(sale.apiId || saleId, Math.round(amount), 'Pago registrado desde POS').catch(e => { console.error('[POS] addPayment error:', e); });
+        const apiId = sale.apiId || saleId;
+        API.addPayment(apiId, Math.round(amount), 'Pago registrado desde POS').catch(e => { console.error('[POS] addPayment error:', e); });
+        if (sale.apiSynced) {
+            API.updateSale(sale.id, { credit_info: sale.creditInfo }).catch(e => { console.error('[POS] updateSale credit_info error:', e); });
+        }
     }
     closePaymentModal();
     refreshCustHistory();
