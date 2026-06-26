@@ -93,7 +93,13 @@ function renderSalidas() {
                 <td style="text-align:center;color:#16a34a;"><strong>${sold}</strong></td>
                 <td style="text-align:center;color:#dc2626;"><strong>${ret}</strong></td>
                 <td style="text-align:center;"><span style="background:${statusBg};color:${statusColor};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">${statusLabel}</span></td>
-                <td style="text-align:center;"><button class="btn btn-sm" onclick="openSalidaDetail(${s.id})" style="font-size:11px;padding:4px 10px;">Ver</button></td>
+                <td style="text-align:center;">
+                    <div style="display:flex;gap:4px;justify-content:center;">
+                        <button class="btn btn-sm" onclick="openSalidaDetail(${s.id})" style="font-size:11px;padding:4px 10px;">Ver</button>
+                        ${s.status !== 'closed' ? `<button class="btn btn-sm btn-outline" onclick="openEditSalida(${s.id})" title="Editar" style="font-size:11px;padding:4px 8px;color:var(--primary);border-color:var(--primary);">Editar</button>` : ''}
+                        <button class="btn btn-sm btn-outline" onclick="deleteSalida(${s.id})" title="Eliminar" style="font-size:11px;padding:4px 8px;color:var(--danger);border-color:var(--danger);">Eliminar</button>
+                    </div>
+                </td>
             </tr>`;
         }).join('');
     } catch (e) {
@@ -447,13 +453,18 @@ function openTempProductModal() {
 
 // ============ Create Salida Modal Handlers ==========
 function openCreateSalidaModal() {
+    _editingSalidaId = null;
     const el = document.getElementById('createSalidaItems');
     if (el) el.innerHTML = '';
     const notesEl = document.getElementById('createSalidaNotes');
     if (notesEl) notesEl.value = '';
     addCreateSalidaRow();
+    const title = document.querySelector('#createSalidaModal .modal-header h3');
+    if (title) title.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" style="vertical-align:middle;margin-right:8px;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.56 9.31 6.88 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.88 0 1.56-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>Crear Salida Temporal';
+    const footerBtn = document.querySelector('#createSalidaModal .modal-footer .btn-primary');
+    if (footerBtn) { footerBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" style="vertical-align:middle;margin-right:6px;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Crear Salida'; footerBtn.onclick = createSalida; }
     const m = document.getElementById('createSalidaModal');
-    if (!m) return; m.style.display = 'flex'; m.classList.add('open'); document.body.style.overflow = 'hidden';
+    if (m) { m.style.display = 'flex'; m.classList.add('open'); document.body.style.overflow = 'hidden'; }
 }
 
 function closeCreateSalidaModal() { const m = document.getElementById('createSalidaModal'); if (!m) return; m.classList.remove('open'); m.style.display = 'none'; document.body.style.overflow = ''; }
@@ -606,6 +617,131 @@ function createSalida() {
         if (p) { const prev = p.stock; p.stock = Math.max(0, p.stock - it.sentQty); addInvLog(p.id, p.name, 'salida_temp', -it.sentQty, prev, p.stock, 'Salida temporal #' + s.id, s.id, true); }
     });
     saveSalidas(); saveProducts(); renderSalidas(); closeCreateSalidaModal(); showToast('✓ Salida #' + s.id + ' creada (' + items.reduce((a,i)=>a+i.sentQty,0) + ' items)');
+}
+
+function deleteSalida(id) {
+    const s = posSalidas.find(x => x.id === id);
+    if (!s) return;
+    const sent = s.items.reduce((a,i) => a + i.sentQty, 0);
+    const sold = s.items.reduce((a,i) => a + i.soldQty, 0);
+    const ret = s.items.reduce((a,i) => a + i.returnedQty, 0);
+    const pending = sent - sold - ret;
+    let msg = 'Eliminar salida #' + s.id + '?';
+    if (s.status !== 'closed' && pending > 0) {
+        msg += '\n\nHay ' + pending + ' unidades sin reportar. Se devolverán al inventario.';
+    }
+    if (!confirm(msg)) return;
+    s.items.forEach(it => {
+        const p = posProducts.find(x => x.id === it.productId);
+        if (p) {
+            const toReturn = it.sentQty - it.soldQty - it.returnedQty;
+            if (toReturn > 0) {
+                const prev = p.stock;
+                p.stock += toReturn;
+                addInvLog(p.id, p.name, 'retorno', toReturn, prev, p.stock, 'Retorno por eliminación de Salida #' + s.id, s.id, true);
+            }
+        }
+    });
+    posSalidas = posSalidas.filter(x => x.id !== id);
+    saveSalidas(); saveProducts(); renderSalidas();
+    if (API.isAvailable) API.deleteSalida(id).catch(e => console.error('[POS-FUERA] deleteSalida error:', e));
+    showToast('Salida #' + id + ' eliminada');
+}
+
+function openEditSalida(id) {
+    const s = posSalidas.find(x => x.id === id);
+    if (!s) return;
+    if (s.status === 'closed') { showToast('No se puede editar una salida cerrada'); return; }
+    _editingSalidaId = id;
+    const el = document.getElementById('createSalidaItems');
+    if (el) el.innerHTML = '';
+    const notesEl = document.getElementById('createSalidaNotes');
+    if (notesEl) notesEl.value = s.notes || '';
+    s.items.forEach(it => {
+        addCreateSalidaRow();
+        const rows = document.getElementById('createSalidaItems').children;
+        const lastRow = rows[rows.length - 1];
+        if (!lastRow) return;
+        const prodInput = lastRow.querySelector('input[data-selected-id]');
+        const qtyInput = lastRow.querySelector('input[type="number"]');
+        const prod = posProducts.find(p => p.id === it.productId);
+        if (prodInput) {
+            prodInput.dataset.selectedId = it.productId;
+            prodInput.value = prod ? prod.name : it.productId;
+        }
+        if (qtyInput) qtyInput.value = it.sentQty;
+    });
+    const title = document.querySelector('#createSalidaModal .modal-header h3');
+    if (title) title.textContent = 'Editar Salida #' + id;
+    const footer = document.querySelector('#createSalidaModal .modal-footer .btn-primary');
+    if (footer) { footer.textContent = 'Guardar Cambios'; footer.onclick = () => saveEditSalida(); }
+    const m = document.getElementById('createSalidaModal');
+    if (m) { m.style.display = 'flex'; m.classList.add('open'); document.body.style.overflow = 'hidden'; }
+}
+
+let _editingSalidaId = null;
+
+function saveEditSalida() {
+    const id = _editingSalidaId;
+    if (!id) return;
+    const s = posSalidas.find(x => x.id === id);
+    if (!s) return;
+    const itemsEl = document.getElementById('createSalidaItems');
+    if (!itemsEl) return;
+    const rows = Array.from(itemsEl.children);
+    const newItems = [];
+    for (const r of rows) {
+        const prodInput = r.querySelector('input[data-selected-id]');
+        const qtyInput = r.querySelector('input[type="number"]');
+        if (!prodInput || !qtyInput) continue;
+        const pid = prodInput.dataset.selectedId;
+        const qty = parseInt(qtyInput.value) || 0;
+        if (!pid) { showToast('Selecciona un producto en cada fila'); return; }
+        if (qty <= 0) { showToast('La cantidad debe ser mayor a 0'); return; }
+        const prod = posProducts.find(p => p.id === pid);
+        if (!prod) { showToast('Producto no encontrado'); return; }
+        const oldItem = s.items.find(i => i.productId === pid);
+        const oldSent = oldItem ? oldItem.sentQty : 0;
+        const diff = qty - oldSent;
+        if (diff > 0) {
+            if (diff > (prod.stock || 0)) { showToast('Stock insuficiente para ' + prod.name + ' (disponible: ' + (prod.stock || 0) + ')'); return; }
+        }
+        newItems.push({
+            productId: pid,
+            sentQty: qty,
+            soldQty: oldItem ? oldItem.soldQty : 0,
+            returnedQty: oldItem ? oldItem.returnedQty : 0
+        });
+    }
+    if (newItems.length === 0) { showToast('Agrega al menos un producto'); return; }
+    s.items.forEach(it => {
+        const newItem = newItems.find(ni => ni.productId === it.productId);
+        if (!newItem) {
+            const toReturn = it.sentQty - it.soldQty - it.returnedQty;
+            if (toReturn > 0) {
+                const p = posProducts.find(x => x.id === it.productId);
+                if (p) { const prev = p.stock; p.stock += toReturn; addInvLog(p.id, p.name, 'retorno', toReturn, prev, p.stock, 'Retorno por quitar de Salida #' + s.id, s.id, true); }
+            }
+        }
+    });
+    newItems.forEach(ni => {
+        const oldItem = s.items.find(i => i.productId === ni.productId);
+        const oldSent = oldItem ? oldItem.sentQty : 0;
+        const diff = ni.sentQty - oldSent;
+        if (diff > 0) {
+            const p = posProducts.find(x => x.id === ni.productId);
+            if (p) { const prev = p.stock; p.stock -= diff; addInvLog(p.id, p.name, 'salida_temp', -diff, prev, p.stock, 'Ajuste Salida #' + s.id, s.id, true); }
+        }
+    });
+    s.items = newItems;
+    s.notes = document.getElementById('createSalidaNotes').value || '';
+    _editingSalidaId = null;
+    saveSalidas(); saveProducts(); renderSalidas(); closeCreateSalidaModal();
+    showToast('Salida #' + id + ' actualizada');
+    const title = document.querySelector('#createSalidaModal .modal-header h3');
+    if (title) title.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" style="vertical-align:middle;margin-right:8px;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.56 9.31 6.88 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.88 0 1.56-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg>Crear Salida Temporal';
+    const footerBtn = document.querySelector('#createSalidaModal .modal-footer .btn-primary');
+    if (footerBtn) { footerBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" style="vertical-align:middle;margin-right:6px;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Crear Salida'; footerBtn.onclick = createSalida; }
 }
 
 function closeTempProductModal() {
