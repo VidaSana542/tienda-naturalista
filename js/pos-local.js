@@ -1318,7 +1318,7 @@ function closePaymentModal() {
 function confirmPayment() {
     const saleId = _paymentTargetSaleId;
     if (!saleId) { showToast('Error: venta no identificada'); return; }
-    const sale = posSales.find(s => s.id === saleId);
+    const sale = posSales.find(s => String(s.id) === String(saleId));
     if (!sale) return;
     if (!sale.creditInfo) return;
     const amount = parseFloat(document.getElementById('paymentAmount').value);
@@ -1338,11 +1338,9 @@ function confirmPayment() {
     }
     saveSales();
     if (API.isAvailable) {
-        const apiId = sale.apiId || saleId;
-        API.addPayment(apiId, Math.round(amount), 'Pago registrado desde POS').catch(e => { console.error('[POS] addPayment error:', e); });
-        if (sale.apiSynced) {
-            API.updateSale(sale.id, { credit_info: sale.creditInfo }).catch(e => { console.error('[POS] updateSale credit_info error:', e); });
-        }
+        const numericId = parseInt(String(sale.id).replace(/^p/i, ''));
+        API.addPayment(numericId, Math.round(amount), 'Pago registrado desde POS').catch(e => { console.error('[POS] addPayment error:', e); });
+        API.updateSale(numericId, { credit_info: sale.creditInfo }).catch(e => { console.error('[POS] updateSale credit_info error:', e); });
     }
     closePaymentModal();
     refreshCustHistory();

@@ -522,14 +522,14 @@ async function syncFromApi() {
             posSales = apiSales.map(s => {
                 const ci = s.credit_info || null;
                 if (ci) {
-                    const supabasePayments = (s.payments || [])
+                    const creditPayments = ci.payments || [];
+                    const tablePayments = (s.payments || [])
                         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
                         .map(p => ({ date: p.created_at, amount: p.amount }));
-                    const localPayments = ci.payments || [];
-                    const newLocal = localPayments.filter(lp => {
-                        return !supabasePayments.some(sp => sp.amount === lp.amount && Math.abs(new Date(sp.date) - new Date(lp.date)) < 60000);
+                    const newFromTable = tablePayments.filter(tp => {
+                        return !creditPayments.some(cp => cp.amount === tp.amount && Math.abs(new Date(cp.date) - new Date(tp.date)) < 60000);
                     });
-                    ci.payments = [...supabasePayments, ...newLocal];
+                    ci.payments = [...creditPayments, ...newFromTable];
                 }
                 return {
                     id: s.id,
@@ -2528,7 +2528,7 @@ function closeCustHistory() {
 }
 
 function editSalePayment(saleId, paymentIdx) {
-    const sale = posSales.find(s => s.id === saleId);
+    const sale = posSales.find(s => String(s.id) === String(saleId));
     if (!sale || !sale.creditInfo || !sale.creditInfo.payments || !sale.creditInfo.payments[paymentIdx]) return;
     const p = sale.creditInfo.payments[paymentIdx];
     document.getElementById('paymentEditSaleId').value = saleId;
