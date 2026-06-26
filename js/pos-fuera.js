@@ -1663,7 +1663,7 @@ function showReceipt(sale) {
     content.innerHTML = `
         <div class="receipt">
             <div class="receipt-header">
-                <img src="Logo_Factura.png" style="max-width:180px;height:auto;margin-bottom:6px;" alt="Logo">
+                <img src="${LOGO_URL}" style="max-width:180px;height:auto;margin-bottom:6px;" alt="Logo">
                 <p>Santa Marta, Colombia<br>NIT: 1082954847-4</p>
                 <p style="font-size:11px;margin-top:2px;">${shortDate(sale.date)}</p>
             </div>

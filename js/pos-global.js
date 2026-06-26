@@ -261,7 +261,7 @@ function showReceipt(sale) {
     content.innerHTML = `
         <div class="receipt">
             <div class="receipt-header">
-                <img src="Logo_Factura.png" style="max-width:160px;height:auto;margin-bottom:4px;" alt="Vida Sana">
+                <img src="${LOGO_URL}" style="max-width:160px;height:auto;margin-bottom:4px;" alt="Vida Sana">
                 <h4>VIDA SANA</h4>
                 <p>Santa Marta, Colombia<br>NIT: 1082954847-4</p>
                 <p style="font-size:11px;margin-top:2px;">${shortDate(sale.date)}</p>

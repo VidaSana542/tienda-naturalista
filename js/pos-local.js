@@ -1043,10 +1043,22 @@ function toggleSaleItems(btn) {
     }
 }
 
+let _salesSortDesc = true;
+function toggleSalesSort() {
+    _salesSortDesc = !_salesSortDesc;
+    const btn = document.getElementById('salesSortBtn');
+    if (btn) btn.textContent = _salesSortDesc ? '⬇ Más reciente' : '⬆ Más antiguo';
+    renderSalesTable();
+}
 function renderSalesTable() {
     const q = document.getElementById('salesSearch').value.toLowerCase().trim();
-    let filtered = posSales.filter(s => !s.ventaPorFuera).reverse();
+    const dateFrom = document.getElementById('salesDateFrom').value;
+    const dateTo = document.getElementById('salesDateTo').value;
+    let filtered = posSales.filter(s => !s.ventaPorFuera);
     if (q) filtered = filtered.filter((s, idx) => (idx + 1).toString().includes(q) || s.id.toString().includes(q) || (s.customer && s.customer.toLowerCase().includes(q)));
+    if (dateFrom) filtered = filtered.filter(s => s.date && s.date.substring(0, 10) >= dateFrom);
+    if (dateTo) filtered = filtered.filter(s => s.date && s.date.substring(0, 10) <= dateTo);
+    filtered = _salesSortDesc ? filtered.slice().reverse() : filtered;
     const tbody = document.getElementById('salesTableBody');
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">No hay ventas registradas</td></tr>';
@@ -1106,7 +1118,7 @@ function showReceipt(sale) {
     content.innerHTML = `
         <div class="receipt">
             <div class="receipt-header">
-                <img src="Logo_Factura.png" style="max-width:180px;height:auto;margin-bottom:6px;" alt="Logo">
+                <img src="${LOGO_URL}" style="max-width:180px;height:auto;margin-bottom:6px;" alt="Logo">
                 <p>Santa Marta, Colombia<br>NIT: 1082954847-4</p>
                 <p style="font-size:11px;margin-top:2px;">${shortDate(sale.date)}</p>
             </div>

@@ -269,6 +269,7 @@ function refreshProdCatFilter() {
 }
 
 const DEFAULT_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect fill='%23e8f5e9' width='200' height='200'/%3E%3Cpath fill='%234caf50' d='M100 40c-33 0-60 27-60 60s27 60 60 60 60-27 60-60-27-60-60-60zm0 110c-27.6 0-50-22.4-50-50s22.4-50 50-50 50 22.4 50 50-22.4 50-50 50z'/%3E%3Cpath fill='%234caf50' d='M90 85h20v40H90zm0-20h20v15H90z'/%3E%3C/svg%3E";
+const LOGO_URL = (function() { try { return new URL('Logo_Factura.png', window.location.href).href; } catch(e) { return 'Logo_Factura.png'; } })();
 
 // ============ STATE ============
 let posProducts = [];
@@ -2233,17 +2234,17 @@ function showFinalInvoice(saleId) {
         : (ci.payments && ci.payments.length > 0
             ? ci.payments.map(p => '<div class="receipt-row" style="font-size:12px;"><span>' + shortDate(p.date) + '</span><span style="color:var(--success);font-weight:600;">' + formatPrice(p.amount) + '</span></div>').join('')
             : '<div style="text-align:center;color:var(--text-muted);font-size:11px;padding:4px 0;">Sin pagos registrados</div>');
-    const statusColor = 'var(--success)';
-    const statusLabel = 'CANCELADA';
+    const statusColor = isPaid ? 'var(--success)' : 'var(--warning)';
+    const statusLabel = isPaid ? 'PAGADA' : 'Pendiente: ' + formatPrice(pendiente);
     const methodLabel = isContado ? sale.method : (ci.tipo === 'abono' ? 'Abono libre' : 'Cuotas fijas (' + ci.totalCuotas + ')');
     document.getElementById('receiptContent').innerHTML = '' +
         '<div class="receipt">' +
             '<div class="receipt-header">' +
-                '<img src="Logo_Factura.png" style="max-width:160px;height:auto;margin-bottom:6px;" alt="Logo">' +
+                '<img src="' + LOGO_URL + '" style="max-width:160px;height:auto;margin-bottom:6px;" alt="Logo">' +
                 '<h4 style="font-size:15px;margin:2px 0;">FACTURA DE VENTA</h4>' +
                 '<p style="font-size:11px;margin:2px 0;">Factura #' + sale.id + '</p>' +
                 '<p style="font-size:11px;margin:2px 0;">' + new Date(sale.date).toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }) + '</p>' +
-                '<div style="margin:6px auto;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;display:inline-block;background:#f0fdf4;color:var(--success);border:1px solid #bbf7d0;">' + statusLabel + '</div>' +
+                '<div style="margin:6px auto;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;display:inline-block;' + (isPaid ? 'background:#f0fdf4;color:var(--success);border:1px solid #bbf7d0;' : 'background:#fef9c3;color:#a16207;border:1px solid #fde68a;') + '">' + statusLabel + '</div>' +
             '</div>' +
             '<div class="receipt-divider"></div>' +
             '<div class="receipt-row"><span>Cliente</span><span style="font-weight:600;">' + (sale.customer || 'Mostrador') + '</span></div>' +
@@ -2258,6 +2259,7 @@ function showFinalInvoice(saleId) {
             '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Pago</div>' +
             '<div class="receipt-row" style="font-size:12px;"><span>Total pagado</span><span style="color:var(--success);font-weight:600;">' + formatPrice(pagado) + '</span></div>' +
             paymentsHtml +
+            (!isPaid ? '<div class="receipt-row" style="font-size:12px;font-weight:700;"><span>Saldo pendiente</span><span style="color:var(--warning);font-weight:700;">' + formatPrice(pendiente) + '</span></div>' : '') +
             '<div class="receipt-divider"></div>' +
             '<div class="receipt-footer">' +
                 '<p>Documento generado el ' + new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }) + '</p>' +
@@ -2843,7 +2845,7 @@ function confirmPrintClosing() {
     document.getElementById('receiptContent').innerHTML =
         '<div class="receipt">' +
             '<div class="receipt-header">' +
-                '<img src="Logo_Factura.png" style="max-width:160px;height:auto;margin-bottom:6px;" alt="Logo">' +
+                '<img src="' + LOGO_URL + '" style="max-width:160px;height:auto;margin-bottom:6px;" alt="Logo">' +
                 '<h4 style="font-size:15px;margin:2px 0;">CIERRE DEL DIA</h4>' +
                 '<p style="font-size:11px;margin:2px 0;">' + dateLabel + '</p>' +
                 '<p style="font-size:11px;margin:2px 0;color:var(--text-muted);">' + (scope === 'fuera' ? 'TPV Por Fuera' : 'TPV Local') + '</p>' +
