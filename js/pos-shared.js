@@ -2266,10 +2266,12 @@ function showCustomerHistory(custId) {
             html += '<details open style="margin-bottom:12px;"><summary style="font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;user-select:none;padding:4px 0;">Compras de contado (' + contadoSales.length + ')</summary>';
             contadoSales.forEach(s => {
                 const qty = s.items.reduce((sum, i) => sum + i.qty, 0);
-                html += '<div style="display:flex;justify-content:space-between;padding:6px 10px;background:var(--bg);border-radius:6px;margin-bottom:4px;font-size:13px;">';
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg);border-radius:6px;margin-bottom:4px;font-size:13px;">';
                 html += '<span>#' + s.id + ' <span style="color:var(--text-muted);">' + shortDate(s.date) + '</span></span>';
+                html += '<div style="display:flex;align-items:center;gap:6px;">';
                 html += '<span>' + qty + ' prod \u00b7 ' + formatPrice(s.total) + ' \u00b7 <span style="color:var(--success);">Pagado</span></span>';
-                html += '</div>';
+                if (typeof showFinalInvoice === 'function') html += '<button class="btn btn-sm btn-primary" onclick="showFinalInvoice(' + s.id + ')">Factura</button>';
+                html += '</div></div>';
             });
             html += '</details>';
         }
