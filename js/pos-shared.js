@@ -536,7 +536,7 @@ async function syncFromApi() {
                     id: s.id,
                     apiId: s.id,
                     apiSynced: true,
-                    date: s.date || s.created_at,
+                    date: utcToLocalDate(s.created_at),
                     created_at: s.created_at,
                     items: (s.items || []).map(i => ({ id: i.product_id, name: i.product_name, qty: i.qty, price: parseFloat(i.price) })),
                     subtotal: parseFloat(s.total) - parseFloat(s.excedente || 0),
@@ -710,12 +710,12 @@ function addInvLog(productId, productName, type, quantity, previousStock, newSto
 function formatPrice(n) { return '$' + Math.round(n).toLocaleString('es-CO'); }
 function nowLocal() {
     const d = new Date();
-    const offset = d.getTimezoneOffset();
-    const local = new Date(d.getTime() - offset * 60000);
-    return local.toISOString().replace('Z', '');
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + 'T' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');
 }
-function todayLocal() {
-    return nowLocal().split('T')[0];
+function utcToLocalDate(isoStr) {
+    if (!isoStr) return today();
+    const d = new Date(isoStr);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + 'T' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');
 }
 function today() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 function now() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + 'T' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0'); }
@@ -2552,7 +2552,7 @@ function editSalePayment(saleId, paymentIdx) {
     const p = sale.creditInfo.payments[paymentIdx];
     document.getElementById('paymentEditSaleId').value = saleId;
     document.getElementById('paymentEditIdx').value = paymentIdx;
-    document.getElementById('paymentEditDate').value = p.date ? p.date.split('T')[0] : todayLocal();
+    document.getElementById('paymentEditDate').value = p.date ? p.date.split('T')[0] : today();
     document.getElementById('paymentEditAmount').value = p.amount || '';
     document.getElementById('paymentEditModal').classList.add('open');
 }
@@ -2783,7 +2783,7 @@ function initCatFilter() {
 
 // ============ DAILY CLOSING ============
 function printDailyClosing() {
-    const today = todayLocal();
+    const today = today();
     document.getElementById('closingDateInput').value = today;
     document.getElementById('closingDateModal').classList.add('open');
 }

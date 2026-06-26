@@ -98,7 +98,7 @@ function renderDashChart(periodSales) {
     } else if (_dashPeriod === 'week') {
         for (let i = 6; i >= 0; i--) {
             const d = new Date(); d.setDate(d.getDate() - i);
-            const key = d.toISOString().slice(0,10);
+            const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
             labels.push(d.toLocaleDateString('es-CO', { weekday:'short', day:'numeric' }));
             data.push(periodSales.filter(s => s.date && s.date.slice(0,10) === key).reduce((sum, s) => sum + s.total, 0));
         }
