@@ -2270,7 +2270,6 @@ function showFinalInvoice(saleId) {
             (!isPaid ? '<div class="receipt-row" style="font-size:12px;font-weight:700;"><span>Saldo pendiente</span><span style="color:var(--warning);font-weight:700;">' + formatPrice(pendiente) + '</span></div>' : '') +
             '<div class="receipt-divider"></div>' +
             '<div class="receipt-footer">' +
-                '<p>Documento generado el ' + new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }) + '</p>' +
                 '<p style="margin-top:4px;">Gracias por su compra!</p>' +
             '</div>' +
         '</div>';
