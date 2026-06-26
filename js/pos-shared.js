@@ -2550,8 +2550,15 @@ function saveEditPayment() {
     p.amount = Math.round(newAmount);
     p.date = newDate ? newDate + 'T12:00:00' : p.date;
     saveSales();
-    if (API.isAvailable && sale.apiSynced) {
-        API.updateSale(sale.id, { credit_info: sale.creditInfo }).catch(e => {});
+    if (API.isAvailable) {
+        const apiId = sale.apiId || sale.id;
+        API.updateSale(apiId, { credit_info: sale.creditInfo }).then(() => {
+            console.log('[POS] credit_info updated in API for sale', apiId);
+        }).catch(e => {
+            console.error('[POS] editPayment API update error:', e);
+            sale.apiSynced = false;
+            saveSales();
+        });
     }
     closeEditPaymentModal();
     if (_custHistoryCustomerId) showCustomerHistory(_custHistoryCustomerId);
@@ -2570,9 +2577,22 @@ function deleteSalePayment(saleId, paymentIdx) {
     const p = sale.creditInfo.payments[paymentIdx];
     if (!confirm('Eliminar pago de ' + formatPrice(p.amount) + ' del ' + shortDate(p.date) + '?')) return;
     sale.creditInfo.payments.splice(paymentIdx, 1);
+    if (sale.creditInfo.tipo === 'abono') {
+        const totalPagado = sale.creditInfo.payments.reduce((sp, pay) => sp + pay.amount, 0);
+        sale.creditInfo.pagadas = totalPagado >= sale.creditInfo.balance ? 1 : 0;
+    } else {
+        sale.creditInfo.pagadas = sale.creditInfo.payments.length;
+    }
     saveSales();
-    if (API.isAvailable && sale.apiSynced) {
-        API.updateSale(sale.id, { credit_info: sale.creditInfo }).catch(e => {});
+    if (API.isAvailable) {
+        const apiId = sale.apiId || sale.id;
+        API.updateSale(apiId, { credit_info: sale.creditInfo }).then(() => {
+            console.log('[POS] credit_info updated in API for sale', apiId);
+        }).catch(e => {
+            console.error('[POS] deletePayment API update error:', e);
+            sale.apiSynced = false;
+            saveSales();
+        });
     }
     if (_custHistoryCustomerId) showCustomerHistory(_custHistoryCustomerId);
     renderAccountStatus();
