@@ -285,6 +285,8 @@ let posNextSupplierId = 1;
 let posNextSaleId = 1;
 let labOrders = [];
 let nextLabOrderId = 1;
+let supplierExpenses = [];
+let nextSupplierExpenseId = 1;
 
 let cashBase = 0;
 let cashExpenses = [];
@@ -299,6 +301,7 @@ function loadData() {
         invLog = JSON.parse(localStorage.getItem('invLog')) || [];
         posSuppliers = JSON.parse(localStorage.getItem('posSuppliers')) || [];
         labOrders = JSON.parse(localStorage.getItem('labOrders')) || [];
+        supplierExpenses = JSON.parse(localStorage.getItem('supplierExpenses')) || [];
         const savedCats = JSON.parse(localStorage.getItem('posCategories'));
         if (savedCats && savedCats.length > 0) POS_CATEGORIES = savedCats;
     } catch(e) {}
@@ -322,6 +325,9 @@ function loadData() {
     }
     if (labOrders.length > 0) {
         nextLabOrderId = Math.max(...labOrders.map(o => parseInt(String(o.id).replace('lab_', '')) || 0)) + 1;
+    }
+    if (supplierExpenses.length > 0) {
+        nextSupplierExpenseId = Math.max(...supplierExpenses.map(e => parseInt(String(e.id).replace('se_', '')) || 0)) + 1;
     }
     migrateProductSubcats();
     if (typeof loadCashLocal === 'function') loadCashLocal();
@@ -651,6 +657,20 @@ async function syncFromApi() {
                     _synced: true
                 }));
                 saveLabOrders();
+            }
+        } catch(e) {}
+        // Sync supplier expenses from API - always replace with DB data
+        try {
+            const apiExpenses = await API.getSupplierExpenses();
+            if (apiExpenses) {
+                supplierExpenses = apiExpenses.map(e => ({
+                    id: 'se_' + e.id,
+                    supplier: e.supplier,
+                    date: utcToLocalDate(e.created_at),
+                    notes: e.notes || '',
+                    _synced: true
+                }));
+                localStorage.setItem('supplierExpenses', JSON.stringify(supplierExpenses));
             }
         } catch(e) {}
         saveProducts();
@@ -3018,6 +3038,164 @@ function saveNewLabOrder() {
     showToast('Pedido registrado para ' + lab);
 }
 
+// ============ SUPPLIER EXPENSES ============
+function saveSupplierExpenses() {
+    localStorage.setItem('supplierExpenses', JSON.stringify(supplierExpenses));
+}
+
+function renderSupplierExpenses() {
+    const tbody = document.getElementById('supplierExpensesBody');
+    if (!tbody) return;
+    const searchEl = document.getElementById('supplierExpenseSearch');
+    const q = searchEl ? searchEl.value.toLowerCase().trim() : '';
+    let filtered = [...supplierExpenses];
+    if (q) filtered = filtered.filter(e => e.supplier.toLowerCase().includes(q) || (e.notes || '').toLowerCase().includes(q));
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:30px;">No hay gastos a proveedores</td></tr>';
+        return;
+    }
+    tbody.innerHTML = filtered.map(e => {
+        return '<tr>' +
+            '<td><strong>' + shortDate(e.date) + '</strong></td>' +
+            '<td><strong>' + e.supplier + '</strong></td>' +
+            '<td style="font-size:13px;color:var(--text-muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (e.notes || '-') + '</td>' +
+            '<td class="actions" style="white-space:nowrap;">' +
+                '<button class="edit" onclick="viewSupplierExpense(\'' + e.id + '\')" title="Ver" style="color:var(--primary);margin-right:4px;"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg></button>' +
+                '<button class="edit" onclick="editSupplierExpense(\'' + e.id + '\')" title="Editar" style="color:var(--primary);margin-right:4px;"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>' +
+                '<button class="edit" onclick="deleteSupplierExpense(\'' + e.id + '\')" title="Eliminar" style="color:var(--danger);"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>' +
+            '</td></tr>';
+    }).join('');
+}
+
+function filterSupplierExpenseSuppliers() {
+    const q = document.getElementById('supplierExpenseSupSearch').value.toLowerCase().trim();
+    const suppliers = posSuppliers.map(s => s.name).filter(n => n);
+    const filtered = q ? suppliers.filter(n => n.toLowerCase().includes(q)) : suppliers;
+    const dd = document.getElementById('supplierExpenseSupDropdown');
+    if (filtered.length === 0) {
+        dd.innerHTML = '<div style="padding:10px 12px;color:var(--text-muted);font-size:13px;">No se encontraron proveedores</div>';
+    } else {
+        dd.innerHTML = filtered.map(name => '<div onclick="selectSupplierExpenseSupplier(\'' + name.replace(/'/g, "\\'") + '\')" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #eee;" onmouseover="this.style.background=\'#f0f7f0\'" onmouseout="this.style.background=\'#fff\'">' + name + '</div>').join('');
+    }
+    dd.style.display = 'block';
+}
+
+function selectSupplierExpenseSupplier(name) {
+    document.getElementById('supplierExpenseSupSearch').value = name;
+    document.getElementById('supplierExpenseSupSelect').value = name;
+    document.getElementById('supplierExpenseSupDropdown').style.display = 'none';
+}
+
+function openNewSupplierExpenseModal() {
+    document.getElementById('supplierExpenseSupSearch').value = '';
+    document.getElementById('supplierExpenseSupSelect').value = '';
+    document.getElementById('supplierExpenseSupDropdown').style.display = 'none';
+    document.getElementById('supplierExpenseNotes').value = '';
+    document.getElementById('newSupplierExpenseModal').classList.add('open');
+}
+
+function deleteSupplierExpense(expenseId) {
+    const expense = supplierExpenses.find(e => String(e.id) === String(expenseId));
+    if (!expense) return;
+    if (!confirm('Eliminar gasto de "' + expense.supplier + '"?')) return;
+    const apiId = String(expense.id).replace('se_', '');
+    supplierExpenses = supplierExpenses.filter(e => String(e.id) !== String(expenseId));
+    saveSupplierExpenses();
+    renderSupplierExpenses();
+    if (API.isAvailable && apiId && !isNaN(apiId)) {
+        API.deleteSupplierExpense(parseInt(apiId)).then(() => {
+            syncFromApi().then(() => renderSupplierExpenses());
+        }).catch(e => {});
+    }
+    showToast('Gasto eliminado');
+}
+
+function viewSupplierExpense(expenseId) {
+    const expense = supplierExpenses.find(e => String(e.id) === String(expenseId));
+    if (!expense) return;
+    let html = '<div style="padding:4px 0;">' +
+        '<p><strong>Proveedor:</strong> ' + expense.supplier + '</p>' +
+        '<p><strong>Fecha:</strong> ' + shortDate(expense.date) + '</p>' +
+        (expense.notes ? '<p><strong>Notas:</strong> ' + expense.notes + '</p>' : '<p style="color:var(--text-muted);">Sin notas</p>') +
+        '</div>';
+    const modal = document.getElementById('supplierExpenseViewModal');
+    modal.querySelector('.supplier-expense-view-content').innerHTML = html;
+    modal.classList.add('open');
+}
+
+function closeSupplierExpenseViewModal() {
+    document.getElementById('supplierExpenseViewModal').classList.remove('open');
+}
+
+let _editingSupplierExpenseId = null;
+
+function editSupplierExpense(expenseId) {
+    const expense = supplierExpenses.find(e => String(e.id) === String(expenseId));
+    if (!expense) return;
+    _editingSupplierExpenseId = expenseId;
+    document.getElementById('supplierExpenseSupSearch').value = expense.supplier;
+    document.getElementById('supplierExpenseSupSelect').value = expense.supplier;
+    document.getElementById('supplierExpenseNotes').value = expense.notes || '';
+    document.getElementById('newSupplierExpenseModal').classList.add('open');
+    document.querySelector('#newSupplierExpenseModal .modal-header h3').textContent = 'Editar Gasto a Proveedor';
+    document.querySelector('#newSupplierExpenseModal .btn-primary').textContent = 'Guardar cambios';
+}
+
+function closeNewSupplierExpenseModal() {
+    document.getElementById('newSupplierExpenseModal').classList.remove('open');
+    const dd = document.getElementById('supplierExpenseSupDropdown');
+    if (dd) dd.style.display = 'none';
+    _editingSupplierExpenseId = null;
+    document.querySelector('#newSupplierExpenseModal .modal-header h3').textContent = 'Nuevo Gasto a Proveedor';
+    document.querySelector('#newSupplierExpenseModal .btn-primary').textContent = 'Guardar';
+}
+
+function saveNewSupplierExpense() {
+    const supplier = document.getElementById('supplierExpenseSupSelect').value;
+    if (!supplier) { showToast('Selecciona un proveedor', 'error'); return; }
+    const notes = document.getElementById('supplierExpenseNotes').value.trim();
+    if (!notes) { showToast('Escribe una nota', 'error'); return; }
+
+    if (_editingSupplierExpenseId) {
+        const expense = supplierExpenses.find(e => String(e.id) === String(_editingSupplierExpenseId));
+        if (expense) {
+            expense.supplier = supplier;
+            expense.notes = notes;
+            saveSupplierExpenses();
+            const apiId = String(expense.id).replace('se_', '');
+            if (API.isAvailable && apiId && !isNaN(apiId)) {
+                API.updateSupplierExpense(parseInt(apiId), { supplier, notes }).catch(e => {});
+            }
+            renderSupplierExpenses();
+            showToast('Gasto actualizado');
+        }
+        closeNewSupplierExpenseModal();
+        return;
+    }
+
+    const expense = {
+        id: 'se_' + nextSupplierExpenseId++,
+        supplier,
+        date: now(),
+        notes
+    };
+    supplierExpenses.unshift(expense);
+    saveSupplierExpenses();
+    if (API.isAvailable) {
+        API.saveSupplierExpense({ ...expense, id: undefined }).then(res => {
+            if (res && res.id) {
+                expense.id = 'se_' + res.id;
+                expense._synced = true;
+                saveSupplierExpenses();
+                renderSupplierExpenses();
+            }
+        }).catch(e => {});
+    }
+    closeNewSupplierExpenseModal();
+    renderSupplierExpenses();
+    showToast('Gasto registrado para ' + supplier);
+}
+
 // ============ LABS MANAGEMENT (Brands) ============
 function switchProdTab(tab) {
     document.querySelectorAll('[data-prodtab]').forEach(t => t.classList.toggle('active', t.dataset.prodtab === tab));
@@ -3303,6 +3481,7 @@ async function refreshSystem() {
         if (typeof renderInvLog === 'function') renderInvLog();
         if (typeof renderSalidas === 'function') renderSalidas();
         if (typeof renderLabOrders === 'function') renderLabOrders();
+        if (typeof renderSupplierExpenses === 'function') renderSupplierExpenses();
         showToast('Sistema actualizado');
     } catch(e) {
         showToast('Error al actualizar: ' + (e.message || e), 'error');

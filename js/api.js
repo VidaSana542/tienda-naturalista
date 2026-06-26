@@ -762,5 +762,33 @@ const API = {
     const { error } = await _sb.from('lab_orders').delete().eq('id', id);
     if (error) throw error;
     return { success: true };
+  },
+
+  // ============ SUPPLIER EXPENSES ============
+  async getSupplierExpenses() {
+    const { data, error } = await _sb.from('supplier_expenses').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async saveSupplierExpense(expense) {
+    const { data, error } = await _sb.from('supplier_expenses').insert({
+      supplier: expense.supplier,
+      notes: expense.notes || ''
+    }).select().single();
+    if (error) throw error;
+    return data;
+  },
+
+  async updateSupplierExpense(id, updates) {
+    const { error } = await _sb.from('supplier_expenses').update(updates).eq('id', id);
+    if (error) throw error;
+    return { success: true };
+  },
+
+  async deleteSupplierExpense(id) {
+    const { error } = await _sb.from('supplier_expenses').delete().eq('id', id);
+    if (error) throw error;
+    return { success: true };
   }
 };

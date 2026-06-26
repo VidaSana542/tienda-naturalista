@@ -89,6 +89,10 @@
             <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
             <span>Pedidos Lab</span>
         </a>
+        <a class="nav-item" data-panel="supplierExpenses" data-role="admin" onclick="switchPanel('supplierExpenses')">
+            <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+            <span>Gastos Proveedores</span>
+        </a>
         <a class="nav-item" data-panel="customers" onclick="switchPanel('customers')">
             <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
             <span>Clientes</span>
@@ -649,9 +653,34 @@
             </div>
         </div>
 
-        <!-- Sales -->
-        <div class="panel" id="panel-sales">
+        <div class="panel" id="panel-supplierExpenses">
             <div class="card">
+                <div class="card-header">
+                    <h3>Gastos a Proveedores</h3>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <input type="text" id="supplierExpenseSearch" placeholder="Buscar proveedor o notas..." oninput="renderSupplierExpenses()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:180px;">
+                        <button class="btn btn-primary btn-sm" onclick="openNewSupplierExpenseModal()">+ Nuevo Gasto</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Proveedor</th>
+                                    <th>Notas</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="supplierExpensesBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales -->
                 <div class="card-header">
                     <h3>Historial de Ventas</h3>
                     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
@@ -1463,6 +1492,46 @@
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeMergeLabsModal()">Cancelar</button>
             <button class="btn" onclick="executeMergeLabs()" style="background:#e65100;color:#fff;">Unir Seleccionados</button>
+        </div>
+    </div>
+</div>
+
+<!-- Supplier Expense New/Edit Modal -->
+<div class="modal-overlay" id="newSupplierExpenseModal" onclick="if(event.target===this){closeNewSupplierExpenseModal();} var dd=document.getElementById('supplierExpenseSupDropdown'); if(dd && !event.target.closest('#supplierExpenseSupSearch')) dd.style.display='none';">
+    <div class="modal" style="max-width:500px;">
+        <div class="modal-header">
+            <h3>Nuevo Gasto a Proveedor</h3>
+            <button class="btn-close" onclick="closeNewSupplierExpenseModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Proveedor</label>
+                <input type="text" id="supplierExpenseSupSearch" placeholder="Buscar proveedor..." oninput="filterSupplierExpenseSuppliers()" onfocus="filterSupplierExpenseSuppliers()" autocomplete="off" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;">
+                <input type="hidden" id="supplierExpenseSupSelect">
+                <div id="supplierExpenseSupDropdown" style="display:none;border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;max-height:180px;overflow-y:auto;background:#fff;"></div>
+            </div>
+            <div class="form-group" style="margin-top:12px;">
+                <label>Notas</label>
+                <textarea id="supplierExpenseNotes" rows="4" placeholder="Describe el gasto..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;resize:vertical;"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeNewSupplierExpenseModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveNewSupplierExpense()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Supplier Expense View Modal -->
+<div class="modal-overlay" id="supplierExpenseViewModal" onclick="if(event.target===this)closeSupplierExpenseViewModal()">
+    <div class="modal" style="max-width:450px;">
+        <div class="modal-header">
+            <h3>Detalle del Gasto</h3>
+            <button class="btn-close" onclick="closeSupplierExpenseViewModal()">✕</button>
+        </div>
+        <div class="modal-body supplier-expense-view-content"></div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeSupplierExpenseViewModal()">Cerrar</button>
         </div>
     </div>
 </div>

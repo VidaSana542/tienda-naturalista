@@ -1,6 +1,6 @@
 // ============ POS LOCAL - Config ============
 const POS_SCOPE = 'local';
-const POS_RESTRICTED_PANELS = ['suppliers','dashboard','labOrders'];
+const POS_RESTRICTED_PANELS = ['suppliers','dashboard','labOrders','supplierExpenses'];
 const POS_PANEL_TITLES = { dashboard:'Dashboard', tpv:'TPV / Punto de Venta', products:'Gestion de Productos', inventory:'Control de Inventario', customers:'Gestion de Clientes', suppliers:'Gestion de Proveedores', categories:'Gestion de Categorias', sales:'Historial de Ventas', cash:'Caja' };
 const POS_PANEL_RENDERERS = {};
 
@@ -1759,6 +1759,7 @@ POS_PANEL_RENDERERS['sales'] = renderSalesTable;
 POS_PANEL_RENDERERS['cuentas'] = renderAccountStatus;
 POS_PANEL_RENDERERS['cash'] = renderCashPanel;
 POS_PANEL_RENDERERS['labOrders'] = renderLabOrders;
+POS_PANEL_RENDERERS['supplierExpenses'] = renderSupplierExpenses;
 
 function initPOS() {
     (async function() {
