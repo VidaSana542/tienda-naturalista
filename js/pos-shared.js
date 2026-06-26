@@ -2813,8 +2813,8 @@ function initCatFilter() {
 
 // ============ DAILY CLOSING ============
 function printDailyClosing() {
-    const today = today();
-    document.getElementById('closingDateInput').value = today;
+    const todayStr = today();
+    document.getElementById('closingDateInput').value = todayStr;
     document.getElementById('closingDateModal').classList.add('open');
 }
 

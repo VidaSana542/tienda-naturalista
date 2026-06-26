@@ -1591,6 +1591,25 @@ function renderDashRecent(periodSales) {
 
 // ============ SALES TABLE ============
 let _salesSortDesc = true;
+let _salesView = 'today';
+function switchSalesView(view) {
+    _salesView = view;
+    document.querySelectorAll('.sales-view-tab').forEach(btn => {
+        const isActive = btn.dataset.view === view;
+        btn.classList.toggle('active', isActive);
+        btn.style.background = isActive ? 'var(--primary,#2e7d32)' : 'transparent';
+        btn.style.color = isActive ? '#fff' : 'var(--text-muted,#888)';
+    });
+    const filters = document.getElementById('salesAllFilters');
+    if (filters) filters.style.display = view === 'all' ? 'flex' : 'none';
+    if (view === 'today') {
+        const df = document.getElementById('salesDateFrom');
+        const dt = document.getElementById('salesDateTo');
+        if (df) df.value = '';
+        if (dt) dt.value = '';
+    }
+    renderSalesTable();
+}
 function toggleSalesSort() {
     _salesSortDesc = !_salesSortDesc;
     const btn = document.getElementById('salesSortBtn');
@@ -1602,9 +1621,13 @@ function renderSalesTable() {
     const dateFrom = document.getElementById('salesDateFrom').value;
     const dateTo = document.getElementById('salesDateTo').value;
     let filtered = posSales.filter(s => s.ventaPorFuera);
-    if (q) filtered = filtered.filter(s => s.id.toString().includes(q) || (s.customer && s.customer.toLowerCase().includes(q)));
-    if (dateFrom) filtered = filtered.filter(s => s.date && s.date.substring(0, 10) >= dateFrom);
-    if (dateTo) filtered = filtered.filter(s => s.date && s.date.substring(0, 10) <= dateTo);
+    if (_salesView === 'today') {
+        const todayStr = today();
+        filtered = filtered.filter(s => s.date && s.date.substring(0, 10) === todayStr);
+    } else {
+        if (dateFrom) filtered = filtered.filter(s => s.date && s.date.substring(0, 10) >= dateFrom);
+        if (dateTo) filtered = filtered.filter(s => s.date && s.date.substring(0, 10) <= dateTo);
+    }
     filtered = _salesSortDesc ? filtered.slice().reverse() : filtered;
     if (q) filtered = filtered.filter(s => s.id.toString().includes(q) || (s.customer && s.customer.toLowerCase().includes(q)));
     const tbody = document.getElementById('salesTableBody');
