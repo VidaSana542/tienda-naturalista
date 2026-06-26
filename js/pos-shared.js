@@ -270,6 +270,14 @@ function refreshProdCatFilter() {
 
 const DEFAULT_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect fill='%23e8f5e9' width='200' height='200'/%3E%3Cpath fill='%234caf50' d='M100 40c-33 0-60 27-60 60s27 60 60 60 60-27 60-60-27-60-60-60zm0 110c-27.6 0-50-22.4-50-50s22.4-50 50-50 50 22.4 50 50-22.4 50-50 50z'/%3E%3Cpath fill='%234caf50' d='M90 85h20v40H90zm0-20h20v15H90z'/%3E%3C/svg%3E";
 const LOGO_URL = (function() { try { return new URL('Logo_Factura.png', window.location.href).href; } catch(e) { return 'Logo_Factura.png'; } })();
+let LOGO_DATA_URL = '';
+(function preloadLogo() {
+    fetch(LOGO_URL).then(r => r.blob()).then(blob => {
+        const reader = new FileReader();
+        reader.onload = function() { LOGO_DATA_URL = reader.result; };
+        reader.readAsDataURL(blob);
+    }).catch(function() {});
+})();
 
 // ============ STATE ============
 let posProducts = [];
@@ -2240,7 +2248,7 @@ function showFinalInvoice(saleId) {
     document.getElementById('receiptContent').innerHTML = '' +
         '<div class="receipt">' +
             '<div class="receipt-header">' +
-                '<img src="' + LOGO_URL + '" style="max-width:160px;height:auto;margin-bottom:6px;" alt="Logo">' +
+                '<img src="' + (LOGO_DATA_URL || LOGO_URL) + '" style="max-width:160px;height:auto;margin-bottom:6px;" alt="Logo">' +
                 '<h4 style="font-size:15px;margin:2px 0;">FACTURA DE VENTA</h4>' +
                 '<p style="font-size:11px;margin:2px 0;">Factura #' + sale.id + '</p>' +
                 '<p style="font-size:11px;margin:2px 0;">' + new Date(sale.date).toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }) + '</p>' +
@@ -2845,7 +2853,7 @@ function confirmPrintClosing() {
     document.getElementById('receiptContent').innerHTML =
         '<div class="receipt">' +
             '<div class="receipt-header">' +
-                '<img src="' + LOGO_URL + '" style="max-width:160px;height:auto;margin-bottom:6px;" alt="Logo">' +
+                '<img src="' + (LOGO_DATA_URL || LOGO_URL) + '" style="max-width:160px;height:auto;margin-bottom:6px;" alt="Logo">' +
                 '<h4 style="font-size:15px;margin:2px 0;">CIERRE DEL DIA</h4>' +
                 '<p style="font-size:11px;margin:2px 0;">' + dateLabel + '</p>' +
                 '<p style="font-size:11px;margin:2px 0;color:var(--text-muted);">' + (scope === 'fuera' ? 'TPV Por Fuera' : 'TPV Local') + '</p>' +

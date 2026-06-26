@@ -1663,7 +1663,7 @@ function showReceipt(sale) {
     content.innerHTML = `
         <div class="receipt">
             <div class="receipt-header">
-                <img src="${LOGO_URL}" style="max-width:180px;height:auto;margin-bottom:6px;" alt="Logo">
+                <img src="${LOGO_DATA_URL || LOGO_URL}" style="max-width:180px;height:auto;margin-bottom:6px;" alt="Logo">
                 <p>Santa Marta, Colombia<br>NIT: 1082954847-4</p>
                 <p style="font-size:11px;margin-top:2px;">${shortDate(sale.date)}</p>
             </div>
@@ -1709,7 +1709,14 @@ function printReceipt() {
         .receipt-footer { text-align: center; font-size: 12px; color: #000; margin-top: 10px; border-top: 2px solid #000; padding-top: 8px; font-weight: bold; }
     </style></head><body>${content}</body></html>`);
     win.document.close();
-    setTimeout(() => { win.print(); win.close(); }, 500);
+    const imgs = win.document.querySelectorAll('img');
+    let loaded = 0;
+    const total = imgs.length;
+    if (total === 0) { setTimeout(() => { win.print(); win.close(); }, 300); return; }
+    imgs.forEach(img => {
+        if (img.complete) { loaded++; if (loaded === total) { setTimeout(() => { win.print(); win.close(); }, 200); } }
+        else { img.onload = img.onerror = function() { loaded++; if (loaded === total) { setTimeout(() => { win.print(); win.close(); }, 200); }; }; }
+    });
 }
 
 // ============ PAYMENT MODAL ============
