@@ -2184,43 +2184,42 @@ function exportPosData() {
 
 // ============ FINAL INVOICE / STATE OF ACCOUNT ============
 function showFinalInvoice(saleId) {
-    const sale = posSales.find(s => s.id === saleId);
+    const sale = posSales.find(s => String(s.id) === String(saleId));
     if (!sale) return;
     const ci = sale.creditInfo;
-    if (!ci) return;
-    const pagado = ci.payments ? ci.payments.reduce((s, p) => s + p.amount, 0) : 0;
-    const pendiente = sale.total - pagado;
-    const isPaid = pendiente <= 0;
-    const paymentsHtml = ci.payments && ci.payments.length > 0
-        ? ci.payments.map(p => '<div class="receipt-row" style="font-size:12px;"><span>' + shortDate(p.date) + '</span><span style="color:var(--success);font-weight:600;">' + formatPrice(p.amount) + '</span></div>').join('')
-        : '<div style="text-align:center;color:var(--text-muted);font-size:11px;padding:4px 0;">Sin pagos registrados</div>';
-    const progressBar = sale.total > 0 ? Math.round((pagado / sale.total) * 100) : 0;
-    const statusColor = isPaid ? 'var(--success)' : 'var(--warning)';
-    const statusLabel = isPaid ? 'CANCELADA' : 'PENDIENTE';
+    const isContado = !ci;
+    const pagado = isContado ? sale.total : (ci.payments ? ci.payments.reduce((s, p) => s + p.amount, 0) : 0);
+    const pendiente = isContado ? 0 : sale.total - pagado;
+    const isPaid = isContado || pendiente <= 0;
+    const paymentsHtml = isContado
+        ? '<div class="receipt-row" style="font-size:12px;"><span>' + shortDate(sale.date) + '</span><span style="color:var(--success);font-weight:600;">' + formatPrice(sale.total) + '</span></div>'
+        : (ci.payments && ci.payments.length > 0
+            ? ci.payments.map(p => '<div class="receipt-row" style="font-size:12px;"><span>' + shortDate(p.date) + '</span><span style="color:var(--success);font-weight:600;">' + formatPrice(p.amount) + '</span></div>').join('')
+            : '<div style="text-align:center;color:var(--text-muted);font-size:11px;padding:4px 0;">Sin pagos registrados</div>');
+    const statusColor = 'var(--success)';
+    const statusLabel = 'CANCELADA';
+    const methodLabel = isContado ? sale.method : (ci.tipo === 'abono' ? 'Abono libre' : 'Cuotas fijas (' + ci.totalCuotas + ')');
     document.getElementById('receiptContent').innerHTML = '' +
         '<div class="receipt">' +
             '<div class="receipt-header">' +
                 '<img src="Logo_Factura.png" style="max-width:160px;height:auto;margin-bottom:6px;" alt="Logo">' +
-                '<h4 style="font-size:15px;margin:2px 0;">ESTADO DE CUENTA</h4>' +
+                '<h4 style="font-size:15px;margin:2px 0;">FACTURA DE VENTA</h4>' +
                 '<p style="font-size:11px;margin:2px 0;">Factura #' + sale.id + '</p>' +
                 '<p style="font-size:11px;margin:2px 0;">' + new Date(sale.date).toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }) + '</p>' +
-                '<div style="margin:6px auto;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;display:inline-block;background:' + (isPaid ? '#f0fdf4' : '#fffbe6') + ';color:' + statusColor + ';border:1px solid ' + (isPaid ? '#bbf7d0' : '#fde68a') + ';">' + statusLabel + '</div>' +
+                '<div style="margin:6px auto;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;display:inline-block;background:#f0fdf4;color:var(--success);border:1px solid #bbf7d0;">' + statusLabel + '</div>' +
             '</div>' +
             '<div class="receipt-divider"></div>' +
             '<div class="receipt-row"><span>Cliente</span><span style="font-weight:600;">' + (sale.customer || 'Mostrador') + '</span></div>' +
             '<div class="receipt-row" style="font-size:12px;"><span>Metodo</span><span>' + sale.method + '</span></div>' +
-            '<div class="receipt-row" style="font-size:12px;"><span>Credito</span><span>' + (ci.tipo === 'abono' ? 'Abono libre' : 'Cuotas fijas (' + ci.totalCuotas + ')') + '</span></div>' +
+            '<div class="receipt-row" style="font-size:12px;"><span>Tipo</span><span>' + (isContado ? 'Contado' : methodLabel) + '</span></div>' +
             '<div class="receipt-divider"></div>' +
             '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Productos</div>' +
             sale.items.map(i => '<div class="receipt-row" style="font-size:12px;"><span>' + (i.name || 'Producto').substring(0,20) + ' x' + i.qty + '</span><span>' + formatPrice(i.price * i.qty) + '</span></div>').join('') +
             '<div class="receipt-divider"></div>' +
             '<div class="receipt-total"><span>TOTAL VENTA</span><span>' + formatPrice(sale.total) + '</span></div>' +
             '<div class="receipt-divider"></div>' +
-            '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Resumen de pagos</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Pago</div>' +
             '<div class="receipt-row" style="font-size:12px;"><span>Total pagado</span><span style="color:var(--success);font-weight:600;">' + formatPrice(pagado) + '</span></div>' +
-            '<div class="receipt-row" style="font-size:12px;' + (isPaid ? '' : 'color:var(--warning);font-weight:700;') + '"><span>Saldo pendiente</span><span>' + formatPrice(Math.max(0, pendiente)) + '</span></div>' +
-            '<div class="receipt-divider"></div>' +
-            '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Historial de pagos</div>' +
             paymentsHtml +
             '<div class="receipt-divider"></div>' +
             '<div class="receipt-footer">' +
