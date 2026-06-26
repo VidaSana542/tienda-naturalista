@@ -522,14 +522,15 @@ async function syncFromApi() {
             posSales = apiSales.map(s => {
                 const ci = s.credit_info || null;
                 if (ci) {
-                    const creditPayments = ci.payments || [];
-                    const tablePayments = (s.payments || [])
-                        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-                        .map(p => ({ date: p.created_at, amount: p.amount }));
-                    const newFromTable = tablePayments.filter(tp => {
-                        return !creditPayments.some(cp => cp.amount === tp.amount && Math.abs(new Date(cp.date) - new Date(tp.date)) < 60000);
-                    });
-                    ci.payments = [...creditPayments, ...newFromTable];
+                    if (ci.payments && ci.payments.length > 0) {
+                        // credit_info is the source of truth
+                    } else if (s.payments && s.payments.length > 0) {
+                        ci.payments = s.payments
+                            .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                            .map(p => ({ date: p.created_at, amount: p.amount }));
+                    } else {
+                        ci.payments = [];
+                    }
                 }
                 return {
                     id: s.id,

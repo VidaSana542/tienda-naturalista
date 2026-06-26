@@ -1653,7 +1653,7 @@ function confirmPayment() {
     saveSales();
     if (API.isAvailable) {
         const numericId = parseInt(String(sale.id).replace(/^p/i, ''));
-        API.addPayment(numericId, Math.round(amount), 'Pago registrado desde POS Por Fuera').catch(e => { console.error('[POS-FUERA] addPayment error:', e); });
+        API.addPayment(numericId, Math.round(amount), 'Pago registrado desde POS Por Fuera', payDateStr).catch(e => { console.error('[POS-FUERA] addPayment error:', e); });
         API.updateSale(numericId, { credit_info: sale.creditInfo }).catch(e => { console.error('[POS-FUERA] updateSale credit_info error:', e); });
     }
     closePaymentModal();
