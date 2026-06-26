@@ -888,6 +888,21 @@
 </div>
 
 <!-- Receipt Modal -->
+<div class="modal-overlay" id="closingDateModal" onclick="if(event.target===this)closeClosingDateModal()">
+    <div class="modal" style="max-width:360px;">
+        <button class="modal-close" onclick="closeClosingDateModal()">&times;</button>
+        <h3 style="margin-bottom:16px;">Seleccionar fecha del cierre</h3>
+        <div class="form-group">
+            <label>Fecha</label>
+            <input type="date" id="closingDateInput" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeClosingDateModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="confirmPrintClosing()">Imprimir Cierre</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay receipt-modal" id="receiptModal">
     <div class="modal">
         <button class="modal-close" onclick="closeReceipt()">&times;</button>

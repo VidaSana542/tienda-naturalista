@@ -2775,23 +2775,32 @@ function initCatFilter() {
 // ============ DAILY CLOSING ============
 function printDailyClosing() {
     const today = new Date().toISOString().split('T')[0];
-    const todaySales = posSales.filter(s => {
-        const saleDate = (s.date || s.created_at || '').split('T')[0];
-        return saleDate === today && !s.creditInfo?.merged;
-    });
-    if (todaySales.length === 0) { showToast('No hay ventas de hoy para imprimir'); return; }
+    document.getElementById('closingDateInput').value = today;
+    document.getElementById('closingDateModal').classList.add('open');
+}
+
+function closeClosingDateModal() {
+    document.getElementById('closingDateModal').classList.remove('open');
+}
+
+function confirmPrintClosing() {
+    const selectedDate = document.getElementById('closingDateInput').value;
+    if (!selectedDate) { showToast('Selecciona una fecha'); return; }
+    closeClosingDateModal();
     const scope = getPosScope();
-    const scopedSales = scope === 'fuera' ? todaySales.filter(s => s.ventaPorFuera) : todaySales.filter(s => !s.ventaPorFuera);
-    if (scopedSales.length === 0) { showToast('No hay ventas de hoy en este TPV'); return; }
-    let totalEfectivo = 0, totalTransferencia = 0, totalCredito = 0, totalGeneral = 0;
+    const scopedSales = posSales.filter(s => {
+        const saleDate = (s.date || s.created_at || '').split('T')[0];
+        const matchesDate = saleDate === selectedDate;
+        const matchesScope = scope === 'fuera' ? s.ventaPorFuera : !s.ventaPorFuera;
+        return matchesDate && matchesScope && !s.creditInfo?.merged;
+    });
+    if (scopedSales.length === 0) { showToast('No hay ventas para esa fecha'); return; }
+    let totalGeneral = 0;
     const methodTotals = {};
     scopedSales.forEach(s => {
         totalGeneral += s.total || 0;
         const mk = s.methodKey || s.method || 'Otro';
         methodTotals[mk] = (methodTotals[mk] || 0) + (s.total || 0);
-        if (mk === 'cash' || mk === 'Efectivo') totalEfectivo += s.total || 0;
-        else if (mk === 'transfer' || mk === 'Transferencia') totalTransferencia += s.total || 0;
-        else totalCredito += s.total || 0;
     });
     let itemsHtml = scopedSales.map(s => {
         const qty = (s.items || []).reduce((a, i) => a + i.qty, 0);
@@ -2801,12 +2810,13 @@ function printDailyClosing() {
     let methodsHtml = Object.entries(methodTotals).map(([k, v]) =>
         '<div class="receipt-row" style="font-size:12px;"><span>' + k + '</span><span style="font-weight:600;">' + formatPrice(v) + '</span></div>'
     ).join('');
+    const dateLabel = new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
     document.getElementById('receiptContent').innerHTML =
         '<div class="receipt">' +
             '<div class="receipt-header">' +
                 '<img src="Logo_Factura.png" style="max-width:160px;height:auto;margin-bottom:6px;" alt="Logo">' +
                 '<h4 style="font-size:15px;margin:2px 0;">CIERRE DEL DIA</h4>' +
-                '<p style="font-size:11px;margin:2px 0;">' + new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }) + '</p>' +
+                '<p style="font-size:11px;margin:2px 0;">' + dateLabel + '</p>' +
                 '<p style="font-size:11px;margin:2px 0;color:var(--text-muted);">' + (scope === 'fuera' ? 'TPV Por Fuera' : 'TPV Local') + '</p>' +
             '</div>' +
             '<div class="receipt-divider"></div>' +
