@@ -2548,17 +2548,19 @@ function saveEditPayment() {
     const newAmount = parseFloat(document.getElementById('paymentEditAmount').value);
     if (isNaN(newAmount) || newAmount < 0) { showToast('Monto invalido', 'error'); return; }
     const oldAmount = p.amount;
+    const newDateStr = newDate ? newDate + 'T12:00:00' : p.date;
+    const changed = oldAmount !== Math.round(newAmount) || p.date !== newDateStr;
     p.amount = Math.round(newAmount);
-    p.date = newDate ? newDate + 'T12:00:00' : p.date;
+    p.date = newDateStr;
     saveSales();
     if (API.isAvailable) {
         const numericId = parseInt(String(sale.id).replace(/^p/i, ''));
         API.updateSale(numericId, { credit_info: sale.creditInfo }).catch(e => {
             console.error('[POS] editPayment API update error:', e);
         });
-        if (oldAmount !== p.amount) {
+        if (changed) {
             API.deletePaymentBySaleAndAmount(numericId, oldAmount).then(() => {
-                return API.addPayment(numericId, p.amount, 'Editado desde POS');
+                return API.addPayment(numericId, p.amount, 'Editado desde POS', p.date);
             }).catch(e => {
                 console.error('[POS] editPayment payments table sync error:', e);
             });

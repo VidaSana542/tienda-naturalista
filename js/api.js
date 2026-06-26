@@ -382,13 +382,14 @@ const API = {
     return { message: 'Venta eliminada' };
   },
 
-  async addPayment(saleId, amount, note) {
+  async addPayment(saleId, amount, note, date) {
     const { data, error } = await _sb
       .from('payments')
       .insert({
         sale_id: saleId,
         amount: amount,
-        note: note || ''
+        note: note || '',
+        created_at: date || undefined
       })
       .select()
       .single();
