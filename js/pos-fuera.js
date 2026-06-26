@@ -1749,7 +1749,7 @@ function openPaymentModal(saleId) {
     html += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:700;color:var(--warning);"><span>Saldo pendiente</span><span>' + formatPrice(pending) + '</span></div>';
     html += '</div>';
     html += '<div class="form-group"><label>' + label + '</label><input type="number" id="paymentAmount" value="' + suggestedAmount + '" min="1" max="' + pending + '"></div>';
-    html += '<div class="form-group"><label style="font-size:12px;color:var(--text-muted);">Fecha del pago</label><input type="date" id="paymentDate" value="' + new Date().toISOString().split('T')[0] + '" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;"></div>';
+    html += '<div class="form-group"><label style="font-size:12px;color:var(--text-muted);">Fecha del pago</label><input type="date" id="paymentDate" value="' + todayLocal() + '" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;"></div>';
     if (ci.payments && ci.payments.length > 0) {
         html += '<div style="font-size:12px;color:var(--text-muted);margin-top:10px;"><strong>Pagos registrados:</strong></div>';
         ci.payments.forEach(p => {
@@ -1857,7 +1857,7 @@ function renderAccountStatus() {
 
 // ============ REGISTRAR COMPRA ANTIGUA ============
 function openOldPurchaseModal() {
-    document.getElementById('oldPurchaseDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('oldPurchaseDate').value = todayLocal();
     const sel = document.getElementById('oldPurchaseCustomer');
     sel.innerHTML = '<option value="">Seleccionar cliente existente...</option>' + filterCustomersByScope(posCustomers).map(c => '<option value="' + c.id + '">' + c.name + (c.phone ? ' - ' + c.phone : '') + '</option>').join('');
     sel.value = '';

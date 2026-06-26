@@ -7,7 +7,7 @@ function saveCashHistory() { localStorage.setItem('cashHistory_' + cashDateStr()
 function addCashHistoryEntry(type, description, amount) {
     const balance = availableCash();
     cashHistory.unshift({
-        timestamp: new Date().toISOString(),
+        timestamp: nowLocal(),
         type: type,
         description: description,
         amount: amount,

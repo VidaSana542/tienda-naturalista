@@ -708,6 +708,15 @@ function addInvLog(productId, productName, type, quantity, previousStock, newSto
 
 // ============ UTILS ============
 function formatPrice(n) { return '$' + Math.round(n).toLocaleString('es-CO'); }
+function nowLocal() {
+    const d = new Date();
+    const offset = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - offset * 60000);
+    return local.toISOString().replace('Z', '');
+}
+function todayLocal() {
+    return nowLocal().split('T')[0];
+}
 function today() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 function now() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + 'T' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0'); }
 function formatDate(d) { const dt = new Date(d); return dt.toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); }
@@ -1228,7 +1237,7 @@ function openAccountEditModal(cId) {
                 const saleId = this.dataset.saleId;
                 const sale = posSales.find(s => String(s.id) === saleId);
                 if (!sale) return;
-                sale.payments = [{ date: new Date().toISOString(), amount: sale.total }];
+                sale.payments = [{ date: nowLocal(), amount: sale.total }];
                 sale.method = 'Efectivo';
                 sale.creditInfo = null;
                 const apiId = sale.id && sale.id < 100000 ? sale.id : null;
@@ -1294,7 +1303,7 @@ function saveAccountEdit() {
         const currentPaid = sale.payments.reduce((s, p) => s + (p.amount || 0), 0);
         if (status === 'pagada') {
             if (currentPaid < sale.total) {
-                sale.payments.push({ date: new Date().toISOString(), amount: sale.total - currentPaid });
+                sale.payments.push({ date: nowLocal(), amount: sale.total - currentPaid });
             }
             if (sale.method === 'Credito') sale.method = 'Efectivo';
             sale.creditInfo = null;
@@ -1304,7 +1313,7 @@ function saveAccountEdit() {
             sale.creditInfo = { tipo: 'fijo', totalCuotas: 1, cuotaValor: sale.total, pagadas: 0, payments: [], balance: sale.total };
         } else if (status === 'abonada') {
             if (currentPaid <= 0) {
-                sale.payments = [{ date: new Date().toISOString(), amount: Math.round(sale.total * 0.5) }];
+                sale.payments = [{ date: nowLocal(), amount: Math.round(sale.total * 0.5) }];
             }
             sale.method = 'Credito';
             sale.creditInfo = { tipo: 'abono', totalCuotas: 0, cuotaValor: 0, pagadas: 0, payments: sale.payments.map(p => ({date: p.date, amount: p.amount})), balance: sale.total };
@@ -1364,7 +1373,7 @@ function openSaleEditModal(saleId) {
     }
     const markBtn = document.getElementById('saleEditMarkPaidBtn');
     markBtn.onclick = function() {
-        sale.payments = [{ date: new Date().toISOString(), amount: sale.total }];
+        sale.payments = [{ date: nowLocal(), amount: sale.total }];
         sale.method = 'Efectivo';
         sale.creditInfo = null;
         const apiId = sale.id && sale.id < 100000 ? sale.id : null;
@@ -1460,7 +1469,7 @@ function saveSaleEdit() {
     const currentPaid = sale.payments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
     if (status === 'pagada') {
         if (currentPaid < sale.total) {
-            sale.payments.push({ date: new Date().toISOString(), amount: sale.total - currentPaid });
+            sale.payments.push({ date: nowLocal(), amount: sale.total - currentPaid });
         }
         if (sale.method === 'Credito') sale.method = 'Efectivo';
         sale.creditInfo = null;
@@ -1470,7 +1479,7 @@ function saveSaleEdit() {
         sale.creditInfo = { tipo: 'fijo', totalCuotas: 1, cuotaValor: sale.total, pagadas: 0, payments: [], balance: sale.total };
     } else if (status === 'abonada') {
         const abonoAmount = parseFloat(document.getElementById('saleEditAbonoAmount')?.value) || Math.round(sale.total * 0.5);
-        sale.payments = [{ date: new Date().toISOString(), amount: Math.min(abonoAmount, sale.total) }];
+        sale.payments = [{ date: nowLocal(), amount: Math.min(abonoAmount, sale.total) }];
         sale.method = 'Credito';
         sale.creditInfo = { tipo: 'abono', totalCuotas: 0, cuotaValor: 0, pagadas: 0, payments: sale.payments.map(p => ({date: p.date, amount: p.amount})), balance: sale.total };
     }
@@ -2452,8 +2461,8 @@ async function mergeSelectedSales() {
                 mergedFrom: mergedFromIds
             },
             ventaPorFuera: sales[0].ventaPorFuera || false,
-            date: new Date().toISOString(),
-            created_at: new Date().toISOString(),
+            date: nowLocal(),
+            created_at: nowLocal(),
             status: 'completada'
         };
 
@@ -2543,7 +2552,7 @@ function editSalePayment(saleId, paymentIdx) {
     const p = sale.creditInfo.payments[paymentIdx];
     document.getElementById('paymentEditSaleId').value = saleId;
     document.getElementById('paymentEditIdx').value = paymentIdx;
-    document.getElementById('paymentEditDate').value = p.date ? p.date.split('T')[0] : new Date().toISOString().split('T')[0];
+    document.getElementById('paymentEditDate').value = p.date ? p.date.split('T')[0] : todayLocal();
     document.getElementById('paymentEditAmount').value = p.amount || '';
     document.getElementById('paymentEditModal').classList.add('open');
 }
@@ -2774,7 +2783,7 @@ function initCatFilter() {
 
 // ============ DAILY CLOSING ============
 function printDailyClosing() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocal();
     document.getElementById('closingDateInput').value = today;
     document.getElementById('closingDateModal').classList.add('open');
 }
