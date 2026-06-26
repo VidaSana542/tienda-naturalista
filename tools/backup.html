@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Copia de Seguridad - Vida Sana</title>
+<link rel="icon" href="../icon-192.png">
+<script src="auth.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:system-ui,-apple-system,sans-serif; background:#0a0a0a; color:#e0e0e0; min-height:100vh; }
+  .container { max-width:700px; margin:0 auto; padding:32px 24px; }
+  h1 { font-size:28px; margin-bottom:8px; }
+  .subtitle { color:#888; margin-bottom:32px; }
+  .back-link { display:inline-block; margin-bottom:24px; color:#6366f1; text-decoration:none; font-size:14px; }
+  .back-link:hover { text-decoration:underline; }
+  .card { background:#1a1a2e; border:1px solid #222; border-radius:12px; padding:24px; margin-bottom:16px; }
+  .card h2 { font-size:18px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .card h2 svg { width:20px; height:20px; fill:#6366f1; }
+  .card p { font-size:13px; color:#888; margin-bottom:16px; line-height:1.5; }
+  .btn { padding:10px 24px; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:8px; }
+  .btn-primary { background:#6366f1; color:#fff; }
+  .btn-primary:hover { background:#5558e6; }
+  .btn-primary:disabled { background:#475569; cursor:not-allowed; }
+  .btn-success { background:#22c55e; color:#fff; }
+  .btn-success:hover { background:#16a34a; }
+  .btn-danger { background:#ef4444; color:#fff; }
+  .btn-danger:hover { background:#dc2626; }
+  .btn-outline { background:transparent; color:#e0e0e0; border:1px solid #333; }
+  .btn-outline:hover { border-color:#6366f1; color:#6366f1; }
+  .progress { display:none; margin-top:16px; }
+  .progress-bar { height:6px; background:#1e293b; border-radius:3px; overflow:hidden; }
+  .progress-fill { height:100%; background:#6366f1; border-radius:3px; transition:width .3s; width:0; }
+  .progress-text { font-size:12px; color:#888; margin-top:8px; }
+  #log { background:#1e293b; padding:12px; border-radius:8px; margin-top:16px; max-height:300px; overflow-y:auto; font-size:12px; font-family:monospace; white-space:pre-wrap; line-height:1.6; display:none; }
+  .ok { color:#22c55e; }
+  .warn { color:#f59e0b; }
+  .err { color:#ef4444; }
+  .info { color:#38bdf8; }
+  .stats { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
+  .stat { background:#0d0d1a; border:1px solid #222; border-radius:8px; padding:14px; text-align:center; }
+  .stat-value { font-size:28px; font-weight:700; color:#6366f1; }
+  .stat-label { font-size:12px; color:#888; margin-top:4px; }
+  .table-list { margin-top:12px; }
+  .table-row { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; border-bottom:1px solid #1e293b; font-size:13px; }
+  .table-row:last-child { border-bottom:none; }
+  .table-name { color:#e0e0e0; }
+  .table-count { color:#6366f1; font-weight:600; }
+  .table-size { color:#888; font-size:11px; margin-left:12px; }
+  .actions { display:flex; gap:12px; flex-wrap:wrap; margin-top:16px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="index.html" class="back-link">&larr; Volver a Herramientas</a>
+  <h1>Copia de Seguridad</h1>
+  <p class="subtitle">Exportar e importar todos los datos del sistema</p>
+
+  <!-- Export -->
+  <div class="card">
+    <h2>
+      <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+      Exportar Backup
+    </h2>
+    <p>Descarga un archivo JSON con todos los datos de Supabase y localStorage.</p>
+    <div id="exportStats" class="stats" style="display:none;">
+      <div class="stat"><div class="stat-value" id="statTables">0</div><div class="stat-label">Tablas</div></div>
+      <div class="stat"><div class="stat-value" id="statRows">0</div><div class="stat-label">Registros</div></div>
+      <div class="stat"><div class="stat-value" id="statSize">0</div><div class="stat-label">Tamano</div></div>
+      <div class="stat"><div class="stat-value" id="statDate">-</div><div class="stat-label">Fecha</div></div>
+    </div>
+    <button class="btn btn-primary" id="exportBtn" onclick="startExport()">
+      <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+      Crear Backup
+    </button>
+    <div class="progress" id="exportProgress">
+      <div class="progress-bar"><div class="progress-fill" id="exportFill"></div></div>
+      <div class="progress-text" id="exportText">Exportando...</div>
+    </div>
+    <div id="log"></div>
+  </div>
+
+  <!-- Import -->
+  <div class="card">
+    <h2>
+      <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+      Importar Backup
+    </h2>
+    <p>Sube un archivo JSON de backup para restaurar los datos. Se crean nuevos registros (no sobreescribe existentes).</p>
+    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="handleImportFile(event)">
+    <div class="actions">
+      <button class="btn btn-outline" onclick="document.getElementById('importFile').click()">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+        Seleccionar Archivo
+      </button>
+    </div>
+    <div class="progress" id="importProgress">
+      <div class="progress-bar"><div class="progress-fill" id="importFill"></div></div>
+      <div class="progress-text" id="importText">Importando...</div>
+    </div>
+  </div>
+
+  <!-- Quick LocalStorage Export -->
+  <div class="card">
+    <h2>
+      <svg viewBox="0 0 24 24"><path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/></svg>
+      Solo LocalStorage
+    </h2>
+    <p>Exporta solo los datos del navegador (sin consultar Supabase). Rapido pero incompleto.</p>
+    <button class="btn btn-outline" onclick="exportLocalStorage()">
+      <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+      Descargar LocalStorage
+    </button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const _SUPABASE_URL = 'https://jcksqhqopqhswwxskhls.supabase.co';
+const _SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja3NxaHFvcHFoc3d3eHNraGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTIzNjksImV4cCI6MjA5NjQ4ODM2OX0.1hnEgbk9--eedO1Tw9L0p6NKtHkz9h9NENEFiFJjbj0';
+const sb = window.supabase.createClient(_SUPABASE_URL, _SUPABASE_KEY);
+
+const TABLES = [
+  'customers', 'sales', 'sale_items', 'payments',
+  'products', 'salidas', 'salida_items',
+  'inventory_log', 'lab_orders', 'cash_history'
+];
+
+const logEl = document.getElementById('log');
+function log(msg, cls = '') {
+  logEl.style.display = 'block';
+  logEl.innerHTML += `<span class="${cls}">${msg}</span>\n`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+// ============ EXPORT ============
+async function startExport() {
+  const btn = document.getElementById('exportBtn');
+  btn.disabled = true;
+  btn.textContent = 'Exportando...';
+  const progress = document.getElementById('exportProgress');
+  const fill = document.getElementById('exportFill');
+  const text = document.getElementById('exportText');
+  progress.style.display = 'block';
+  logEl.innerHTML = '';
+  log('Iniciando backup...', 'info');
+
+  const backup = { version: 1, createdAt: new Date().toISOString(), supabase: {}, localStorage: {} };
+  let totalRows = 0;
+
+  for (let i = 0; i < TABLES.length; i++) {
+    const t = TABLES[i];
+    const pct = Math.round(((i) / TABLES.length) * 100);
+    fill.style.width = pct + '%';
+    text.textContent = `Exportando ${t}... (${i + 1}/${TABLES.length})`;
+    try {
+      const { data, error } = await sb.from(t).select('*').order('id', { ascending: true });
+      if (error) { log(`  ${t}: error - ${error.message}`, 'err'); continue; }
+      backup.supabase[t] = data || [];
+      totalRows += (data || []).length;
+      log(`  ${t}: ${(data || []).length} registros`, 'ok');
+    } catch (e) {
+      log(`  ${t}: excepcion - ${e.message}`, 'err');
+    }
+  }
+
+  // LocalStorage
+  fill.style.width = '90%';
+  text.textContent = 'Exportando localStorage...';
+  const lsKeys = ['posSales_local', 'posSales_fuera', 'posProducts', 'posCustomers',
+    'posSuppliers', 'posCashLocal', 'posCashFuera', 'posSalidas_local', 'posSalidas_fuera',
+    'posCart_local', 'posCart_fuera', 'invLog', 'labOrders'];
+  for (const k of lsKeys) {
+    const v = localStorage.getItem(k);
+    if (v) { backup.localStorage[k] = JSON.parse(v); }
+  }
+  log(`  localStorage: ${Object.keys(backup.localStorage).length} claves`, 'ok');
+
+  fill.style.width = '100%';
+  text.textContent = 'Generando archivo...';
+
+  const json = JSON.stringify(backup, null, 2);
+  const sizeMB = (json.length / 1024 / 1024).toFixed(2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().split('T')[0];
+  a.href = url;
+  a.download = `backup-vidasana-${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  // Stats
+  document.getElementById('exportStats').style.display = 'grid';
+  document.getElementById('statTables').textContent = Object.keys(backup.supabase).length;
+  document.getElementById('statRows').textContent = totalRows;
+  document.getElementById('statSize').textContent = sizeMB + ' MB';
+  document.getElementById('statDate').textContent = date;
+
+  log(`\nBackup completado: ${sizeMB} MB, ${totalRows} registros`, 'ok');
+  btn.disabled = false;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg> Crear Backup';
+}
+
+// ============ IMPORT ============
+async function handleImportFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const text = await file.text();
+  let backup;
+  try { backup = JSON.parse(text); } catch (e) { alert('Archivo JSON invalido'); return; }
+  if (!backup.supabase) { alert('Formato de backup no reconocido'); return; }
+
+  const progress = document.getElementById('importProgress');
+  const fill = document.getElementById('importFill');
+  const textEl = document.getElementById('importText');
+  progress.style.display = 'block';
+  logEl.innerHTML = '';
+  log('Iniciando importacion...', 'info');
+  log(`Backup creado: ${backup.createdAt || 'desconocido'}`, 'info');
+
+  const tables = Object.keys(backup.supabase);
+  let imported = 0;
+
+  for (let i = 0; i < tables.length; i++) {
+    const t = tables[i];
+    const rows = backup.supabase[t];
+    if (!rows || rows.length === 0) continue;
+    const pct = Math.round(((i) / tables.length) * 100);
+    fill.style.width = pct + '%';
+    textEl.textContent = `Importando ${t}... (${i + 1}/${tables.length})`;
+    try {
+      // Remove 'id' column to let Supabase auto-generate, avoid conflicts
+      const clean = rows.map(r => {
+        const c = { ...r };
+        delete c.id;
+        return c;
+      });
+      const { error } = await sb.from(t).insert(clean);
+      if (error) { log(`  ${t}: error - ${error.message}`, 'err'); continue; }
+      imported += rows.length;
+      log(`  ${t}: ${rows.length} registros importados`, 'ok');
+    } catch (e) {
+      log(`  ${t}: excepcion - ${e.message}`, 'err');
+    }
+  }
+
+  // Import localStorage
+  if (backup.localStorage) {
+    fill.style.width = '90%';
+    textEl.textContent = 'Importando localStorage...';
+    for (const [k, v] of Object.entries(backup.localStorage)) {
+      localStorage.setItem(k, JSON.stringify(v));
+      log(`  ls:${k} restaurado`, 'ok');
+    }
+  }
+
+  fill.style.width = '100%';
+  textEl.textContent = 'Completado';
+  log(`\nImportacion completada: ${imported} registros`, 'ok');
+  log('Recarga la pagina del POS para ver los cambios.', 'warn');
+  event.target.value = '';
+}
+
+// ============ LOCAL STORAGE ONLY ============
+function exportLocalStorage() {
+  const data = {};
+  const keys = ['posSales_local', 'posSales_fuera', 'posProducts', 'posCustomers',
+    'posSuppliers', 'posCashLocal', 'posCashFuera', 'posSalidas_local', 'posSalidas_fuera',
+    'posCart_local', 'posCart_fuera', 'invLog', 'labOrders'];
+  for (const k of keys) {
+    const v = localStorage.getItem(k);
+    if (v) data[k] = JSON.parse(v);
+  }
+  const json = JSON.stringify({ version: 1, createdAt: new Date().toISOString(), localStorage: data }, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `backup-local-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
