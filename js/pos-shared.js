@@ -2772,6 +2772,63 @@ function initCatFilter() {
     mergeDuplicateSubcats();
 }
 
+// ============ DAILY CLOSING ============
+function printDailyClosing() {
+    const today = new Date().toISOString().split('T')[0];
+    const todaySales = posSales.filter(s => {
+        const saleDate = (s.date || s.created_at || '').split('T')[0];
+        return saleDate === today && !s.creditInfo?.merged;
+    });
+    if (todaySales.length === 0) { showToast('No hay ventas de hoy para imprimir'); return; }
+    const scope = getPosScope();
+    const scopedSales = scope === 'fuera' ? todaySales.filter(s => s.ventaPorFuera) : todaySales.filter(s => !s.ventaPorFuera);
+    if (scopedSales.length === 0) { showToast('No hay ventas de hoy en este TPV'); return; }
+    let totalEfectivo = 0, totalTransferencia = 0, totalCredito = 0, totalGeneral = 0;
+    const methodTotals = {};
+    scopedSales.forEach(s => {
+        totalGeneral += s.total || 0;
+        const mk = s.methodKey || s.method || 'Otro';
+        methodTotals[mk] = (methodTotals[mk] || 0) + (s.total || 0);
+        if (mk === 'cash' || mk === 'Efectivo') totalEfectivo += s.total || 0;
+        else if (mk === 'transfer' || mk === 'Transferencia') totalTransferencia += s.total || 0;
+        else totalCredito += s.total || 0;
+    });
+    let itemsHtml = scopedSales.map(s => {
+        const qty = (s.items || []).reduce((a, i) => a + i.qty, 0);
+        const cli = s.customer || 'Mostrador';
+        return '<div class="receipt-row" style="font-size:12px;"><span>#' + s.id + ' ' + cli + ' (' + qty + 'p)</span><span style="font-weight:600;">' + formatPrice(s.total) + '</span></div>';
+    }).join('');
+    let methodsHtml = Object.entries(methodTotals).map(([k, v]) =>
+        '<div class="receipt-row" style="font-size:12px;"><span>' + k + '</span><span style="font-weight:600;">' + formatPrice(v) + '</span></div>'
+    ).join('');
+    document.getElementById('receiptContent').innerHTML =
+        '<div class="receipt">' +
+            '<div class="receipt-header">' +
+                '<img src="Logo_Factura.png" style="max-width:160px;height:auto;margin-bottom:6px;" alt="Logo">' +
+                '<h4 style="font-size:15px;margin:2px 0;">CIERRE DEL DIA</h4>' +
+                '<p style="font-size:11px;margin:2px 0;">' + new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' }) + '</p>' +
+                '<p style="font-size:11px;margin:2px 0;color:var(--text-muted);">' + (scope === 'fuera' ? 'TPV Por Fuera' : 'TPV Local') + '</p>' +
+            '</div>' +
+            '<div class="receipt-divider"></div>' +
+            '<div class="receipt-row" style="font-weight:700;"><span>Total vendido</span><span>' + formatPrice(totalGeneral) + '</span></div>' +
+            '<div class="receipt-row" style="font-size:12px;"><span>Cantidad de ventas</span><span>' + scopedSales.length + '</span></div>' +
+            '<div class="receipt-divider"></div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Por metodo de pago</div>' +
+            methodsHtml +
+            '<div class="receipt-divider"></div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Detalle de ventas</div>' +
+            itemsHtml +
+            '<div class="receipt-divider"></div>' +
+            '<div class="receipt-footer">' +
+                '<p>Cierre generado el ' + new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }) + '</p>' +
+            '</div>' +
+        '</div>';
+    document.getElementById('receiptModal').classList.add('open');
+    const btnInv = document.getElementById('btnDownloadInv');
+    if (btnInv) btnInv.style.display = 'none';
+    setTimeout(() => { window.print(); }, 400);
+}
+
 // ============ LAB ORDERS ============
 function saveLabOrders() {
     localStorage.setItem('labOrders', JSON.stringify(labOrders));
