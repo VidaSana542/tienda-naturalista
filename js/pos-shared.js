@@ -960,6 +960,11 @@ function saveProduct() {
     const subcategory = document.getElementById('prodSubcategory').value;
 
     if (!name) { showToast('Nombre requerido'); return; }
+    const normalizedBrand = brand ? brand.trim().replace(/\s+/g, ' ') : '';
+    if (normalizedBrand && normalizedBrand !== brand) {
+        const lc = normalizedBrand.toLowerCase();
+        posProducts.forEach(p => { if (p.brand && p.brand.toLowerCase() === lc) p.brand = normalizedBrand; });
+    }
     const images = _prodImages.length > 0 ? _prodImages : undefined;
     const finalImg = _prodMainImg || img || (images && images.length > 0 ? images[0] : '');
 
@@ -970,14 +975,14 @@ function saveProduct() {
                 if (!confirm('Estas a punto de quitar la subcategoria "' + (POS_CATEGORIES.find(c => c.key === p.subcategory)?.label || p.subcategory) + '" del producto. Continuar?')) { closeProductModal(); return; }
             }
             const prevStock = p.stock;
-            Object.assign(p, { name, catalogName, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, visible, subcategory });
+            Object.assign(p, { name, catalogName, barcode, brand: normalizedBrand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, visible, subcategory });
             if (stock !== prevStock) {
                 const diff = stock - prevStock;
                 addInvLog(p.id, p.name, diff > 0 ? 'entrada' : 'salida', diff, prevStock, stock, 'Ajuste manual desde productos', null, getPosScope() === 'fuera');
             }
         }
     } else {
-        posProducts.push({ id: 'p' + posNextProductId++, name, catalogName, barcode, brand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, visible, subcategory, _synced: false });
+        posProducts.push({ id: 'p' + posNextProductId++, name, catalogName, barcode, brand: normalizedBrand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, visible, subcategory, _synced: false });
     }
     saveProducts();
     closeProductModal();
