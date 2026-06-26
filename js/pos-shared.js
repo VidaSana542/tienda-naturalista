@@ -2565,7 +2565,7 @@ function closeEditPaymentModal() {
 }
 
 function deleteSalePayment(saleId, paymentIdx) {
-    const sale = posSales.find(s => s.id === saleId);
+    const sale = posSales.find(s => String(s.id) === String(saleId));
     if (!sale || !sale.creditInfo || !sale.creditInfo.payments || !sale.creditInfo.payments[paymentIdx]) return;
     const p = sale.creditInfo.payments[paymentIdx];
     if (!confirm('Eliminar pago de ' + formatPrice(p.amount) + ' del ' + shortDate(p.date) + '?')) return;
