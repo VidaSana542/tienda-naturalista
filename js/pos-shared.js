@@ -2531,23 +2531,37 @@ function editSalePayment(saleId, paymentIdx) {
     const sale = posSales.find(s => s.id === saleId);
     if (!sale || !sale.creditInfo || !sale.creditInfo.payments || !sale.creditInfo.payments[paymentIdx]) return;
     const p = sale.creditInfo.payments[paymentIdx];
-    const currentDate = p.date ? p.date.split('T')[0] : new Date().toISOString().split('T')[0];
-    const newDate = prompt('Fecha del pago (YYYY-MM-DD):', currentDate);
-    if (newDate === null) return;
-    const newAmount = prompt('Monto del pago:', p.amount);
-    if (newAmount === null) return;
-    const parsed = parseFloat(newAmount);
-    if (isNaN(parsed) || parsed < 0) { showToast('Monto invalido', 'error'); return; }
-    p.amount = parsed;
-    p.date = newDate.includes('T') ? newDate : newDate + 'T12:00:00';
+    document.getElementById('paymentEditSaleId').value = saleId;
+    document.getElementById('paymentEditIdx').value = paymentIdx;
+    document.getElementById('paymentEditDate').value = p.date ? p.date.split('T')[0] : new Date().toISOString().split('T')[0];
+    document.getElementById('paymentEditAmount').value = p.amount || '';
+    document.getElementById('paymentEditModal').classList.add('open');
+}
+
+function saveEditPayment() {
+    const saleId = document.getElementById('paymentEditSaleId').value;
+    const idx = parseInt(document.getElementById('paymentEditIdx').value);
+    const sale = posSales.find(s => String(s.id) === String(saleId));
+    if (!sale || !sale.creditInfo || !sale.creditInfo.payments || !sale.creditInfo.payments[idx]) return;
+    const p = sale.creditInfo.payments[idx];
+    const newDate = document.getElementById('paymentEditDate').value;
+    const newAmount = parseFloat(document.getElementById('paymentEditAmount').value);
+    if (isNaN(newAmount) || newAmount < 0) { showToast('Monto invalido', 'error'); return; }
+    p.amount = Math.round(newAmount);
+    p.date = newDate ? newDate + 'T12:00:00' : p.date;
     saveSales();
     if (API.isAvailable && sale.apiSynced) {
         API.updateSale(sale.id, { credit_info: sale.creditInfo }).catch(e => {});
     }
+    closeEditPaymentModal();
     if (_custHistoryCustomerId) showCustomerHistory(_custHistoryCustomerId);
     renderAccountStatus();
     renderCustomerTable();
     showToast('Pago actualizado');
+}
+
+function closeEditPaymentModal() {
+    document.getElementById('paymentEditModal').classList.remove('open');
 }
 
 function deleteSalePayment(saleId, paymentIdx) {

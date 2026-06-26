@@ -1119,6 +1119,28 @@
     </div>
 </div>
 
+<!-- Edit Payment Modal -->
+<div class="modal-overlay" id="paymentEditModal" onclick="if(event.target===this)closeEditPaymentModal()">
+    <div class="modal">
+        <button class="modal-close" onclick="closeEditPaymentModal()">&times;</button>
+        <h3>Editar Pago</h3>
+        <input type="hidden" id="paymentEditSaleId">
+        <input type="hidden" id="paymentEditIdx">
+        <div class="form-group">
+            <label>Fecha</label>
+            <input type="date" id="paymentEditDate" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;">
+        </div>
+        <div class="form-group">
+            <label>Monto</label>
+            <input type="number" id="paymentEditAmount" min="0" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeEditPaymentModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="saveEditPayment()">Guardar</button>
+        </div>
+    </div>
+</div>
+
 <!-- Checkout Modal -->
 <div class="modal-overlay checkout-modal" id="checkoutModal">
     <div class="modal">
