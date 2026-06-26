@@ -2526,11 +2526,15 @@ function editSalePayment(saleId, paymentIdx) {
     const sale = posSales.find(s => s.id === saleId);
     if (!sale || !sale.creditInfo || !sale.creditInfo.payments || !sale.creditInfo.payments[paymentIdx]) return;
     const p = sale.creditInfo.payments[paymentIdx];
-    const newAmount = prompt('Editar monto del pago:', p.amount);
+    const currentDate = p.date ? p.date.split('T')[0] : new Date().toISOString().split('T')[0];
+    const newDate = prompt('Fecha del pago (YYYY-MM-DD):', currentDate);
+    if (newDate === null) return;
+    const newAmount = prompt('Monto del pago:', p.amount);
     if (newAmount === null) return;
     const parsed = parseFloat(newAmount);
     if (isNaN(parsed) || parsed < 0) { showToast('Monto invalido', 'error'); return; }
     p.amount = parsed;
+    p.date = newDate.includes('T') ? newDate : newDate + 'T12:00:00';
     saveSales();
     if (API.isAvailable && sale.apiSynced) {
         API.updateSale(sale.id, { credit_info: sale.creditInfo }).catch(e => {});
