@@ -1188,7 +1188,10 @@ function openAccountEditModal(cId) {
                 else if (paid > 0) currentStatus = 'abonada';
                 return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--bg-alt);">' +
                     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
-                        '<span style="font-size:12px;color:var(--text-muted);">' + dateStr + ' &mdash; #' + s.id + '</span>' +
+                        '<div style="display:flex;align-items:center;gap:6px;">' +
+                            '<input type="date" class="acct-edit-sale-date" data-sale-id="' + s.id + '" value="' + (s.date || s.created_at || '').split('T')[0] + '" style="padding:3px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;">' +
+                            '<span style="font-size:12px;color:var(--text-muted);">#' + s.id + '</span>' +
+                        '</div>' +
                         '<span style="font-size:13px;font-weight:600;" id="acct-sale-total-' + s.id + '">' + formatPrice(saleTotal) + '</span>' +
                     '</div>' +
                     itemsHtml +
@@ -1265,6 +1268,11 @@ function saveAccountEdit() {
         }
     });
     posSales.filter(s => s.customerId === cId && !s.creditInfo?.merged).forEach(s => {
+        const dateInput = document.querySelector('.acct-edit-sale-date[data-sale-id="' + s.id + '"]');
+        if (dateInput && dateInput.value) {
+            const newDate = dateInput.value + 'T12:00:00';
+            if (newDate !== s.date) s.date = newDate;
+        }
         if (s.items && s.items.length > 0) {
             s.total = s.items.reduce((sum, it) => sum + ((parseFloat(it.price) || 0) * (parseInt(it.qty) || 0)), 0);
         } else {
@@ -1272,7 +1280,7 @@ function saveAccountEdit() {
         }
         const apiId = s.id && s.id < 100000 ? s.id : null;
         if (apiId && API.isAvailable) {
-            API.updateSale(apiId, { total: s.total }).catch(e => {});
+            API.updateSale(apiId, { total: s.total, date: s.date }).catch(e => {});
             if (s.items && s.items.length > 0) {
                 API.updateSaleItems(apiId, s.items).catch(e => {});
             }
@@ -1303,7 +1311,7 @@ function saveAccountEdit() {
         }
         const apiId = sale.id && sale.id < 100000 ? sale.id : null;
         if (apiId && API.isAvailable) {
-            API.updateSale(apiId, { method: sale.method, credit_info: sale.creditInfo, total: sale.total }).catch(e => {});
+            API.updateSale(apiId, { method: sale.method, credit_info: sale.creditInfo, total: sale.total, date: sale.date }).catch(e => {});
         }
         sale.apiSynced = true;
     });
