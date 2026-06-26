@@ -2547,18 +2547,22 @@ function saveEditPayment() {
     const newDate = document.getElementById('paymentEditDate').value;
     const newAmount = parseFloat(document.getElementById('paymentEditAmount').value);
     if (isNaN(newAmount) || newAmount < 0) { showToast('Monto invalido', 'error'); return; }
+    const oldAmount = p.amount;
     p.amount = Math.round(newAmount);
     p.date = newDate ? newDate + 'T12:00:00' : p.date;
     saveSales();
     if (API.isAvailable) {
-        const apiId = sale.apiId || sale.id;
-        API.updateSale(apiId, { credit_info: sale.creditInfo }).then(() => {
-            console.log('[POS] credit_info updated in API for sale', apiId);
-        }).catch(e => {
+        const numericId = parseInt(String(sale.id).replace(/^p/i, ''));
+        API.updateSale(numericId, { credit_info: sale.creditInfo }).catch(e => {
             console.error('[POS] editPayment API update error:', e);
-            sale.apiSynced = false;
-            saveSales();
         });
+        if (oldAmount !== p.amount) {
+            API.deletePaymentBySaleAndAmount(numericId, oldAmount).then(() => {
+                return API.addPayment(numericId, p.amount, 'Editado desde POS');
+            }).catch(e => {
+                console.error('[POS] editPayment payments table sync error:', e);
+            });
+        }
     }
     closeEditPaymentModal();
     if (_custHistoryCustomerId) showCustomerHistory(_custHistoryCustomerId);
@@ -2576,6 +2580,7 @@ function deleteSalePayment(saleId, paymentIdx) {
     if (!sale || !sale.creditInfo || !sale.creditInfo.payments || !sale.creditInfo.payments[paymentIdx]) return;
     const p = sale.creditInfo.payments[paymentIdx];
     if (!confirm('Eliminar pago de ' + formatPrice(p.amount) + ' del ' + shortDate(p.date) + '?')) return;
+    const deletedAmount = p.amount;
     sale.creditInfo.payments.splice(paymentIdx, 1);
     if (sale.creditInfo.tipo === 'abono') {
         const totalPagado = sale.creditInfo.payments.reduce((sp, pay) => sp + pay.amount, 0);
@@ -2585,13 +2590,14 @@ function deleteSalePayment(saleId, paymentIdx) {
     }
     saveSales();
     if (API.isAvailable) {
-        const apiId = sale.apiId || sale.id;
-        API.updateSale(apiId, { credit_info: sale.creditInfo }).then(() => {
-            console.log('[POS] credit_info updated in API for sale', apiId);
-        }).catch(e => {
+        const numericId = parseInt(String(sale.id).replace(/^p/i, ''));
+        API.updateSale(numericId, { credit_info: sale.creditInfo }).catch(e => {
             console.error('[POS] deletePayment API update error:', e);
-            sale.apiSynced = false;
-            saveSales();
+        });
+        API.deletePaymentBySaleAndAmount(numericId, deletedAmount).then(() => {
+            console.log('[POS] Payment deleted from payments table');
+        }).catch(e => {
+            console.error('[POS] deletePayment from payments table error:', e);
         });
     }
     if (_custHistoryCustomerId) showCustomerHistory(_custHistoryCustomerId);

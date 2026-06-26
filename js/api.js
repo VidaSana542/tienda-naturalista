@@ -397,6 +397,35 @@ const API = {
     return data;
   },
 
+  async deletePaymentBySaleAndAmount(saleId, amount) {
+    const { error } = await _sb
+      .from('payments')
+      .delete()
+      .eq('sale_id', saleId)
+      .eq('amount', amount);
+    if (error) throw error;
+  },
+
+  async clearSalePayments(saleId) {
+    const { error } = await _sb
+      .from('payments')
+      .delete()
+      .eq('sale_id', saleId);
+    if (error) throw error;
+  },
+
+  async reinsertSalePayments(saleId, payments) {
+    if (!payments || payments.length === 0) return;
+    const rows = payments.map(p => ({
+      sale_id: saleId,
+      amount: p.amount,
+      note: 'Re-sincronizado desde POS',
+      created_at: p.date || undefined
+    }));
+    const { error } = await _sb.from('payments').insert(rows);
+    if (error) throw error;
+  },
+
   // ---- Inventario ----
   async getInventoryLog(limit, scope) {
     let query = _sb
