@@ -3424,8 +3424,43 @@ async function executeMergeLabs() {
     showToast(count + ' productos unidos bajo "' + newName + '"');
 }
 
+// ---- Lab Prompt/Confirm Modals ----
+let _labPromptResolve = null;
+function labPrompt(title, msg, defaultValue) {
+    return new Promise(resolve => {
+        _labPromptResolve = resolve;
+        document.getElementById('labPromptTitle').textContent = title;
+        document.getElementById('labPromptMsg').textContent = msg;
+        const input = document.getElementById('labPromptInput');
+        input.value = defaultValue || '';
+        input.placeholder = msg;
+        document.getElementById('labPromptModal').classList.add('open');
+        setTimeout(() => input.focus(), 100);
+    });
+}
+function closeLabPrompt(submit) {
+    document.getElementById('labPromptModal').classList.remove('open');
+    const val = document.getElementById('labPromptInput').value;
+    if (_labPromptResolve) { _labPromptResolve(submit ? val : null); _labPromptResolve = null; }
+}
+
+let _labConfirmResolve = null;
+function labConfirm(title, msg, okText) {
+    return new Promise(resolve => {
+        _labConfirmResolve = resolve;
+        document.getElementById('labConfirmTitle').textContent = title;
+        document.getElementById('labConfirmMsg').textContent = msg;
+        if (okText) document.getElementById('labConfirmOkBtn').textContent = okText;
+        document.getElementById('labConfirmModal').classList.add('open');
+    });
+}
+function closeLabConfirm(ok) {
+    document.getElementById('labConfirmModal').classList.remove('open');
+    if (_labConfirmResolve) { _labConfirmResolve(ok); _labConfirmResolve = null; }
+}
+
 async function createNewLab() {
-    const name = prompt('Nombre del nuevo laboratorio:');
+    const name = await labPrompt('Nuevo Laboratorio', 'Nombre del nuevo laboratorio:');
     if (!name || !name.trim()) return;
     const trimmed = name.trim();
     const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase()) || posLabs.some(l => l.name.toLowerCase() === trimmed.toLowerCase());
@@ -3442,7 +3477,7 @@ async function createNewLab() {
 }
 
 async function renameLab(oldName) {
-    const newName = prompt('Nuevo nombre para "' + oldName + '":', oldName);
+    const newName = await labPrompt('Renombrar Laboratorio', 'Nuevo nombre para "' + oldName + '":', oldName);
     if (!newName || !newName.trim() || newName.trim() === oldName) return;
     const trimmed = newName.trim();
     const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase() && (p.brand || '').trim().toLowerCase() !== oldName.toLowerCase()) || posLabs.some(l => l.name.toLowerCase() === trimmed.toLowerCase() && l.name.toLowerCase() !== oldName.toLowerCase());
@@ -3480,7 +3515,8 @@ async function renameLab(oldName) {
 }
 
 async function deleteLab(name) {
-    if (!confirm('Eliminar laboratorio "' + name + '"?\nSe quitara la marca de todos sus productos.')) return;
+    const confirmed = await labConfirm('Eliminar Laboratorio', 'Eliminar laboratorio "' + name + '"?\nSe quitara la marca de todos sus productos.', 'Eliminar');
+    if (!confirmed) return;
     let count = 0;
     const changed = [];
     posProducts.forEach(p => {
