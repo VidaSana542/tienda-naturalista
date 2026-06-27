@@ -296,6 +296,7 @@ let labOrders = [];
 let nextLabOrderId = 1;
 let supplierExpenses = [];
 let nextSupplierExpenseId = 1;
+let posLabs = [];
 
 let cashBase = 0;
 let cashExpenses = [];
@@ -311,6 +312,7 @@ function loadData() {
         posSuppliers = JSON.parse(localStorage.getItem('posSuppliers')) || [];
         labOrders = JSON.parse(localStorage.getItem('labOrders')) || [];
         supplierExpenses = JSON.parse(localStorage.getItem('supplierExpenses')) || [];
+        posLabs = JSON.parse(localStorage.getItem('posLabs')) || [];
         const savedCats = JSON.parse(localStorage.getItem('posCategories'));
         if (savedCats && savedCats.length > 0) POS_CATEGORIES = savedCats;
     } catch(e) {}
@@ -2888,6 +2890,10 @@ function getUniqueBrands() {
         const b = (p.brand || '').trim();
         if (b) brands[b] = (brands[b] || 0) + 1;
     });
+    posLabs.forEach(l => {
+        const key = l.trim();
+        if (key && !brands[key]) brands[key] = 0;
+    });
     return Object.entries(brands).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count }));
 }
 
@@ -3230,10 +3236,14 @@ function renderLabsList() {
         if (!brands[key]) brands[key] = { name: b, canonical: b, total: 0, low: 0, out: 0, variants: {} };
         brands[key].total++;
         brands[key].variants[b] = (brands[key].variants[b] || 0) + 1;
-        // Keep the most common casing as canonical
         if (brands[key].variants[b] > (brands[key].variants[brands[key].canonical] || 0)) brands[key].canonical = b;
         if (p.stock <= 0) brands[key].out++;
         else if (p.stock <= 5) brands[key].low++;
+    });
+    posLabs.forEach(l => {
+        const key = l.toLowerCase().trim();
+        if (!key || brands[key]) return;
+        brands[key] = { name: l.trim(), canonical: l.trim(), total: 0, low: 0, out: 0, variants: {} };
     });
     let list = Object.values(brands).sort((a, b) => a.canonical.localeCompare(b.canonical));
     if (q) list = list.filter(l => l.canonical.toLowerCase().includes(q));
@@ -3354,6 +3364,8 @@ function executeMergeLabs() {
         });
     }
     closeMergeLabsModal();
+    posLabs = posLabs.filter(l => !selected.some(s => s.toLowerCase() === l.toLowerCase()));
+    localStorage.setItem('posLabs', JSON.stringify(posLabs));
     renderLabsList();
     showToast(count + ' productos unidos bajo "' + newName + '"');
 }
@@ -3362,7 +3374,7 @@ function createNewLab() {
     const name = prompt('Nombre del nuevo laboratorio:');
     if (!name || !name.trim()) return;
     const trimmed = name.trim();
-    const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase());
+    const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase()) || posLabs.some(l => l.toLowerCase() === trimmed.toLowerCase());
     if (exists) { showToast('Ya existe un laboratorio con ese nombre', 'error'); return; }
     const count = parseInt(prompt('Cuantos productos quieres asignar a "' + trimmed + '"? (0 para crear vacio)', '0')) || 0;
     if (count > 0) {
@@ -3371,6 +3383,9 @@ function createNewLab() {
         const selectProds = prods.slice(0, count);
         selectProds.forEach(p => { p.brand = trimmed; });
         saveProducts();
+    } else {
+        posLabs.push(trimmed);
+        localStorage.setItem('posLabs', JSON.stringify(posLabs));
     }
     showToast('Laboratorio "' + trimmed + '" creado');
     renderLabsList();
@@ -3380,7 +3395,7 @@ function renameLab(oldName) {
     const newName = prompt('Nuevo nombre para "' + oldName + '":', oldName);
     if (!newName || !newName.trim() || newName.trim() === oldName) return;
     const trimmed = newName.trim();
-    const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase() && (p.brand || '').trim().toLowerCase() !== oldName.toLowerCase());
+    const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase() && (p.brand || '').trim().toLowerCase() !== oldName.toLowerCase()) || posLabs.some(l => l.toLowerCase() === trimmed.toLowerCase() && l.toLowerCase() !== oldName.toLowerCase());
     if (exists) { showToast('Ya existe un laboratorio con ese nombre', 'error'); return; }
     let count = 0;
     const changed = [];
@@ -3391,6 +3406,8 @@ function renameLab(oldName) {
             changed.push(p);
         }
     });
+    const labIdx = posLabs.findIndex(l => l.toLowerCase() === oldName.toLowerCase());
+    if (labIdx !== -1) { posLabs[labIdx] = trimmed; localStorage.setItem('posLabs', JSON.stringify(posLabs)); }
     saveProducts();
     if (API.isAvailable && changed.length > 0) {
         changed.forEach(p => {
@@ -3433,6 +3450,8 @@ function deleteLab(name) {
         });
     }
     showToast(count + ' productos quedaron sin laboratorio');
+    posLabs = posLabs.filter(l => l.toLowerCase() !== name.toLowerCase());
+    localStorage.setItem('posLabs', JSON.stringify(posLabs));
     renderLabsList();
 }
 
