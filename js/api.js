@@ -790,5 +790,36 @@ const API = {
     const { error } = await _sb.from('supplier_expenses').delete().eq('id', id);
     if (error) throw error;
     return { success: true };
+  },
+
+  // ---- Laboratorios ----
+  async getLabs() {
+    const { data, error } = await _sb.from('labs').select('*').order('name');
+    if (error) throw error;
+    return data || [];
+  },
+
+  async saveLab(name) {
+    const { data, error } = await _sb.from('labs').insert({ name }).select().single();
+    if (error) throw error;
+    return data;
+  },
+
+  async updateLab(id, name) {
+    const { error } = await _sb.from('labs').update({ name }).eq('id', id);
+    if (error) throw error;
+    return { success: true };
+  },
+
+  async deleteLab(id) {
+    const { error } = await _sb.from('labs').delete().eq('id', id);
+    if (error) throw error;
+    return { success: true };
+  },
+
+  async clearLabs() {
+    const { error } = await _sb.from('labs').delete().neq('id', 0);
+    if (error) throw error;
+    return { success: true };
   }
 };

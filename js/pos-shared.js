@@ -684,6 +684,14 @@ async function syncFromApi() {
                 localStorage.setItem('supplierExpenses', JSON.stringify(supplierExpenses));
             }
         } catch(e) {}
+        // Sync labs from API - always replace with DB data
+        try {
+            const apiLabs = await API.getLabs();
+            if (apiLabs) {
+                posLabs = apiLabs.map(l => ({ id: l.id, name: l.name }));
+                localStorage.setItem('posLabs', JSON.stringify(posLabs));
+            }
+        } catch(e) {}
         saveProducts();
         saveCustomers();
     } catch (e) {
@@ -2891,7 +2899,7 @@ function getUniqueBrands() {
         if (b) brands[b] = (brands[b] || 0) + 1;
     });
     posLabs.forEach(l => {
-        const key = l.trim();
+        const key = (l.name || '').trim();
         if (key && !brands[key]) brands[key] = 0;
     });
     return Object.entries(brands).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count }));
@@ -3241,9 +3249,9 @@ function renderLabsList() {
         else if (p.stock <= 5) brands[key].low++;
     });
     posLabs.forEach(l => {
-        const key = l.toLowerCase().trim();
+        const key = l.name.toLowerCase().trim();
         if (!key || brands[key]) return;
-        brands[key] = { name: l.trim(), canonical: l.trim(), total: 0, low: 0, out: 0, variants: {} };
+        brands[key] = { name: l.name.trim(), canonical: l.name.trim(), total: 0, low: 0, out: 0, variants: {} };
     });
     let list = Object.values(brands).sort((a, b) => a.canonical.localeCompare(b.canonical));
     if (q) list = list.filter(l => l.canonical.toLowerCase().includes(q));
@@ -3364,29 +3372,36 @@ function executeMergeLabs() {
         });
     }
     closeMergeLabsModal();
-    posLabs = posLabs.filter(l => !selected.some(s => s.toLowerCase() === l.toLowerCase()));
+    const mergedLabs = posLabs.filter(l => selected.some(s => s.toLowerCase() === l.name.toLowerCase()) && l.id);
+    mergedLabs.forEach(l => API.deleteLab(l.id).catch(e => console.error('merge labs api error:', e)));
+    posLabs = posLabs.filter(l => !selected.some(s => s.toLowerCase() === l.name.toLowerCase()));
     localStorage.setItem('posLabs', JSON.stringify(posLabs));
     renderLabsList();
     showToast(count + ' productos unidos bajo "' + newName + '"');
 }
 
-function createNewLab() {
+async function createNewLab() {
     const name = prompt('Nombre del nuevo laboratorio:');
     if (!name || !name.trim()) return;
     const trimmed = name.trim();
-    const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase()) || posLabs.some(l => l.toLowerCase() === trimmed.toLowerCase());
+    const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase()) || posLabs.some(l => l.name.toLowerCase() === trimmed.toLowerCase());
     if (exists) { showToast('Ya existe un laboratorio con ese nombre', 'error'); return; }
-    posLabs.push(trimmed);
+    try {
+        const lab = await API.saveLab(trimmed);
+        posLabs.push({ id: lab.id, name: trimmed });
+    } catch(e) {
+        posLabs.push({ id: Date.now(), name: trimmed });
+    }
     localStorage.setItem('posLabs', JSON.stringify(posLabs));
     showToast('Laboratorio "' + trimmed + '" creado');
     renderLabsList();
 }
 
-function renameLab(oldName) {
+async function renameLab(oldName) {
     const newName = prompt('Nuevo nombre para "' + oldName + '":', oldName);
     if (!newName || !newName.trim() || newName.trim() === oldName) return;
     const trimmed = newName.trim();
-    const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase() && (p.brand || '').trim().toLowerCase() !== oldName.toLowerCase()) || posLabs.some(l => l.toLowerCase() === trimmed.toLowerCase() && l.toLowerCase() !== oldName.toLowerCase());
+    const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase() && (p.brand || '').trim().toLowerCase() !== oldName.toLowerCase()) || posLabs.some(l => l.name.toLowerCase() === trimmed.toLowerCase() && l.name.toLowerCase() !== oldName.toLowerCase());
     if (exists) { showToast('Ya existe un laboratorio con ese nombre', 'error'); return; }
     let count = 0;
     const changed = [];
@@ -3397,8 +3412,12 @@ function renameLab(oldName) {
             changed.push(p);
         }
     });
-    const labIdx = posLabs.findIndex(l => l.toLowerCase() === oldName.toLowerCase());
-    if (labIdx !== -1) { posLabs[labIdx] = trimmed; localStorage.setItem('posLabs', JSON.stringify(posLabs)); }
+    const lab = posLabs.find(l => l.name.toLowerCase() === oldName.toLowerCase());
+    if (lab) {
+        lab.name = trimmed;
+        localStorage.setItem('posLabs', JSON.stringify(posLabs));
+        if (lab.id) API.updateLab(lab.id, trimmed).catch(e => console.error('rename lab api error:', e));
+    }
     saveProducts();
     if (API.isAvailable && changed.length > 0) {
         changed.forEach(p => {
@@ -3416,7 +3435,7 @@ function renameLab(oldName) {
     renderLabsList();
 }
 
-function deleteLab(name) {
+async function deleteLab(name) {
     if (!confirm('Eliminar laboratorio "' + name + '"?\nSe quitara la marca de todos sus productos.')) return;
     let count = 0;
     const changed = [];
@@ -3441,7 +3460,9 @@ function deleteLab(name) {
         });
     }
     showToast(count + ' productos quedaron sin laboratorio');
-    posLabs = posLabs.filter(l => l.toLowerCase() !== name.toLowerCase());
+    const lab = posLabs.find(l => l.name.toLowerCase() === name.toLowerCase());
+    if (lab && lab.id) API.deleteLab(lab.id).catch(e => console.error('delete lab api error:', e));
+    posLabs = posLabs.filter(l => l.name.toLowerCase() !== name.toLowerCase());
     localStorage.setItem('posLabs', JSON.stringify(posLabs));
     renderLabsList();
 }

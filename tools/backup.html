@@ -123,7 +123,7 @@ const sb = window.supabase.createClient(_SUPABASE_URL, _SUPABASE_KEY);
 const TABLES = [
   'customers', 'sales', 'sale_items', 'payments',
   'products', 'salidas', 'salida_items',
-  'inventory_log', 'lab_orders', 'supplier_expenses', 'cash_history'
+  'inventory_log', 'lab_orders', 'supplier_expenses', 'labs', 'cash_history'
 ];
 
 const logEl = document.getElementById('log');
@@ -169,7 +169,7 @@ async function startExport() {
   text.textContent = 'Exportando localStorage...';
   const lsKeys = ['posSales_local', 'posSales_fuera', 'posProducts', 'posCustomers',
     'posSuppliers', 'posCashLocal', 'posCashFuera', 'posSalidas_local', 'posSalidas_fuera',
-    'posCart_local', 'posCart_fuera', 'invLog', 'labOrders'];
+    'posCart_local', 'posCart_fuera', 'invLog', 'labOrders', 'posLabs'];
   for (const k of lsKeys) {
     const v = localStorage.getItem(k);
     if (v) { backup.localStorage[k] = JSON.parse(v); }
@@ -267,7 +267,7 @@ function exportLocalStorage() {
   const data = {};
   const keys = ['posSales_local', 'posSales_fuera', 'posProducts', 'posCustomers',
     'posSuppliers', 'posCashLocal', 'posCashFuera', 'posSalidas_local', 'posSalidas_fuera',
-    'posCart_local', 'posCart_fuera', 'invLog', 'labOrders'];
+    'posCart_local', 'posCart_fuera', 'invLog', 'labOrders', 'posLabs'];
   for (const k of keys) {
     const v = localStorage.getItem(k);
     if (v) data[k] = JSON.parse(v);
