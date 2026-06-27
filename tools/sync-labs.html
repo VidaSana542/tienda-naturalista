@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sincronizar Laboratorios</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; color: #333; padding: 20px; }
+  .container { max-width: 600px; margin: 0 auto; }
+  h1 { font-size: 20px; margin-bottom: 20px; }
+  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 15px; margin-bottom: 12px; color: #555; }
+  #log { background: #1a1a2e; color: #0f0; font-family: monospace; font-size: 12px; padding: 12px; border-radius: 6px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; min-height: 100px; }
+  .btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 600; margin-right: 8px; margin-bottom: 8px; }
+  .btn-primary { background: #0b513b; color: #fff; }
+  .btn-primary:hover { background: #09432f; }
+  .btn-danger { background: #dc3545; color: #fff; }
+  .btn-danger:hover { background: #c82333; }
+  .btn-secondary { background: #6c757d; color: #fff; }
+  .btn-secondary:hover { background: #5a6268; }
+  .status { padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; }
+  .status-ok { background: #d4edda; color: #155724; }
+  .status-err { background: #f8d7da; color: #721c24; }
+  .status-wait { background: #fff3cd; color: #856404; }
+  a { color: #0b513b; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="container">
+  <h1>Sincronizar Laboratorios a Supabase</h1>
+  <div class="card">
+    <h2>Conexion</h2>
+    <div id="connStatus" class="status status-wait">Conectando...</div>
+    <div style="margin-bottom:8px;">
+      <strong>Labs en localStorage:</strong> <span id="localCount">-</span>
+    </div>
+    <div style="margin-bottom:12px;">
+      <strong>Labs en Supabase:</strong> <span id="remoteCount">-</span>
+    </div>
+    <div>
+      <button class="btn btn-primary" onclick="syncLocalToRemote()">Subir locales a Supabase</button>
+      <button class="btn btn-secondary" onclick="loadRemote()">Recargar desde Supabase</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Log</h2>
+    <div id="log">Esperando accion...</div>
+  </div>
+  <p style="margin-top:12px;font-size:12px;color:#999;"><a href="index.html">← Volver</a></p>
+</div>
+
+<script>
+const _SUPABASE_URL = 'https://jcksqhqopqhswwxskhls.supabase.co';
+const _SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja3NxaHFvcHFoc3d3eHNraGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTIzNjksImV4cCI6MjA5NjQ4ODM2OX0.1hnEgbk9--eedO1Tw9L0p6NKtHkz9h9NENEFiFJjbj0';
+
+let _sb = null;
+const logEl = document.getElementById('log');
+const connStatus = document.getElementById('connStatus');
+const localCountEl = document.getElementById('localCount');
+const remoteCountEl = document.getElementById('remoteCount');
+
+function log(msg, cls) {
+  logEl.textContent += '[' + new Date().toLocaleTimeString() + '] ' + msg + '\n';
+  logEl.scrollTop = logEl.scrollHeight;
+  if (cls === 'ok') connStatus.className = 'status status-ok';
+  if (cls === 'err') connStatus.className = 'status status-err';
+  connStatus.textContent = msg;
+}
+
+(async function init() {
+  try {
+    _sb = window.supabase.createClient(_SUPABASE_URL, _SUPABASE_KEY);
+    const { error } = await _sb.from('labs').select('id').limit(1);
+    if (error) throw error;
+    log('Conectado a Supabase OK', 'ok');
+  } catch(e) {
+    log('Error de conexion: ' + e.message + ' - Asegurate de haber creado la tabla labs', 'err');
+    return;
+  }
+  await loadCounts();
+})();
+
+async function loadCounts() {
+  const local = JSON.parse(localStorage.getItem('posLabs')) || [];
+  localCountEl.textContent = local.length + (local.length > 0 ? ': ' + local.map(l => l.name || l).join(', ') : '');
+  try {
+    const { data } = await _sb.from('labs').select('id, name');
+    remoteCountEl.textContent = (data || []).length + (data && data.length > 0 ? ': ' + data.map(l => l.name).join(', ') : '');
+  } catch(e) {
+    remoteCountEl.textContent = 'Error: ' + e.message;
+  }
+}
+
+async function syncLocalToRemote() {
+  const local = JSON.parse(localStorage.getItem('posLabs')) || [];
+  if (local.length === 0) { log('No hay labs locales para subir', 'err'); return; }
+  log('Subiendo ' + local.length + ' labs...');
+  let ok = 0, fail = 0;
+  for (const l of local) {
+    const name = (l.name || l).trim();
+    if (!name) continue;
+    try {
+      const { data: existing } = await _sb.from('labs').select('id').eq('name', name).maybeSingle();
+      if (existing) {
+        log('  SKIP (ya existe): ' + name);
+        ok++;
+        continue;
+      }
+      const { data, error } = await _sb.from('labs').insert({ name }).select().single();
+      if (error) throw error;
+      log('  OK: ' + name + ' (id=' + data.id + ')');
+      ok++;
+    } catch(e) {
+      log('  FAIL: ' + name + ' - ' + e.message);
+      fail++;
+    }
+  }
+  log('Listo: ' + ok + ' subidos, ' + fail + ' fallos', fail > 0 ? 'err' : 'ok');
+  await loadCounts();
+}
+
+async function loadRemote() {
+  try {
+    const { data, error } = await _sb.from('labs').select('*').order('name');
+    if (error) throw error;
+    const labs = (data || []).map(l => ({ id: l.id, name: l.name }));
+    localStorage.setItem('posLabs', JSON.stringify(labs));
+    log('Recargados ' + labs.length + ' labs desde Supabase al localStorage', 'ok');
+    await loadCounts();
+  } catch(e) {
+    log('Error: ' + e.message, 'err');
+  }
+}
+</script>
+</body>
+</html>
