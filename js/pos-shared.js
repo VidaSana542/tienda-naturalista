@@ -820,7 +820,7 @@ function renderProductTable() {
     }).join('');
 }
 
-function openProductModal(id) {
+async function openProductModal(id) {
     const modal = document.getElementById('productModal');
     document.getElementById('prodEditId').value = id || '';
     document.getElementById('prodModalTitle').textContent = id ? 'Editar Producto' : 'Nuevo Producto';
@@ -835,7 +835,7 @@ function openProductModal(id) {
     suppSelect.innerHTML = '<option value="">Sin proveedor</option>' + posSuppliers.map(s => '<option value="' + s.id + '">' + s.name + '</option>').join('');
     // Populate lab select
     const labSelect = document.getElementById('prodBrand');
-    const brands = getUniqueBrands();
+    const brands = await getUniqueBrands();
     labSelect.innerHTML = '<option value="">Sin laboratorio</option>' + brands.map(b => '<option value="' + b.name + '">' + b.name + ' (' + b.count + ')</option>').join('');
     _prodMainImg = '';
     document.getElementById('prodMainPreview').style.display = 'none';
@@ -1034,6 +1034,13 @@ function saveProduct() {
         posProducts.push({ id: 'p' + posNextProductId++, name, catalogName, barcode, brand: normalizedBrand, category, price, cost, stock, img: finalImg, images, desc, supplier, featured, visible, subcategory, _synced: false });
     }
     saveProducts();
+    // Auto-create lab in DB if new brand
+    if (normalizedBrand && !posLabs.some(l => l.name.toLowerCase() === normalizedBrand.toLowerCase())) {
+        API.saveLab(normalizedBrand).then(lab => {
+            posLabs.push({ id: lab.id, name: normalizedBrand });
+            localStorage.setItem('posLabs', JSON.stringify(posLabs));
+        }).catch(() => {});
+    }
     closeProductModal();
     renderProductTable();
     if (typeof renderInventory === 'function') renderInventory();
@@ -2892,7 +2899,12 @@ function saveLabOrders() {
     localStorage.setItem('labOrders', JSON.stringify(labOrders));
 }
 
-function getUniqueBrands() {
+async function getUniqueBrands() {
+    try {
+        const apiLabs = await API.getLabs();
+        posLabs = apiLabs.map(l => ({ id: l.id, name: l.name }));
+        localStorage.setItem('posLabs', JSON.stringify(posLabs));
+    } catch(e) {}
     const brands = {};
     posProducts.forEach(p => {
         const b = (p.brand || '').trim();
@@ -2929,9 +2941,9 @@ function renderLabOrders() {
     }).join('');
 }
 
-function filterLabOrderLabs() {
+async function filterLabOrderLabs() {
     const q = document.getElementById('labOrderLabSearch').value.toLowerCase().trim();
-    const brands = getUniqueBrands();
+    const brands = await getUniqueBrands();
     const filtered = q ? brands.filter(b => b.name.toLowerCase().includes(q)) : brands;
     const dd = document.getElementById('labOrderLabDropdown');
     if (filtered.length === 0) {
@@ -2991,15 +3003,14 @@ function closeLabOrderViewModal() {
 
 let _editingLabOrderId = null;
 
-function editLabOrder(orderId) {
+async function editLabOrder(orderId) {
     const order = labOrders.find(o => String(o.id) === String(orderId));
     if (!order) return;
     _editingLabOrderId = orderId;
-    const brands = getUniqueBrands();
+    const brands = await getUniqueBrands();
     const searchEl = document.getElementById('labOrderLabSearch');
     const selectEl = document.getElementById('labOrderLabSelect');
     searchEl.value = order.lab;
-    selectEl.value = order.lab;
     document.getElementById('labOrderNotes').value = order.notes || '';
     document.getElementById('newLabOrderModal').classList.add('open');
     document.querySelector('#newLabOrderModal .modal-header h3').textContent = 'Editar Pedido';
@@ -3231,29 +3242,35 @@ function switchProdTab(tab) {
     else renderProductTable();
 }
 
-function renderLabsList() {
+async function renderLabsList() {
     const tbody = document.getElementById('labsListBody');
     if (!tbody) return;
     const q = document.getElementById('labSearch') ? document.getElementById('labSearch').value.toLowerCase().trim() : '';
-    // Group brands case-insensitively
-    const brands = {};
+    // Fetch labs from API (source of truth)
+    try {
+        const apiLabs = await API.getLabs();
+        posLabs = apiLabs.map(l => ({ id: l.id, name: l.name }));
+        localStorage.setItem('posLabs', JSON.stringify(posLabs));
+    } catch(e) {}
+    // Count products per lab from posProducts
+    const productCounts = {};
     posProducts.forEach(p => {
         const b = (p.brand || '').trim();
         if (!b) return;
         const key = b.toLowerCase();
-        if (!brands[key]) brands[key] = { name: b, canonical: b, total: 0, low: 0, out: 0, variants: {} };
-        brands[key].total++;
-        brands[key].variants[b] = (brands[key].variants[b] || 0) + 1;
-        if (brands[key].variants[b] > (brands[key].variants[brands[key].canonical] || 0)) brands[key].canonical = b;
-        if (p.stock <= 0) brands[key].out++;
-        else if (p.stock <= 5) brands[key].low++;
+        if (!productCounts[key]) productCounts[key] = { total: 0, low: 0, out: 0, variants: {} };
+        productCounts[key].total++;
+        productCounts[key].variants[b] = (productCounts[key].variants[b] || 0) + 1;
+        if (p.stock <= 0) productCounts[key].out++;
+        else if (p.stock <= 5) productCounts[key].low++;
     });
-    posLabs.forEach(l => {
-        const key = l.name.toLowerCase().trim();
-        if (!key || brands[key]) return;
-        brands[key] = { name: l.name.trim(), canonical: l.name.trim(), total: 0, low: 0, out: 0, variants: {} };
+    // Build list from DB labs only
+    let list = posLabs.map(l => {
+        const key = l.name.toLowerCase();
+        const pc = productCounts[key] || { total: 0, low: 0, out: 0, variants: {} };
+        return { id: l.id, name: l.name, canonical: l.name, total: pc.total, low: pc.low, out: pc.out, variants: pc.variants };
     });
-    let list = Object.values(brands).sort((a, b) => a.canonical.localeCompare(b.canonical));
+    list.sort((a, b) => a.canonical.localeCompare(b.canonical));
     if (q) list = list.filter(l => l.canonical.toLowerCase().includes(q));
     if (list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:30px;">No hay laboratorios creados. Crea uno con "+ Nuevo Laboratorio"</td></tr>';
@@ -3305,15 +3322,11 @@ function mergeLabVariants(canonical) {
 }
 
 function mergeLabs() {
-    const brands = {};
-    posProducts.forEach(p => {
-        const b = (p.brand || '').trim();
-        if (!b) return;
-        const key = b.toLowerCase();
-        if (!brands[key]) brands[key] = { name: b, count: 0 };
-        brands[key].count++;
-    });
-    const list = Object.values(brands).sort((a, b) => a.name.localeCompare(b.name));
+    const list = posLabs.map(l => {
+        const key = l.name.toLowerCase();
+        const count = posProducts.filter(p => (p.brand || '').trim().toLowerCase() === key).length;
+        return { name: l.name, count, id: l.id };
+    }).sort((a, b) => a.name.localeCompare(b.name));
     if (list.length < 2) { showToast('Necesitas al menos 2 laboratorios para unir', 'error'); return; }
     const tbody = document.getElementById('mergeLabsList');
     tbody.innerHTML = '<div style="padding:8px;border-bottom:1px solid var(--border);"><input type="text" id="mergeLabsSearchInput" placeholder="Buscar laboratorio..." oninput="filterMergeLabsList()" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;"></div>' +
@@ -3473,7 +3486,7 @@ function viewLabProducts(brand) {
     if (searchEl) { searchEl.value = brand; renderProductTable(); }
 }
 
-function assignProductToLab(productId) {
+async function assignProductToLab(productId) {
     const prod = posProducts.find(p => String(p.id) === String(productId));
     if (!prod) return;
     const current = (prod.brand || '').trim();
@@ -3481,8 +3494,17 @@ function assignProductToLab(productId) {
     const list = brands.map(b => b.name).join(', ');
     const name = prompt('Asignar laboratorio a "' + prod.name + '"\n\nLaboratorios existentes: ' + (list || 'Ninguno') + '\n\nEscribe el nombre del laboratorio:', current);
     if (!name || name.trim() === current) return;
-    prod.brand = name.trim();
+    const newName = name.trim();
+    prod.brand = newName;
     saveProducts();
+    // Ensure lab exists in DB
+    if (newName && !posLabs.some(l => l.name.toLowerCase() === newName.toLowerCase())) {
+        try {
+            const lab = await API.saveLab(newName);
+            posLabs.push({ id: lab.id, name: newName });
+            localStorage.setItem('posLabs', JSON.stringify(posLabs));
+        } catch(e) {}
+    }
     if (API.isAvailable) {
         const apiId = prod.id && prod.id.startsWith('p') ? parseInt(prod.id.replace('p','')) : null;
         if (apiId) {
@@ -3493,6 +3515,10 @@ function assignProductToLab(productId) {
                 description: prod.desc || '', featured: prod.featured || false, visible: prod.visible !== false
             }).catch(e => console.error('assign lab save error:', e));
         }
+    }
+    renderProductTable();
+    showToast('"' + prod.name + '" asignado a "' + prod.brand + '"');
+}
     }
     renderProductTable();
     showToast('"' + prod.name + '" asignado a "' + prod.brand + '"');
