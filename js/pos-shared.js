@@ -3519,10 +3519,6 @@ async function assignProductToLab(productId) {
     renderProductTable();
     showToast('"' + prod.name + '" asignado a "' + prod.brand + '"');
 }
-    }
-    renderProductTable();
-    showToast('"' + prod.name + '" asignado a "' + prod.brand + '"');
-}
 async function refreshSystem() {
     const btn = document.getElementById('refreshBtn');
     if (btn) { btn.disabled = true; btn.textContent = '...'; }
