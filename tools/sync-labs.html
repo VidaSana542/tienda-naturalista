@@ -82,9 +82,24 @@ function log(msg, cls) {
   await loadCounts();
 })();
 
+function getLocalBrands() {
+  const brands = {};
+  const products = JSON.parse(localStorage.getItem('posProducts')) || [];
+  products.forEach(p => {
+    const b = (p.brand || '').trim();
+    if (b) brands[b.toLowerCase()] = b;
+  });
+  const labs = JSON.parse(localStorage.getItem('posLabs')) || [];
+  labs.forEach(l => {
+    const name = (l.name || l || '').trim();
+    if (name) brands[name.toLowerCase()] = name;
+  });
+  return Object.values(brands).sort();
+}
+
 async function loadCounts() {
-  const local = JSON.parse(localStorage.getItem('posLabs')) || [];
-  localCountEl.textContent = local.length + (local.length > 0 ? ': ' + local.map(l => l.name || l).join(', ') : '');
+  const local = getLocalBrands();
+  localCountEl.textContent = local.length + (local.length > 0 ? ': ' + local.join(', ') : '');
   try {
     const { data } = await _sb.from('labs').select('id, name');
     remoteCountEl.textContent = (data || []).length + (data && data.length > 0 ? ': ' + data.map(l => l.name).join(', ') : '');
@@ -94,13 +109,11 @@ async function loadCounts() {
 }
 
 async function syncLocalToRemote() {
-  const local = JSON.parse(localStorage.getItem('posLabs')) || [];
-  if (local.length === 0) { log('No hay labs locales para subir', 'err'); return; }
-  log('Subiendo ' + local.length + ' labs...');
+  const local = getLocalBrands();
+  if (local.length === 0) { log('No hay marcas/labs locales para subir', 'err'); return; }
+  log('Subiendo ' + local.length + ' marcas como labs...');
   let ok = 0, fail = 0;
-  for (const l of local) {
-    const name = (l.name || l).trim();
-    if (!name) continue;
+  for (const name of local) {
     try {
       const { data: existing } = await _sb.from('labs').select('id').eq('name', name).maybeSingle();
       if (existing) {
