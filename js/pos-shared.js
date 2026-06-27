@@ -833,10 +833,8 @@ async function openProductModal(id) {
     catSelect.onchange = updateSubcatSelect;
     const suppSelect = document.getElementById('prodSupplier');
     suppSelect.innerHTML = '<option value="">Sin proveedor</option>' + posSuppliers.map(s => '<option value="' + s.id + '">' + s.name + '</option>').join('');
-    // Populate lab select
-    const labSelect = document.getElementById('prodBrand');
-    const brands = await getUniqueBrands();
-    labSelect.innerHTML = '<option value="">Sin laboratorio</option>' + brands.map(b => '<option value="' + b.name + '">' + b.name + ' (' + b.count + ')</option>').join('');
+    // Setup lab autocomplete
+    setupProdBrandAutocomplete();
     _prodMainImg = '';
     document.getElementById('prodMainPreview').style.display = 'none';
     document.getElementById('prodMainUploadStatus').textContent = '';
@@ -1056,6 +1054,30 @@ function deleteProduct(id) {
     renderProductTable();
     if (typeof renderInventory === 'function') renderInventory();
     showToast('Producto eliminado');
+}
+
+function setupProdBrandAutocomplete() {
+    const input = document.getElementById('prodBrand');
+    const dropdown = document.getElementById('prodBrandDropdown');
+    if (!input || !dropdown) return;
+    input.setAttribute('autocomplete', 'off');
+    input.addEventListener('input', function() { filterProdBrandDropdown(this.value); });
+    input.addEventListener('focus', function() { filterProdBrandDropdown(this.value); });
+    input.addEventListener('blur', function() { setTimeout(() => dropdown.style.display = 'none', 200); });
+}
+
+function filterProdBrandDropdown(query) {
+    const dropdown = document.getElementById('prodBrandDropdown');
+    if (!dropdown) return;
+    const q = (query || '').toLowerCase().trim();
+    const brands = getUniqueBrands();
+    const filtered = q ? brands.filter(b => b.name.toLowerCase().includes(q)) : brands;
+    if (filtered.length === 0) { dropdown.style.display = 'none'; return; }
+    dropdown.innerHTML = filtered.map(b =>
+        '<div onmousedown="document.getElementById(\'prodBrand\').value=\'' + b.name.replace(/'/g, "\\'") + '\';document.getElementById(\'prodBrandDropdown\').style.display=\'none\';" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">' +
+        '<span>' + b.name + '</span><span style="color:#999;font-size:12px;">' + b.count + ' productos</span></div>'
+    ).join('');
+    dropdown.style.display = 'block';
 }
 
 // ============ CUSTOMERS ============
