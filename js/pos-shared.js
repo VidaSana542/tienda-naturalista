@@ -3352,7 +3352,7 @@ function filterMergeLabsList() {
     });
 }
 
-function executeMergeLabs() {
+async function executeMergeLabs() {
     const checked = document.querySelectorAll('.merge-lab-check:checked');
     const newName = document.getElementById('mergeLabsNewName').value.trim();
     if (checked.length < 2) { showToast('Selecciona al menos 2 laboratorios', 'error'); return; }
@@ -3386,7 +3386,7 @@ function executeMergeLabs() {
     }
     closeMergeLabsModal();
     const mergedLabs = posLabs.filter(l => selected.some(s => s.toLowerCase() === l.name.toLowerCase()) && l.id);
-    mergedLabs.forEach(l => API.deleteLab(l.id).catch(e => console.error('merge labs api error:', e)));
+    for (const l of mergedLabs) { try { await API.deleteLab(l.id); } catch(e) { console.error('merge labs api error:', e); } }
     posLabs = posLabs.filter(l => !selected.some(s => s.toLowerCase() === l.name.toLowerCase()));
     localStorage.setItem('posLabs', JSON.stringify(posLabs));
     renderLabsList();
@@ -3429,7 +3429,7 @@ async function renameLab(oldName) {
     if (lab) {
         lab.name = trimmed;
         localStorage.setItem('posLabs', JSON.stringify(posLabs));
-        if (lab.id) API.updateLab(lab.id, trimmed).catch(e => console.error('rename lab api error:', e));
+        if (lab.id) { try { await API.updateLab(lab.id, trimmed); } catch(e) { console.error('rename lab api error:', e); } }
     }
     saveProducts();
     if (API.isAvailable && changed.length > 0) {
@@ -3474,7 +3474,7 @@ async function deleteLab(name) {
     }
     showToast(count + ' productos quedaron sin laboratorio');
     const lab = posLabs.find(l => l.name.toLowerCase() === name.toLowerCase());
-    if (lab && lab.id) API.deleteLab(lab.id).catch(e => console.error('delete lab api error:', e));
+    if (lab && lab.id) { try { await API.deleteLab(lab.id); } catch(e) { console.error('delete lab api error:', e); } }
     posLabs = posLabs.filter(l => l.name.toLowerCase() !== name.toLowerCase());
     localStorage.setItem('posLabs', JSON.stringify(posLabs));
     renderLabsList();
