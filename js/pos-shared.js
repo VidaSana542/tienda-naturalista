@@ -3376,17 +3376,8 @@ function createNewLab() {
     const trimmed = name.trim();
     const exists = posProducts.some(p => (p.brand || '').trim().toLowerCase() === trimmed.toLowerCase()) || posLabs.some(l => l.toLowerCase() === trimmed.toLowerCase());
     if (exists) { showToast('Ya existe un laboratorio con ese nombre', 'error'); return; }
-    const count = parseInt(prompt('Cuantos productos quieres asignar a "' + trimmed + '"? (0 para crear vacio)', '0')) || 0;
-    if (count > 0) {
-        const prods = posProducts.filter(p => !(p.brand || '').trim());
-        if (prods.length === 0) { showToast('No hay productos sin laboratorio para asignar', 'error'); return; }
-        const selectProds = prods.slice(0, count);
-        selectProds.forEach(p => { p.brand = trimmed; });
-        saveProducts();
-    } else {
-        posLabs.push(trimmed);
-        localStorage.setItem('posLabs', JSON.stringify(posLabs));
-    }
+    posLabs.push(trimmed);
+    localStorage.setItem('posLabs', JSON.stringify(posLabs));
     showToast('Laboratorio "' + trimmed + '" creado');
     renderLabsList();
 }
