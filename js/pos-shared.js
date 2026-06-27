@@ -1070,10 +1070,19 @@ function filterProdBrandDropdown(query) {
     const dropdown = document.getElementById('prodBrandDropdown');
     if (!dropdown) return;
     const q = (query || '').toLowerCase().trim();
-    const brands = getUniqueBrands();
-    const filtered = q ? brands.filter(b => b.name.toLowerCase().includes(q)) : brands;
-    if (filtered.length === 0) { dropdown.style.display = 'none'; return; }
-    dropdown.innerHTML = filtered.map(b =>
+    const brands = {};
+    posProducts.forEach(p => {
+        const b = (p.brand || '').trim();
+        if (b) brands[b] = (brands[b] || 0) + 1;
+    });
+    posLabs.forEach(l => {
+        const key = (l.name || '').trim();
+        if (key && !brands[key]) brands[key] = 0;
+    });
+    let list = Object.entries(brands).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count }));
+    if (q) list = list.filter(b => b.name.toLowerCase().includes(q));
+    if (list.length === 0) { dropdown.style.display = 'none'; return; }
+    dropdown.innerHTML = list.map(b =>
         '<div onmousedown="document.getElementById(\'prodBrand\').value=\'' + b.name.replace(/'/g, "\\'") + '\';document.getElementById(\'prodBrandDropdown\').style.display=\'none\';" style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">' +
         '<span>' + b.name + '</span><span style="color:#999;font-size:12px;">' + b.count + ' productos</span></div>'
     ).join('');
