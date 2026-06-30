@@ -2893,9 +2893,10 @@ function confirmPrintClosing() {
         const cli = s.customer || 'Mostrador';
         return '<div class="receipt-row" style="font-size:12px;"><span>#' + s.id + ' ' + cli + ' (' + qty + 'p)</span><span style="font-weight:600;">' + formatPrice(s.total) + '</span></div>';
     }).join('');
-    let methodsHtml = Object.entries(methodTotals).map(([k, v]) =>
-        '<div class="receipt-row" style="font-size:12px;"><span>' + k + '</span><span style="font-weight:600;">' + formatPrice(v) + '</span></div>'
-    ).join('');
+    let methodsHtml = Object.entries(methodTotals).map(([k, v]) => {
+        const labels = { cash: 'Efectivo', mixed: 'Mixto', bolt: 'Bancolombia', card: 'Tarjeta', nequi: 'Nequi', daviplata: 'Daviplata', otro: 'Otro' };
+        return '<div class="receipt-row" style="font-size:12px;"><span>' + (labels[k] || k) + '</span><span style="font-weight:600;">' + formatPrice(v) + '</span></div>';
+    }).join('');
     const dateLabel = new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
     document.getElementById('receiptContent').innerHTML =
         '<div class="receipt">' +
