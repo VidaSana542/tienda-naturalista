@@ -2288,7 +2288,7 @@ function showFinalInvoice(saleId) {
     const paymentsHtml = isContado
         ? '<div class="receipt-row" style="font-size:12px;"><span>' + shortDate(sale.date) + '</span><span style="color:var(--success);font-weight:600;">' + formatPrice(sale.total) + '</span></div>'
         : (ci.payments && ci.payments.length > 0
-            ? ci.payments.map(p => '<div class="receipt-row" style="font-size:12px;"><span>' + shortDate(p.date) + '</span><span style="color:var(--success);font-weight:600;">' + formatPrice(p.amount) + '</span></div>').join('')
+            ? ci.payments.map(p => '<div class="receipt-row" style="font-size:12px;"><span>' + shortDate(p.date) + (p.method ? ' <span style="color:var(--text-muted);font-size:10px;">' + p.method + '</span>' : '') + '</span><span style="color:var(--success);font-weight:600;">' + formatPrice(p.amount) + '</span></div>').join('')
             : '<div style="text-align:center;color:var(--text-muted);font-size:11px;padding:4px 0;">Sin pagos registrados</div>');
     const statusColor = isPaid ? 'var(--success)' : 'var(--warning)';
     const statusLabel = isPaid ? 'PAGADA' : 'Pendiente: ' + formatPrice(pendiente);
@@ -2408,7 +2408,7 @@ function showCustomerHistory(custId) {
                     html += '<div style="padding:6px 14px;font-size:12px;color:var(--text-muted);border-bottom:1px solid var(--border);background:var(--hover);">Pagos registrados:</div>';
                     s.creditInfo.payments.forEach((p, pIdx) => {
                         html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 14px;font-size:13px;border-bottom:1px solid var(--border);">';
-                        html += '<span>' + shortDate(p.date) + '</span>';
+                        html += '<span>' + shortDate(p.date) + (p.method ? ' <span style="color:var(--text-muted);font-size:11px;">(' + p.method + ')</span>' : '') + '</span>';
                         html += '<div style="display:flex;align-items:center;gap:6px;">';
                         html += '<span style="font-weight:500;color:var(--success);">' + formatPrice(p.amount) + '</span>';
                         html += '<button onclick="editSalePayment(' + s.id + ',' + pIdx + ')" title="Editar" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--primary);"><svg viewBox="0 0 24 24" width="13" height="13"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>';
