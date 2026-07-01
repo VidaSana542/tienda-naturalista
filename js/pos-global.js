@@ -324,10 +324,11 @@ function openPaymentModal(saleId) {
     html += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:700;color:var(--warning);"><span>Saldo pendiente</span><span>' + formatPrice(pending) + '</span></div>';
     html += '</div>';
     html += '<div class="form-group"><label>' + label + '</label><input type="number" id="paymentAmount" value="' + suggestedAmount + '" min="1" max="' + pending + '"></div>';
+    html += '<div class="form-group"><label>Metodo de pago</label><select id="paymentMethod" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;"><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option><option value="Transferencia">Transferencia</option><option value="Nequi">Nequi</option><option value="Daviplata">Daviplata</option><option value="BOLT">BOLT</option><option value="Mixto">Mixto</option></select></div>';
     if (ci.payments && ci.payments.length > 0) {
         html += '<div style="font-size:12px;color:var(--text-muted);margin-top:10px;"><strong>Pagos registrados:</strong></div>';
         ci.payments.forEach(p => {
-            html += '<div style="font-size:12px;display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border);"><span>' + shortDate(p.date) + '</span><span>' + formatPrice(p.amount) + '</span></div>';
+            html += '<div style="font-size:12px;display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border);"><span>' + shortDate(p.date) + (p.method ? ' (' + p.method + ')' : '') + '</span><span>' + formatPrice(p.amount) + '</span></div>';
         });
     }
     document.getElementById('paymentModalContent').innerHTML = html;
@@ -347,8 +348,9 @@ function confirmPayment() {
     if (!sale.creditInfo) return;
     const amount = parseFloat(document.getElementById('paymentAmount').value);
     if (!amount || amount <= 0) { showToast('Ingresa un valor valido'); return; }
+    const method = document.getElementById('paymentMethod').value;
     if (!sale.creditInfo.payments) sale.creditInfo.payments = [];
-    sale.creditInfo.payments.push({ date: now(), amount: Math.round(amount) });
+    sale.creditInfo.payments.push({ date: now(), amount: Math.round(amount), method: method });
     if (sale.creditInfo.tipo === 'abono') {
         const totalPagado = sale.creditInfo.payments.reduce((s, p) => s + p.amount, 0);
         if (totalPagado >= sale.creditInfo.balance) {
