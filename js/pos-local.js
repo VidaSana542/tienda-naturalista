@@ -1347,8 +1347,7 @@ function openPaymentModal(saleId) {
         { key: 'Efectivo', icon: '$', primary: true },
         { key: 'Tarjeta', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>' },
         { key: 'Transferencia', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M7.5 21.5l-4-4 4-4 1.4 1.4-2.6 2.6h13.2v-2H7.5l2.6-2.6L8.5 11.5l-4 4 4 4z" transform="rotate(90 12 12)"/></svg>' },
-        { key: 'Mixto', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>' },
-        { key: 'Credito', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>' }
+        { key: 'Mixto', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>' }
     ];
     _methods.forEach(m => {
         html += '<div onclick="selectPaymentMethod(this,\'' + m.key + '\')" style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:2px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;" data-method="' + m.key + '">' +
