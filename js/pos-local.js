@@ -1341,7 +1341,26 @@ function openPaymentModal(saleId) {
     html += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:700;color:var(--warning);"><span>Saldo pendiente</span><span>' + formatPrice(pending) + '</span></div>';
     html += '</div>';
     html += '<div class="form-group"><label>' + label + '</label><input type="number" id="paymentAmount" value="' + suggestedAmount + '" min="1" max="' + pending + '"></div>';
-    html += '<div class="form-group"><label>Metodo de pago</label><select id="paymentMethod" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;"><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option><option value="Transferencia">Transferencia</option><option value="Nequi">Nequi</option><option value="Daviplata">Daviplata</option><option value="BOLT">BOLT</option><option value="Mixto">Mixto</option></select></div>';
+    html += '<div class="form-group"><label style="font-size:13px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="16" height="16" fill="var(--primary)"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg> Metodo de Pago</label>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="paymentMethodGrid">';
+    const _methods = [
+        { key: 'Efectivo', icon: '$', primary: true },
+        { key: 'Tarjeta', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>' },
+        { key: 'Transferencia', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M7.5 21.5l-4-4 4-4 1.4 1.4-2.6 2.6h13.2v-2H7.5l2.6-2.6L8.5 11.5l-4 4 4 4z" transform="rotate(90 12 12)"/></svg>' },
+        { key: 'Mixto', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>' },
+        { key: 'Credito', icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>' }
+    ];
+    _methods.forEach(m => {
+        html += '<div onclick="selectPaymentMethod(this,\'' + m.key + '\')" style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:2px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;" data-method="' + m.key + '">' +
+            '<span style="font-size:15px;color:var(--primary);display:flex;align-items:center;">' + m.icon + '</span>' + m.key + '</div>';
+    });
+    html += '</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;" id="paymentMethodSecondary">';
+    ['Transferencia','Nequi','Daviplata','BOLT'].forEach(k => {
+        html += '<div onclick="selectPaymentMethod(this,\'' + k + '\')" style="padding:10px 14px;border:1px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;text-align:center;transition:all .15s;" data-method="' + k + '">' + k + '</div>';
+    });
+    html += '</div></div>';
+    html += '<input type="hidden" id="paymentMethod" value="Efectivo">';
     html += '<div class="form-group"><label style="font-size:12px;color:var(--text-muted);">Fecha del pago</label><input type="date" id="paymentDate" value="' + today() + '" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;"></div>';
     if (ci.payments && ci.payments.length > 0) {
         html += '<div style="font-size:12px;color:var(--text-muted);margin-top:10px;"><strong>Pagos registrados:</strong></div>';
@@ -1351,6 +1370,7 @@ function openPaymentModal(saleId) {
     }
     document.getElementById('paymentModalContent').innerHTML = html;
     document.getElementById('paymentModal').classList.add('open');
+    setTimeout(() => { const def = document.querySelector('#paymentMethodGrid [data-method="Efectivo"]'); if (def) selectPaymentMethod(def, 'Efectivo'); }, 0);
 }
 
 function closePaymentModal() {
