@@ -3466,6 +3466,8 @@ function selectPaymentMethod(el, method) {
         btn.style.borderColor = btn.dataset.method === method ? 'var(--primary)' : 'var(--border)';
         btn.style.background = btn.dataset.method === method ? 'rgba(11,81,59,0.06)' : '#fff';
     });
+    const sec = document.getElementById('paymentMethodSecondary');
+    if (sec) sec.style.display = (method === 'Transferencia') ? 'grid' : 'none';
 }
 
 async function createNewLab() {

@@ -1793,8 +1793,8 @@ function openPaymentModal(saleId) {
             '<span style="font-size:15px;color:var(--primary);display:flex;align-items:center;">' + m.icon + '</span>' + m.key + '</div>';
     });
     html += '</div>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;" id="paymentMethodSecondary">';
-    ['Transferencia','Nequi','Daviplata','BOLT'].forEach(k => {
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;display:none;" id="paymentMethodSecondary">';
+    ['Nequi','Daviplata','BOLT'].forEach(k => {
         html += '<div onclick="selectPaymentMethod(this,\'' + k + '\')" style="padding:10px 14px;border:1px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;text-align:center;transition:all .15s;" data-method="' + k + '">' + k + '</div>';
     });
     html += '</div></div>';
