@@ -2860,6 +2860,7 @@ function initCatFilter() {
 
 // ============ DAILY CLOSING ============
 function printDailyClosing() {
+    _closingType = 'sales';
     const todayStr = today();
     document.getElementById('closingDateInput').value = todayStr;
     document.getElementById('closingDateModal').classList.add('open');
@@ -2870,6 +2871,11 @@ function closeClosingDateModal() {
 }
 
 function confirmPrintClosing() {
+    if (typeof _closingType !== 'undefined' && _closingType === 'payments' && typeof confirmPrintPaymentsClosing === 'function') {
+        _closingType = 'sales';
+        return confirmPrintPaymentsClosing();
+    }
+    _closingType = 'sales';
     const selectedDate = document.getElementById('closingDateInput').value;
     if (!selectedDate) { showToast('Selecciona una fecha'); return; }
     closeClosingDateModal();

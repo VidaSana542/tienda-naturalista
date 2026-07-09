@@ -1,7 +1,7 @@
 // ============ POS POR FUERA - Config ============
 const POS_SCOPE = 'fuera';
 const POS_RESTRICTED_PANELS = ['tpv', 'dashboard', 'products', 'customers', 'cuentas', 'sales', 'labOrders', 'supplierExpenses'];
-const POS_PANEL_TITLES = { dashboard:'Dashboard', orders:'Pedidos', tpv:'TPV / Pedido', salidas:'Salidas', products:'Productos', customers:'Clientes', cuentas:'Estado de Cuentas', inventory:'Inventario', sales:'Historial de Ventas' };
+const POS_PANEL_TITLES = { dashboard:'Dashboard', orders:'Pedidos', tpv:'TPV / Pedido', salidas:'Salidas', products:'Productos', customers:'Clientes', cuentas:'Estado de Cuentas', inventory:'Inventario', sales:'Historial de Ventas', dailyPayments:'Pagos del Dia' };
 const POS_PANEL_RENDERERS = {};
 
 // ============ TPV POR FUERA ============
@@ -2099,6 +2099,280 @@ async function saveOldPurchase() {
     document.querySelector('#oldPurchaseModal .btn-primary').disabled = false;
 }
 
+// ============ PAGOS DEL DIA ============
+function renderDailyPayments() {
+    const dateInput = document.getElementById('dailyPayDate');
+    const searchInput = document.getElementById('dailyPaySearch');
+    const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const selectedDate = dateInput ? dateInput.value : today();
+    
+    const ventasFuera = posSales.filter(s => s.ventaPorFuera);
+    
+    let paymentsData = [];
+    ventasFuera.forEach(sale => {
+        if (!sale.creditInfo || !sale.creditInfo.payments) return;
+        sale.creditInfo.payments.forEach(p => {
+            const payDate = p.date ? p.date.substring(0, 10) : '';
+            if (payDate === selectedDate) {
+                paymentsData.push({
+                    sale: sale,
+                    payment: p
+                });
+            }
+        });
+    });
+    
+    if (q) {
+        paymentsData = paymentsData.filter(item => {
+            const custName = (item.sale.customer || '').toLowerCase();
+            return custName.includes(q);
+        });
+    }
+    
+    const totalRecaudado = paymentsData.reduce((sum, item) => sum + (item.payment.amount || 0), 0);
+    const totalPendiente = ventasFuera.reduce((sum, sale) => {
+        if (!sale.creditInfo) return sum;
+        let pending = 0;
+        if (sale.creditInfo.tipo === 'abono') {
+            const pagado = (sale.creditInfo.payments || []).reduce((sp, p) => sp + p.amount, 0);
+            pending = sale.creditInfo.balance - pagado;
+        } else {
+            pending = (sale.creditInfo.totalCuotas - sale.creditInfo.pagadas) * sale.creditInfo.cuotaValor;
+        }
+        return sum + Math.max(0, pending);
+    }, 0);
+    
+    const statsEl = document.getElementById('dailyPayStats');
+    const dateParts = selectedDate.split('-');
+    const dateFormatted = dateParts[2] + '/' + dateParts[1] + '/' + dateParts[0];
+    if (statsEl) {
+        statsEl.innerHTML = `
+            <div class="stat-card"><div class="stat-icon green"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div><div class="stat-info"><span class="stat-label">RECAUDO DEL DIA ${dateFormatted}</span><h3>${formatPrice(totalRecaudado)}</h3><p>${paymentsData.length} abono${paymentsData.length !== 1 ? 's' : ''}</p></div></div>
+            <div class="stat-card"><div class="stat-icon orange"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div class="stat-info"><span class="stat-label">Pendiente Total</span><h3>${formatPrice(totalPendiente)}</h3><p>Por cobrar</p></div></div>
+        `;
+    }
+    
+    const tbody = document.getElementById('dailyPayTableBody');
+    if (!tbody) return;
+    
+    if (paymentsData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:30px;">No hay pagos registrados para esta fecha</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = paymentsData.map(item => {
+        const sale = item.sale;
+        const payment = item.payment;
+        const ci = sale.creditInfo;
+        let pending = 0;
+        let totalAbonado = 0;
+        
+        if (ci.tipo === 'abono') {
+            totalAbonado = (ci.payments || []).reduce((s, p) => s + p.amount, 0);
+            pending = ci.balance - totalAbonado;
+        } else {
+            totalAbonado = ci.payments ? ci.payments.reduce((s, p) => s + p.amount, 0) : 0;
+            pending = (ci.totalCuotas - ci.pagadas) * ci.cuotaValor;
+        }
+        
+        const methodLabel = payment.method || sale.method || '-';
+        const payDate = payment.date ? formatDate(payment.date) : '-';
+        
+        return `<tr>
+            <td><strong>#${sale.id}</strong></td>
+            <td style="font-size:12px;">${payDate}</td>
+            <td>${sale.customer || 'Mostrador'}</td>
+            <td><strong>${formatPrice(sale.total)}</strong></td>
+            <td style="color:var(--success);font-weight:600;">${formatPrice(payment.amount)}</td>
+            <td><span class="tag tag-info">${methodLabel}</span></td>
+            <td style="color:${pending > 0 ? 'var(--warning)' : 'var(--success)'};font-weight:600;">${formatPrice(Math.max(0, pending))}</td>
+            <td class="actions">
+                <button class="edit" onclick="showDailyPayDetail(${sale.id})" title="Ver detalle" style="color:var(--primary);">
+                    <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function showDailyPayDetail(saleId) {
+    const sale = posSales.find(s => s.id === saleId);
+    if (!sale) return;
+    
+    const ci = sale.creditInfo;
+    const customer = sale.customerId ? posCustomers.find(c => c.id === sale.customerId) : null;
+    
+    let pending = 0;
+    let totalAbonado = 0;
+    if (ci) {
+        if (ci.tipo === 'abono') {
+            totalAbonado = (ci.payments || []).reduce((s, p) => s + p.amount, 0);
+            pending = ci.balance - totalAbonado;
+        } else {
+            totalAbonado = ci.payments ? ci.payments.reduce((s, p) => s + p.amount, 0) : 0;
+            pending = (ci.totalCuotas - ci.pagadas) * ci.cuotaValor;
+        }
+    }
+    
+    const porcentaje = sale.total > 0 ? Math.round((totalAbonado / sale.total) * 100) : 0;
+    
+    let html = '';
+    
+    html += '<div style="background:#f9fafb;border-radius:8px;padding:14px;margin-bottom:14px;border:1px solid var(--border);">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong style="font-size:15px;">' + (sale.customer || 'Mostrador') + '</strong>';
+    if (customer && customer.phone) html += '<span style="font-size:12px;color:var(--text-muted);">' + customer.phone + '</span>';
+    html += '</div>';
+    html += '<div style="display:flex;gap:16px;font-size:13px;flex-wrap:wrap;">';
+    html += '<span>Pedido <strong>#' + sale.id + '</strong></span>';
+    html += '<span>' + formatDate(sale.date) + '</span>';
+    html += '<span>Metodo: <strong>' + (sale.method || '-') + '</strong></span>';
+    html += '</div>';
+    html += '</div>';
+    
+    html += '<div style="margin-bottom:14px;">';
+    html += '<div style="font-weight:600;font-size:13px;margin-bottom:8px;">Compro:</div>';
+    (sale.items || []).forEach(item => {
+        html += '<div style="display:flex;justify-content:space-between;padding:6px 8px;font-size:13px;border-bottom:1px solid var(--border);">';
+        html += '<span>' + (item.name || 'Producto') + ' x' + item.qty + '</span>';
+        html += '<span style="font-weight:600;">' + formatPrice(item.price * item.qty) + '</span>';
+        html += '</div>';
+    });
+    html += '<div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:14px;border-top:2px solid var(--border);margin-top:4px;">';
+    html += '<span>TOTAL</span><span>' + formatPrice(sale.total) + '</span>';
+    html += '</div>';
+    html += '</div>';
+    
+    if (ci && ci.payments && ci.payments.length > 0) {
+        html += '<div style="margin-bottom:14px;">';
+        html += '<div style="font-weight:600;font-size:13px;margin-bottom:8px;">Pagos/Abonos realizados:</div>';
+        ci.payments.forEach((p, i) => {
+            const payDate = p.date ? shortDate(p.date) : '-';
+            const method = p.method || sale.method || '-';
+            html += '<div style="display:flex;justify-content:space-between;padding:6px 8px;font-size:13px;border-bottom:1px solid var(--border);' + (i % 2 === 0 ? 'background:#f9fafb;' : '') + '">';
+            html += '<span>' + payDate + ' <span style="color:var(--text-muted);">(' + method + ')</span></span>';
+            html += '<span style="color:var(--success);font-weight:600;">+' + formatPrice(p.amount) + '</span>';
+            html += '</div>';
+        });
+        html += '<div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:13px;border-top:2px solid var(--border);margin-top:4px;">';
+        html += '<span>Total abonado (' + porcentaje + '%)</span><span style="color:var(--success);">' + formatPrice(totalAbonado) + '</span>';
+        html += '</div>';
+        html += '</div>';
+    }
+    
+    html += '<div style="background:' + (pending > 0 ? '#fef3c7' : '#dcfce7') + ';border-radius:8px;padding:14px;border:1px solid ' + (pending > 0 ? '#fcd34d' : '#86efac') + ';">';
+    html += '<div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;color:' + (pending > 0 ? '#92400e' : '#166534') + ';">';
+    html += '<span>' + (pending > 0 ? 'Falta por pagar' : 'Total pagado') + '</span>';
+    html += '<span>' + formatPrice(Math.max(0, pending)) + '</span>';
+    html += '</div>';
+    if (pending > 0) {
+        html += '<div style="margin-top:8px;background:#e5e7eb;border-radius:999px;height:8px;overflow:hidden;">';
+        html += '<div style="height:100%;width:' + porcentaje + '%;background:#16a34a;border-radius:999px;transition:width 0.3s;"></div>';
+        html += '</div>';
+        html += '<div style="text-align:center;font-size:11px;color:#92400e;margin-top:4px;">' + porcentaje + '% pagado</div>';
+    }
+    html += '</div>';
+    
+    document.getElementById('dailyPayDetailContent').innerHTML = html;
+    document.getElementById('dailyPayDetailModal').classList.add('open');
+}
+
+function closeDailyPayDetailModal() {
+    document.getElementById('dailyPayDetailModal').classList.remove('open');
+}
+
+// ============ CIERRE DEL DIA - ABONOS ============
+let _closingType = 'sales';
+
+function printDailyPaymentsClosing() {
+    _closingType = 'payments';
+    const todayStr = today();
+    document.getElementById('closingDateInput').value = todayStr;
+    document.getElementById('closingDateModal').classList.add('open');
+}
+
+function confirmPrintPaymentsClosing() {
+    const selectedDate = document.getElementById('closingDateInput').value;
+    if (!selectedDate) { showToast('Selecciona una fecha'); return; }
+    closeClosingDateModal();
+
+    const ventasFuera = posSales.filter(s => s.ventaPorFuera && !s.creditInfo?.merged);
+    let paymentsData = [];
+    let totalRecaudado = 0;
+    const methodTotals = {};
+
+    ventasFuera.forEach(sale => {
+        if (!sale.creditInfo || !sale.creditInfo.payments) return;
+        sale.creditInfo.payments.forEach(p => {
+            const payDate = p.date ? p.date.substring(0, 10) : '';
+            if (payDate === selectedDate) {
+                paymentsData.push({ sale, payment: p });
+                totalRecaudado += p.amount || 0;
+                const mk = p.method || sale.method || 'Otro';
+                methodTotals[mk] = (methodTotals[mk] || 0) + (p.amount || 0);
+            }
+        });
+    });
+
+    if (paymentsData.length === 0) { showToast('No hay abonos para esa fecha'); return; }
+
+    let itemsHtml = paymentsData.map(item => {
+        const s = item.sale;
+        const p = item.payment;
+        const ci = s.creditInfo;
+        let pending = 0;
+        let totalAbonado = 0;
+        if (ci) {
+            if (ci.tipo === 'abono') {
+                totalAbonado = (ci.payments || []).reduce((sp, pay) => sp + pay.amount, 0);
+                pending = ci.balance - totalAbonado;
+            } else {
+                totalAbonado = ci.payments ? ci.payments.reduce((sp, pay) => sp + pay.amount, 0) : 0;
+                pending = (ci.totalCuotas - ci.pagadas) * ci.cuotaValor;
+            }
+        }
+        const items = (s.items || []).map(i => i.name).join(', ');
+        let html = '<div style="font-size:11px;padding:6px 0;border-bottom:1px solid #e5e7eb;">';
+        html += '<div style="display:flex;justify-content:space-between;font-weight:700;"><span>#' + s.id + ' ' + (s.customer || 'Mostrador') + '</span><span>' + formatPrice(p.amount) + '</span></div>';
+        html += '<div style="color:#6b7280;margin-top:2px;">Compra: ' + (items || 'Sin productos') + '</div>';
+        html += '<div style="color:' + (pending > 0 ? '#92400e' : '#166534') + ';margin-top:2px;">Falta: ' + formatPrice(Math.max(0, pending)) + '</div>';
+        html += '</div>';
+        return html;
+    }).join('');
+
+    let methodsHtml = Object.entries(methodTotals).map(([k, v]) => {
+        return '<div class="receipt-row" style="font-size:12px;"><span>' + k + '</span><span style="font-weight:600;">' + formatPrice(v) + '</span></div>';
+    }).join('');
+
+    const dateLabel = new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric' });
+
+    document.getElementById('receiptContent').innerHTML =
+        '<div class="receipt">' +
+            '<div class="receipt-header">' +
+                '<img src="' + (LOGO_DATA_URL || LOGO_URL) + '" style="max-width:160px;height:auto;margin-bottom:6px;" alt="Logo">' +
+                '<h4 style="font-size:15px;margin:2px 0;">CIERRE DE ABONOS</h4>' +
+                '<p style="font-size:11px;margin:2px 0;">' + dateLabel + '</p>' +
+                '<p style="font-size:11px;margin:2px 0;color:var(--text-muted);">TPV Por Fuera</p>' +
+            '</div>' +
+            '<div class="receipt-divider"></div>' +
+            '<div class="receipt-row" style="font-weight:700;"><span>Total recaudado</span><span>' + formatPrice(totalRecaudado) + '</span></div>' +
+            '<div class="receipt-row" style="font-size:12px;"><span>Cantidad de abonos</span><span>' + paymentsData.length + '</span></div>' +
+            '<div class="receipt-divider"></div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Por metodo de cobro</div>' +
+            methodsHtml +
+            '<div class="receipt-divider"></div>' +
+            '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Detalle de abonos</div>' +
+            itemsHtml +
+            '<div class="receipt-divider"></div>' +
+            '<div class="receipt-footer">' +
+                '<p>Cierre generado el ' + new Date().toLocaleDateString('es-CO', { day:'2-digit', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' }) + '</p>' +
+            '</div>' +
+        '</div>';
+    document.getElementById('receiptModal').classList.add('open');
+    const btnInv = document.getElementById('btnDownloadInv');
+    if (btnInv) btnInv.style.display = 'none';
+    setTimeout(() => { window.print(); }, 400);
+}
+
 // ============ INIT ============
 POS_PANEL_RENDERERS['dashboard'] = renderDashboard;
 POS_PANEL_RENDERERS['tpv'] = renderTpv;
@@ -2111,6 +2385,7 @@ POS_PANEL_RENDERERS['sales'] = renderSalesTable;
 POS_PANEL_RENDERERS['salidas'] = renderSalidas;
 POS_PANEL_RENDERERS['labOrders'] = renderLabOrders;
 POS_PANEL_RENDERERS['supplierExpenses'] = renderSupplierExpenses;
+POS_PANEL_RENDERERS['dailyPayments'] = renderDailyPayments;
 
 function initPOS() {
     (async function() {
@@ -2144,6 +2419,8 @@ function initPOS() {
         renderAccountStatus();
         renderSalesTable();
         buildMobileMenu();
+        const dailyPayDate = document.getElementById('dailyPayDate');
+        if (dailyPayDate) dailyPayDate.value = today();
         if (currentUser && currentUser.role === 'empleado') {
             switchPanel('salidas');
         }
