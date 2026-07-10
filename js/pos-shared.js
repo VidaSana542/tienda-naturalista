@@ -535,12 +535,14 @@ async function syncFromApi() {
             posSales.forEach(ls => { if (ls.creditInfo?.merged) mergeFlags[ls.id] = { merged: true, mergedInto: ls.creditInfo.mergedInto }; });
             const apiSalesMap = {};
             apiSales.forEach(s => { apiSalesMap[s.id] = s; });
+            const localMap = {};
+            posSales.forEach(ls => { localMap[ls.id] = ls; });
             const localUnsynced = posSales.filter(ls => !apiSalesMap[ls.id] && !ls.apiSynced);
             posSales = apiSales.map(s => {
+                const local = localMap[s.id];
                 const ci = s.credit_info || null;
                 if (ci) {
                     if (ci.payments && ci.payments.length > 0) {
-                        // credit_info is the source of truth
                     } else if (s.payments && s.payments.length > 0) {
                         ci.payments = s.payments
                             .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
@@ -549,16 +551,25 @@ async function syncFromApi() {
                         ci.payments = [];
                     }
                 }
+                let apiTotal = parseFloat(s.total);
+                let apiItems = (s.items || []).map(i => ({ id: i.product_id, name: i.product_name, qty: i.qty, price: parseFloat(i.price) }));
+                if (local && local.apiSynced && local.items && local.items.length > 0) {
+                    const localTotal = local.items.reduce((sum, it) => sum + ((parseFloat(it.price) || 0) * (parseInt(it.qty) || 0)), 0);
+                    if (Math.abs(localTotal - apiTotal) > 1 && localTotal > 0) {
+                        apiTotal = localTotal;
+                        apiItems = local.items;
+                    }
+                }
                 return {
                     id: s.id,
                     apiId: s.id,
                     apiSynced: true,
                     date: utcToLocalDate(s.created_at),
                     created_at: s.created_at,
-                    items: (s.items || []).map(i => ({ id: i.product_id, name: i.product_name, qty: i.qty, price: parseFloat(i.price) })),
-                    subtotal: parseFloat(s.total) - parseFloat(s.excedente || 0),
+                    items: apiItems,
+                    subtotal: apiTotal - parseFloat(s.excedente || 0),
                     excedente: parseFloat(s.excedente || 0),
-                    total: parseFloat(s.total),
+                    total: apiTotal,
                     method: s.method,
                     methodKey: s.method_key,
                     customer: s.customer_name,
@@ -1365,13 +1376,6 @@ function saveAccountEdit() {
         } else {
             s.total = parseFloat(s.total) || 0;
         }
-        const apiId = s.id && s.id < 100000 ? s.id : null;
-        if (apiId && API.isAvailable) {
-            API.updateSale(apiId, { total: s.total, date: s.date }).catch(e => {});
-            if (s.items && s.items.length > 0) {
-                API.updateSaleItems(apiId, s.items).catch(e => {});
-            }
-        }
     });
     document.querySelectorAll('.acct-edit-sale-status').forEach(sel => {
         const sale = posSales.find(s => String(s.id) === sel.dataset.saleId);
@@ -1396,13 +1400,19 @@ function saveAccountEdit() {
             sale.method = 'Credito';
             sale.creditInfo = { tipo: 'abono', totalCuotas: 0, cuotaValor: 0, pagadas: 0, payments: sale.payments.map(p => ({date: p.date, amount: p.amount})), balance: sale.total };
         }
-        const apiId = sale.id && sale.id < 100000 ? sale.id : null;
-        if (apiId && API.isAvailable) {
-            API.updateSale(apiId, { method: sale.method, credit_info: sale.creditInfo, total: sale.total, date: sale.date }).catch(e => {});
-        }
-        sale.apiSynced = true;
     });
     saveCustomers();
+    const salesToSync = posSales.filter(s => s.customerId === cId && !s.creditInfo?.merged);
+    salesToSync.forEach(s => {
+        const apiId = s.id && s.id < 100000 ? s.id : null;
+        if (apiId && API.isAvailable) {
+            API.updateSale(apiId, { total: s.total, date: s.date, method: s.method, credit_info: s.creditInfo }).catch(e => { console.error('[POS] updateSale saveAccountEdit error:', e); });
+            if (s.items && s.items.length > 0) {
+                API.updateSaleItems(apiId, s.items).catch(e => { console.error('[POS] updateSaleItems saveAccountEdit error:', e); });
+            }
+            s.apiSynced = true;
+        }
+    });
     saveSales();
     closeAccountEditModal();
     if (typeof renderAccountStatus === 'function') renderAccountStatus();
