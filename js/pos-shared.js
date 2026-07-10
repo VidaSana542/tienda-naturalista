@@ -1163,8 +1163,9 @@ function getCustomerPending(cid) {
                 const pagado = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
                 return sum + (s.creditInfo.balance - pagado);
             }
-            const pend = (s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor;
-            return sum + pend;
+            const totalPagadoFijo = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
+            const totalSaleFijo = s.creditInfo.totalCuotas * s.creditInfo.cuotaValor;
+            return sum + Math.max(0, totalSaleFijo - totalPagadoFijo);
         }, 0);
 }
 
@@ -2343,7 +2344,9 @@ function showCustomerHistory(custId) {
             const pagado = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
             return sum + Math.max(0, s.creditInfo.balance - pagado);
         }
-        return sum + Math.max(0, (s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor);
+        const totalPagadoFijo = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
+        const totalSaleFijo = s.creditInfo.totalCuotas * s.creditInfo.cuotaValor;
+        return sum + Math.max(0, totalSaleFijo - totalPagadoFijo);
     }, 0);
     let html = '';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--hover);border-radius:10px;margin-bottom:16px;">';
@@ -2381,8 +2384,10 @@ function showCustomerHistory(custId) {
                     isPaid = pending <= 0;
                     label = isPaid ? 'Pagado' : 'Saldo: ' + formatPrice(pending);
                 } else {
-                    pending = (s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor;
-                    pagado = s.creditInfo.pagadas * s.creditInfo.cuotaValor;
+                    const totalPagadoFijo = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
+                    const totalSale = s.creditInfo.totalCuotas * s.creditInfo.cuotaValor;
+                    pending = Math.max(0, totalSale - totalPagadoFijo);
+                    pagado = totalPagadoFijo;
                     isPaid = pending <= 0;
                     label = isPaid ? 'Pagado' : 'Pendiente: ' + formatPrice(pending);
                 }
@@ -2463,7 +2468,9 @@ function showCustomerHistory(custId) {
             if (s.creditInfo.tipo === 'abono') {
                 pending = s.creditInfo.balance - s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
             } else {
-                pending = (s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor;
+                const totalPagadoFijo = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
+                const totalSaleFijo = s.creditInfo.totalCuotas * s.creditInfo.cuotaValor;
+                pending = Math.max(0, totalSaleFijo - totalPagadoFijo);
             }
             return pending > 0;
         }).length;
@@ -2684,7 +2691,8 @@ function deleteSalePayment(saleId, paymentIdx) {
         const totalPagado = sale.creditInfo.payments.reduce((sp, pay) => sp + pay.amount, 0);
         sale.creditInfo.pagadas = totalPagado >= sale.creditInfo.balance ? 1 : 0;
     } else {
-        sale.creditInfo.pagadas = sale.creditInfo.payments.length;
+        const totalPagadoFijo = sale.creditInfo.payments.reduce((sp, pay) => sp + pay.amount, 0);
+        sale.creditInfo.pagadas = Math.min(sale.creditInfo.totalCuotas, Math.floor(totalPagadoFijo / sale.creditInfo.cuotaValor));
     }
     saveSales();
     if (API.isAvailable) {

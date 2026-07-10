@@ -1303,7 +1303,9 @@ function renderDashboard() {
             const pagado = (s.creditInfo.payments || []).reduce((sp, p) => sp + p.amount, 0);
             return sum + (s.creditInfo.balance - pagado);
         }
-        return sum + ((s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor);
+        const totalPagadoFijo = (s.creditInfo.payments || []).reduce((sp, p) => sp + p.amount, 0);
+        const totalSaleFijo = s.creditInfo.totalCuotas * s.creditInfo.cuotaValor;
+        return sum + Math.max(0, totalSaleFijo - totalPagadoFijo);
     }, 0);
 
     const paidTotal = periodSales.reduce((sum, s) => {
@@ -1645,9 +1647,11 @@ function renderSalesTable() {
                 const status = balance > 0 ? 'tag-warning' : 'tag-success';
                 methodHtml = '<span class="tag ' + status + '">' + s.method + ' ' + formatPrice(pagado) + '/' + formatPrice(s.creditInfo.balance) + '</span>';
             } else {
-                const pending = (s.creditInfo.totalCuotas - s.creditInfo.pagadas) * s.creditInfo.cuotaValor;
+                const totalPagadoFijo = s.creditInfo.payments.reduce((sum, p) => sum + p.amount, 0);
+                const totalSaleFijo = s.creditInfo.totalCuotas * s.creditInfo.cuotaValor;
+                const pending = Math.max(0, totalSaleFijo - totalPagadoFijo);
                 const status = pending > 0 ? 'tag-warning' : 'tag-success';
-                methodHtml = '<span class="tag ' + status + '">' + s.method + ' ' + s.creditInfo.pagadas + '/' + s.creditInfo.totalCuotas + '</span>';
+                methodHtml = '<span class="tag ' + status + '">' + s.method + ' ' + formatPrice(totalPagadoFijo) + '/' + formatPrice(totalSaleFijo) + '</span>';
             }
         }
         return `<tr>
@@ -1763,7 +1767,9 @@ function openPaymentModal(saleId) {
         suggestedAmount = pending;
         label = 'Valor a abonar';
     } else {
-        pending = (ci.totalCuotas - ci.pagadas) * ci.cuotaValor;
+        const totalPagadoCI = ci.payments.reduce((s, p) => s + p.amount, 0);
+        const totalSaleCI = ci.totalCuotas * ci.cuotaValor;
+        pending = Math.max(0, totalSaleCI - totalPagadoCI);
         suggestedAmount = ci.cuotaValor;
         label = 'Valor a pagar';
     }
@@ -1834,8 +1840,8 @@ function confirmPayment() {
             sale.creditInfo.pagadas = 1;
         }
     } else {
-        sale.creditInfo.pagadas = sale.creditInfo.payments.length;
-        if (sale.creditInfo.pagadas > sale.creditInfo.totalCuotas) sale.creditInfo.pagadas = sale.creditInfo.totalCuotas;
+        const totalPagadoFijo = sale.creditInfo.payments.reduce((s, p) => s + p.amount, 0);
+        sale.creditInfo.pagadas = Math.min(sale.creditInfo.totalCuotas, Math.floor(totalPagadoFijo / sale.creditInfo.cuotaValor));
     }
     saveSales();
     if (API.isAvailable) {
@@ -2137,7 +2143,9 @@ function renderDailyPayments() {
             const pagado = (sale.creditInfo.payments || []).reduce((sp, p) => sp + p.amount, 0);
             pending = sale.creditInfo.balance - pagado;
         } else {
-            pending = (sale.creditInfo.totalCuotas - sale.creditInfo.pagadas) * sale.creditInfo.cuotaValor;
+            const totalPagadoFijo = (sale.creditInfo.payments || []).reduce((sp, p) => sp + p.amount, 0);
+            const totalSaleFijo = sale.creditInfo.totalCuotas * sale.creditInfo.cuotaValor;
+            pending = Math.max(0, totalSaleFijo - totalPagadoFijo);
         }
         return sum + Math.max(0, pending);
     }, 0);
@@ -2172,7 +2180,8 @@ function renderDailyPayments() {
             pending = ci.balance - totalAbonado;
         } else {
             totalAbonado = ci.payments ? ci.payments.reduce((s, p) => s + p.amount, 0) : 0;
-            pending = (ci.totalCuotas - ci.pagadas) * ci.cuotaValor;
+            const totalSaleFijo = ci.totalCuotas * ci.cuotaValor;
+            pending = Math.max(0, totalSaleFijo - totalAbonado);
         }
         
         const methodLabel = payment.method || sale.method || '-';
@@ -2210,7 +2219,8 @@ function showDailyPayDetail(saleId) {
             pending = ci.balance - totalAbonado;
         } else {
             totalAbonado = ci.payments ? ci.payments.reduce((s, p) => s + p.amount, 0) : 0;
-            pending = (ci.totalCuotas - ci.pagadas) * ci.cuotaValor;
+            const totalSaleFijo = ci.totalCuotas * ci.cuotaValor;
+            pending = Math.max(0, totalSaleFijo - totalAbonado);
         }
     }
     
@@ -2327,7 +2337,8 @@ function confirmPrintPaymentsClosing() {
                 pending = ci.balance - totalAbonado;
             } else {
                 totalAbonado = ci.payments ? ci.payments.reduce((sp, pay) => sp + pay.amount, 0) : 0;
-                pending = (ci.totalCuotas - ci.pagadas) * ci.cuotaValor;
+                const totalSaleFijo = ci.totalCuotas * ci.cuotaValor;
+                pending = Math.max(0, totalSaleFijo - totalAbonado);
             }
         }
         const items = (s.items || []).map(i => i.name).join(', ');
