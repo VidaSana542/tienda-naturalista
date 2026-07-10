@@ -2341,6 +2341,67 @@ function showFinalInvoice(saleId) {
 let _custHistoryCustomerId = null;
 let _mergeSelection = [];
 
+function renderCreditSaleHistory(s) {
+    let isPaid = false;
+    let pending = 0;
+    let pagado = 0;
+    let label = '';
+    if (s.creditInfo.tipo === 'abono') {
+        pagado = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
+        pending = s.creditInfo.balance - pagado;
+        isPaid = pending <= 0;
+        label = isPaid ? 'Pagado' : 'Saldo: ' + formatPrice(pending);
+    } else {
+        const totalPagadoFijo = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
+        const totalSale = s.creditInfo.totalCuotas * s.creditInfo.cuotaValor;
+        pending = Math.max(0, totalSale - totalPagadoFijo);
+        pagado = totalPagadoFijo;
+        isPaid = pending <= 0;
+        label = isPaid ? 'Pagado' : 'Pendiente: ' + formatPrice(pending);
+    }
+    const checked = _mergeSelection.includes(s.id) ? ' checked' : '';
+    const mergedInto = s.creditInfo.merged ? s.creditInfo.mergedInto : null;
+    let h = '';
+    h += '<div style="border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden;' + (checked && !isPaid ? 'border-color:var(--primary);box-shadow:0 0 0 2px rgba(37,99,235,0.2);' : '') + '">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:' + (isPaid ? '#f0fdf4' : '#fffbe6') + ';border-bottom:1px solid var(--border);">';
+    h += '<div style="display:flex;align-items:center;gap:8px;">';
+    if (!isPaid) {
+        h += '<input type="checkbox" class="merge-check" data-sale="' + s.id + '" onchange="toggleMergeSelect(' + s.id + ', this.checked)"' + checked + ' style="width:16px;height:16px;cursor:pointer;">';
+    }
+    h += '<div><strong>#' + s.id + '</strong> <span style="color:var(--text-muted);font-size:12px;">' + shortDate(s.date) + '</span></div>';
+    h += '</div>';
+    h += '<div style="font-weight:600;font-size:15px;">' + formatPrice(s.total) + '</div>';
+    h += '</div>';
+    if (s.items && s.items.length > 0) {
+        h += '<details style="font-size:11px;"><summary style="cursor:pointer;padding:4px 14px;color:var(--text-muted);user-select:none;list-style:none;">\u25b8 Productos</summary><div style="padding:0 14px 6px;color:var(--text-muted);">';
+        h += s.items.map(i => (i.name || 'Producto').substring(0, 20) + ' x' + i.qty).join(' \u00b7 ');
+        h += '</div></details>';
+    }
+    if (s.creditInfo.payments && s.creditInfo.payments.length > 0) {
+        h += '<div style="padding:6px 14px;font-size:12px;color:var(--text-muted);border-bottom:1px solid var(--border);background:var(--hover);">Pagos registrados:</div>';
+        s.creditInfo.payments.forEach((p, pIdx) => {
+            h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 14px;font-size:13px;border-bottom:1px solid var(--border);">';
+            h += '<span>' + shortDate(p.date) + (p.method ? ' <span style="color:var(--text-muted);font-size:11px;">(' + p.method + ')</span>' : '') + '</span>';
+            h += '<div style="display:flex;align-items:center;gap:6px;">';
+            h += '<span style="font-weight:500;color:var(--success);">' + formatPrice(p.amount) + '</span>';
+            h += '<button onclick="editSalePayment(' + s.id + ',' + pIdx + ')" title="Editar" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--primary);"><svg viewBox="0 0 24 24" width="13" height="13"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>';
+            h += '<button onclick="deleteSalePayment(' + s.id + ',' + pIdx + ')" title="Eliminar" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--danger);"><svg viewBox="0 0 24 24" width="13" height="13"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>';
+            h += '</div></div>';
+        });
+    }
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;">';
+    h += '<div><span style="font-size:12px;color:var(--text-muted);">' + label + '</span></div>';
+    if (!isPaid) {
+        h += '<div style="display:flex;gap:6px;align-items:center;"><button class="btn btn-sm btn-primary" onclick="openPaymentModalCust(' + s.id + ')">Registrar ' + (s.creditInfo.tipo === 'abono' ? 'Abono' : 'Pago') + '</button>' + (typeof showFinalInvoice === 'function' ? '<button class="btn btn-sm btn-outline" onclick="showFinalInvoice(' + s.id + ')">Ver Factura</button>' : '') + '</div>';
+    } else if (mergedInto) {
+        h += '<div style="display:flex;gap:6px;align-items:center;"><span style="font-size:12px;color:var(--text-muted);font-weight:500;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:var(--text-muted);vertical-align:middle;margin-right:2px;"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z"/></svg> Unida en #' + mergedInto + '</span>' + (typeof showFinalInvoice === 'function' ? '<button class="btn btn-sm btn-outline" onclick="showFinalInvoice(' + s.id + ')">Factura</button>' : '') + '</div>';
+    } else {
+        h += '<div style="display:flex;gap:6px;align-items:center;"><span style="font-size:12px;color:var(--success);font-weight:600;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:var(--success);vertical-align:middle;margin-right:2px;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Pagado</span>' + (typeof showFinalInvoice === 'function' ? '<button class="btn btn-sm btn-primary" onclick="showFinalInvoice(' + s.id + ')">Factura</button>' : '') + '</div>';
+    }
+    h += '</div></div>';
+    return h;
+}
+
 function showCustomerHistory(custId) {
     const cust = posCustomers.find(c => c.id === custId);
     if (!cust) return;
@@ -2369,7 +2430,12 @@ function showCustomerHistory(custId) {
     } else {
         const contadoSales = activeSales.filter(s => !s.creditInfo).sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0));
         if (contadoSales.length > 0) {
-            html += '<details open style="margin-bottom:12px;"><summary style="font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;user-select:none;padding:4px 0;">Compras de contado (' + contadoSales.length + ')</summary>';
+            html += '<div style="margin-bottom:12px;">';
+            html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">';
+            html += '<span style="font-size:13px;font-weight:600;color:var(--text-muted);">Compras de contado (' + contadoSales.length + ')</span>';
+            html += '<button id="togglePaidContado" onclick="document.getElementById(\'paidContadoList\').style.display=document.getElementById(\'paidContadoList\').style.display===\'none\'?\'block\':\'none\';this.textContent=document.getElementById(\'paidContadoList\').style.display===\'none\'?\'Mostrar pagadas (\' + ' + contadoSales.length + ' + \')\':\'Ocultar pagadas\'" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;color:var(--text-muted);">Mostrar pagadas (' + contadoSales.length + ')</button>';
+            html += '</div>';
+            html += '<div id="paidContadoList" style="display:none;">';
             contadoSales.forEach(s => {
                 const qty = s.items.reduce((sum, i) => sum + i.qty, 0);
                 html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg);border-radius:6px;margin-bottom:4px;font-size:13px;">';
@@ -2379,70 +2445,42 @@ function showCustomerHistory(custId) {
                 if (typeof showFinalInvoice === 'function') html += '<button class="btn btn-sm btn-primary" onclick="showFinalInvoice(' + s.id + ')">Factura</button>';
                 html += '</div></div>';
             });
-            html += '</details>';
+            html += '</div></div>';
         }
         if (creditSales.length > 0) {
-            html += '<details open style="margin-bottom:12px;"><summary style="font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;user-select:none;padding:4px 0;">Creditos y Cuentas de Cobro (' + creditSales.length + ')</summary>';
-            creditSales.sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0)).forEach(s => {
+            const unpaidCreditSales = [];
+            const paidCreditSales = [];
+            creditSales.forEach(s => {
                 let isPaid = false;
-                let pending = 0;
-                let pagado = 0;
-                let label = '';
                 if (s.creditInfo.tipo === 'abono') {
-                    pagado = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
-                    pending = s.creditInfo.balance - pagado;
-                    isPaid = pending <= 0;
-                    label = isPaid ? 'Pagado' : 'Saldo: ' + formatPrice(pending);
+                    const pagado = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
+                    isPaid = (s.creditInfo.balance - pagado) <= 0;
                 } else {
                     const totalPagadoFijo = s.creditInfo.payments.reduce((sp, p) => sp + p.amount, 0);
                     const totalSale = s.creditInfo.totalCuotas * s.creditInfo.cuotaValor;
-                    pending = Math.max(0, totalSale - totalPagadoFijo);
-                    pagado = totalPagadoFijo;
-                    isPaid = pending <= 0;
-                    label = isPaid ? 'Pagado' : 'Pendiente: ' + formatPrice(pending);
+                    isPaid = Math.max(0, totalSale - totalPagadoFijo) <= 0;
                 }
-                const checked = _mergeSelection.includes(s.id) ? ' checked' : '';
-                const disabled = isPaid ? ' disabled' : '';
-                const mergedInto = s.creditInfo.merged ? s.creditInfo.mergedInto : null;
-                html += '<div style="border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden;' + (checked && !isPaid ? 'border-color:var(--primary);box-shadow:0 0 0 2px rgba(37,99,235,0.2);' : '') + '">';
-                html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:' + (isPaid ? '#f0fdf4' : '#fffbe6') + ';border-bottom:1px solid var(--border);">';
-                html += '<div style="display:flex;align-items:center;gap:8px;">';
-                if (!isPaid) {
-                    html += '<input type="checkbox" class="merge-check" data-sale="' + s.id + '" onchange="toggleMergeSelect(' + s.id + ', this.checked)"' + checked + ' style="width:16px;height:16px;cursor:pointer;">';
-                }
-                html += '<div><strong>#' + s.id + '</strong> <span style="color:var(--text-muted);font-size:12px;">' + shortDate(s.date) + '</span></div>';
-                html += '</div>';
-                html += '<div style="font-weight:600;font-size:15px;">' + formatPrice(s.total) + '</div>';
-                html += '</div>';
-                if (s.items && s.items.length > 0) {
-                    html += '<details style="font-size:11px;"><summary style="cursor:pointer;padding:4px 14px;color:var(--text-muted);user-select:none;list-style:none;">\u25b8 Productos</summary><div style="padding:0 14px 6px;color:var(--text-muted);">';
-                    html += s.items.map(i => (i.name || 'Producto').substring(0, 20) + ' x' + i.qty).join(' \u00b7 ');
-                    html += '</div></details>';
-                }
-                if (s.creditInfo.payments && s.creditInfo.payments.length > 0) {
-                    html += '<div style="padding:6px 14px;font-size:12px;color:var(--text-muted);border-bottom:1px solid var(--border);background:var(--hover);">Pagos registrados:</div>';
-                    s.creditInfo.payments.forEach((p, pIdx) => {
-                        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 14px;font-size:13px;border-bottom:1px solid var(--border);">';
-                        html += '<span>' + shortDate(p.date) + (p.method ? ' <span style="color:var(--text-muted);font-size:11px;">(' + p.method + ')</span>' : '') + '</span>';
-                        html += '<div style="display:flex;align-items:center;gap:6px;">';
-                        html += '<span style="font-weight:500;color:var(--success);">' + formatPrice(p.amount) + '</span>';
-                        html += '<button onclick="editSalePayment(' + s.id + ',' + pIdx + ')" title="Editar" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--primary);"><svg viewBox="0 0 24 24" width="13" height="13"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>';
-                        html += '<button onclick="deleteSalePayment(' + s.id + ',' + pIdx + ')" title="Eliminar" style="background:none;border:none;cursor:pointer;padding:2px;color:var(--danger);"><svg viewBox="0 0 24 24" width="13" height="13"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>';
-                        html += '</div></div>';
-                    });
-                }
-                html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;">';
-                html += '<div><span style="font-size:12px;color:var(--text-muted);">' + label + '</span></div>';
-                if (!isPaid) {
-                    html += '<div style="display:flex;gap:6px;align-items:center;"><button class="btn btn-sm btn-primary" onclick="openPaymentModalCust(' + s.id + ')">Registrar ' + (s.creditInfo.tipo === 'abono' ? 'Abono' : 'Pago') + '</button>' + (typeof showFinalInvoice === 'function' ? '<button class="btn btn-sm btn-outline" onclick="showFinalInvoice(' + s.id + ')">Ver Factura</button>' : '') + '</div>';
-                } else if (mergedInto) {
-                    html += '<div style="display:flex;gap:6px;align-items:center;"><span style="font-size:12px;color:var(--text-muted);font-weight:500;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:var(--text-muted);vertical-align:middle;margin-right:2px;"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z"/></svg> Unida en #' + mergedInto + '</span>' + (typeof showFinalInvoice === 'function' ? '<button class="btn btn-sm btn-outline" onclick="showFinalInvoice(' + s.id + ')">Factura</button>' : '') + '</div>';
-                } else {
-                    html += '<div style="display:flex;gap:6px;align-items:center;"><span style="font-size:12px;color:var(--success);font-weight:600;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:var(--success);vertical-align:middle;margin-right:2px;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Pagado</span>' + (typeof showFinalInvoice === 'function' ? '<button class="btn btn-sm btn-primary" onclick="showFinalInvoice(' + s.id + ')">Factura</button>' : '') + '</div>';
-                }
-                html += '</div></div>';
+                if (isPaid) paidCreditSales.push(s); else unpaidCreditSales.push(s);
             });
-            html += '</details>';
+            if (unpaidCreditSales.length > 0) {
+                html += '<details open style="margin-bottom:12px;"><summary style="font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;user-select:none;padding:4px 0;">Creditos y Cuentas de Cobro (' + unpaidCreditSales.length + ')</summary>';
+                unpaidCreditSales.sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0)).forEach(s => {
+                    html += renderCreditSaleHistory(s);
+                });
+                html += '</details>';
+            }
+            if (paidCreditSales.length > 0) {
+                html += '<div style="margin-bottom:12px;">';
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">';
+                html += '<span style="font-size:13px;font-weight:600;color:var(--text-muted);">Creditos pagados (' + paidCreditSales.length + ')</span>';
+                html += '<button onclick="document.getElementById(\'paidCreditList\').style.display=document.getElementById(\'paidCreditList\').style.display===\'none\'?\'block\':\'none\';this.textContent=document.getElementById(\'paidCreditList\').style.display===\'none\'?\'Mostrar pagados (\' + ' + paidCreditSales.length + ' + \')\':\'Ocultar pagados\'" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;color:var(--text-muted);">Mostrar pagados (' + paidCreditSales.length + ')</button>';
+                html += '</div>';
+                html += '<div id="paidCreditList" style="display:none;">';
+                paidCreditSales.sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0)).forEach(s => {
+                    html += renderCreditSaleHistory(s);
+                });
+                html += '</div></div>';
+            }
         }
         const mergedSales = allSales.filter(s => s.creditInfo?.merged).sort((a, b) => new Date(b.date || b.created_at || 0) - new Date(a.date || a.created_at || 0));
         if (mergedSales.length > 0) {
