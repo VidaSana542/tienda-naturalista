@@ -1638,6 +1638,21 @@ function renderSalesTable() {
     filtered = _salesSortDesc ? filtered.slice().reverse() : filtered;
     if (q) filtered = filtered.filter(s => s.id.toString().includes(q) || (s.customer && s.customer.toLowerCase().includes(q)));
     const tbody = document.getElementById('salesTableBody');
+    const kpiEl = document.getElementById('salesKpiStats');
+    const kpiTotal = filtered.reduce((sum, s) => sum + s.total, 0);
+    const kpiCreditSales = filtered.filter(s => s.method === 'Credito');
+    const kpiCreditTotal = kpiCreditSales.reduce((sum, s) => sum + s.total, 0);
+    const kpiAbonado = kpiCreditSales.reduce((sum, s) => {
+        const pagado = (s.creditInfo && s.creditInfo.payments || []).reduce((sp, p) => sp + p.amount, 0);
+        return sum + pagado;
+    }, 0);
+    if (kpiEl) {
+        kpiEl.innerHTML = `
+            <div class="stat-card" style="border-left:4px solid var(--success);"><div class="stat-icon green"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div class="stat-info"><span class="stat-label">TOTAL VENDIDO</span><h3 style="color:var(--success);">${formatPrice(kpiTotal)}</h3><p>${filtered.length} ventas</p></div></div>
+            <div class="stat-card" style="border-left:4px solid #e65100;"><div class="stat-icon" style="background:#fff3e0;"><svg viewBox="0 0 24 24" style="fill:#e65100;"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg></div><div class="stat-info"><span class="stat-label">TOTAL CREDITO</span><h3 style="color:#e65100;">${formatPrice(kpiCreditTotal)}</h3><p>${kpiCreditSales.length} ventas a credito</p></div></div>
+            <div class="stat-card" style="border-left:4px solid #1565c0;"><div class="stat-icon" style="background:#e3f2fd;"><svg viewBox="0 0 24 24" style="fill:#1565c0;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm.88 17.76V19.5h-1.75v-1.72c-1.38-.18-2.6-.89-2.7-2.83h1.63c.09 1.14.9 1.73 2.16 1.73 1.44 0 2.13-.56 2.13-1.35 0-.82-.54-1.2-2.07-1.58-1.83-.47-2.83-1.12-2.83-2.56 0-1.28 1.05-2.28 2.64-2.44V7.01h1.75v1.67c1.93.25 2.46 1.58 2.54 2.53h-1.61c-.07-.91-.6-1.56-1.81-1.56-1.23 0-1.84.54-1.84 1.3 0 .75.62 1.11 2.07 1.46 1.92.47 2.83 1.18 2.83 2.63 0 1.35-1.02 2.37-2.72 2.54z"/></svg></div><div class="stat-info"><span class="stat-label">TOTAL ABONADO</span><h3 style="color:#1565c0;">${formatPrice(kpiAbonado)}</h3><p>${kpiCreditTotal > 0 ? Math.round(kpiAbonado / kpiCreditTotal * 100) : 0}% del credito</p></div></div>
+        `;
+    }
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:30px;">No hay ventas por fuera registradas</td></tr>';
         return;
