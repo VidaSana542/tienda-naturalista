@@ -705,6 +705,10 @@ let _dashPeriod = 'today';
 function setDashPeriod(p) {
     _dashPeriod = p;
     document.querySelectorAll('.dash-period-btn').forEach(b => b.classList.toggle('active', b.dataset.period === p));
+    const customDates = document.getElementById('dashCustomDates');
+    const customDot = document.getElementById('dashCustomDot');
+    if (customDates) customDates.style.display = p === 'custom' ? 'flex' : 'none';
+    if (customDot) customDot.style.display = (p === 'custom' && (document.getElementById('dashDateFrom').value || document.getElementById('dashDateTo').value)) ? 'inline-block' : 'none';
     renderDashboard();
 }
 
@@ -716,6 +720,17 @@ function getPeriodSales() {
     if (_dashPeriod === 'week') {
         const d = new Date(); d.setDate(d.getDate() - 7);
         return posSales.filter(s => s.date && new Date(s.date) >= d);
+    }
+    if (_dashPeriod === 'custom') {
+        const dateFrom = document.getElementById('dashDateFrom')?.value;
+        const dateTo = document.getElementById('dashDateTo')?.value;
+        return posSales.filter(s => {
+            if (!s.date) return false;
+            const sd = s.date.slice(0, 10);
+            if (dateFrom && sd < dateFrom) return false;
+            if (dateTo && sd > dateTo) return false;
+            return true;
+        });
     }
     return posSales;
 }
@@ -752,11 +767,17 @@ function renderDashboard() {
         return sum + pagado;
     }, 0);
 
-    const labels = { today: 'Hoy', week: 'Ultimos 7 dias', month: 'Historial mensual', year: 'Historial anual' };
-    document.getElementById('dashPeriodLabel').textContent = labels[_dashPeriod] + (isHistory ? '' : ' \u2014 ' + periodCount + ' ventas \u2014 ' + formatPrice(periodTotal));
+    const labels = { today: 'Hoy', week: 'Ultimos 7 dias', month: 'Historial mensual', year: 'Historial anual', custom: 'Rango personalizado' };
+    const customFrom = document.getElementById('dashDateFrom')?.value;
+    const customTo = document.getElementById('dashDateTo')?.value;
+    let customLabel = '';
+    if (_dashPeriod === 'custom' && (customFrom || customTo)) {
+        customLabel = ' \u2014 ' + (customFrom || '...') + ' al ' + (customTo || '...');
+    }
+    document.getElementById('dashPeriodLabel').textContent = labels[_dashPeriod] + customLabel + (isHistory || _dashPeriod === 'custom' ? '' : ' \u2014 ' + periodCount + ' ventas \u2014 ' + formatPrice(periodTotal));
     const chartLabels = { today: 'Hoy', week: 'Ultimos 7 dias', month: 'Historial mensual', year: 'Historial anual' };
     const chartTitle = document.getElementById('dashChartTitle');
-    if (chartTitle) chartTitle.textContent = 'Ventas por (' + chartLabels[_dashPeriod] + ')';
+    if (chartTitle) chartTitle.textContent = _dashPeriod === 'custom' ? 'Ventas por dia (Rango)' : 'Ventas por (' + chartLabels[_dashPeriod] + ')';
 
     const totalProducts = posProducts.length;
     const lowStockCount = posProducts.filter(p => p.stock > 0 && p.stock <= 5).length;
@@ -835,6 +856,41 @@ function renderDashBarChart(periodSales) {
         sorted.forEach(([year, total]) => {
             days.push({ label: year, total });
         });
+    } else if (_dashPeriod === 'custom') {
+        const dateFrom = document.getElementById('dashDateFrom')?.value;
+        const dateTo = document.getElementById('dashDateTo')?.value;
+        if (dateFrom && dateTo) {
+            const start = new Date(dateFrom + 'T12:00:00');
+            const end = new Date(dateTo + 'T12:00:00');
+            const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24));
+            const maxBars = 14;
+            if (diffDays <= maxBars) {
+                for (let i = 0; i <= diffDays; i++) {
+                    const d = new Date(start); d.setDate(d.getDate() + i);
+                    const ds = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+                    const label = d.toLocaleDateString('es-CO', { day:'numeric', month:'short' });
+                    const total = periodSales.filter(s => s.date && s.date.slice(0,10) === ds).reduce((sum, s) => sum + s.total, 0);
+                    days.push({ label, total });
+                }
+            } else {
+                const step = Math.ceil(diffDays / maxBars);
+                let i = 0;
+                while (i <= diffDays) {
+                    const d = new Date(start); d.setDate(d.getDate() + i);
+                    const dEnd = new Date(start); dEnd.setDate(dEnd.getDate() + Math.min(i + step - 1, diffDays));
+                    const dsStart = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+                    const dsEnd = dEnd.getFullYear() + '-' + String(dEnd.getMonth()+1).padStart(2,'0') + '-' + String(dEnd.getDate()).padStart(2,'0');
+                    const label = d.toLocaleDateString('es-CO', { day:'numeric', month:'short' });
+                    const total = periodSales.filter(s => {
+                        if (!s.date) return false;
+                        const sd = s.date.slice(0,10);
+                        return sd >= dsStart && sd <= dsEnd;
+                    }).reduce((sum, s) => sum + s.total, 0);
+                    days.push({ label, total });
+                    i += step;
+                }
+            }
+        }
     }
     const maxVal = Math.max(...days.map(d => d.total), 1);
     el.innerHTML = days.map(d => {

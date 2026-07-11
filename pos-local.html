@@ -166,11 +166,19 @@
                     <h3 style="margin:0;font-weight:700;">Resumen de Negocio</h3>
                     <p style="margin:2px 0 0;font-size:13px;color:var(--text-muted);" id="dashPeriodLabel"></p>
                 </div>
-                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
                     <button class="btn btn-sm dash-period-btn active" data-period="today" onclick="setDashPeriod('today')">Hoy</button>
                     <button class="btn btn-sm dash-period-btn" data-period="week" onclick="setDashPeriod('week')">Semana</button>
                     <button class="btn btn-sm dash-period-btn" data-period="month" onclick="setDashPeriod('month')">Mes</button>
                     <button class="btn btn-sm dash-period-btn" data-period="year" onclick="setDashPeriod('year')">A&ntilde;o</button>
+                    <button class="btn btn-sm dash-period-btn" data-period="custom" onclick="setDashPeriod('custom')" style="position:relative;">Rango
+                        <span id="dashCustomDot" style="display:none;width:6px;height:6px;background:var(--primary);border-radius:50%;position:absolute;top:2px;right:2px;"></span>
+                    </button>
+                    <div id="dashCustomDates" style="display:none;gap:4px;align-items:center;">
+                        <input type="date" id="dashDateFrom" onchange="renderDashboard()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;" title="Desde">
+                        <span style="color:var(--text-muted);font-size:11px;">a</span>
+                        <input type="date" id="dashDateTo" onchange="renderDashboard()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;" title="Hasta">
+                    </div>
                     <button class="btn btn-sm btn-primary" onclick="exportPosData()" style="margin-left:8px;font-size:12px;padding:6px 14px;">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff" style="vertical-align:middle;margin-right:2px;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Exportar
                     </button>
