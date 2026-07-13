@@ -498,6 +498,7 @@ function showToast(msg) {
         showToast('No hay productos en la nube. Crea productos desde el POS y sincroniza.');
     }
     initCategoryCards();
+    updateScrollButtons();
     showProductsView();
     renderSubcatFilters('all');
     updateCartUI();
@@ -538,3 +539,30 @@ window.addEventListener('hashchange', function() {
 window.addEventListener('scroll', function() {
     document.getElementById('backTop').classList.toggle('show', window.scrollY > 400);
 });
+
+function scrollCategories(dir) {
+    const el = document.getElementById('categoryCards');
+    const scrollAmount = 200;
+    el.scrollBy({ left: dir * scrollAmount, behavior: 'smooth' });
+    setTimeout(updateScrollButtons, 350);
+}
+
+function updateScrollButtons() {
+    const el = document.getElementById('categoryCards');
+    const leftBtn = document.getElementById('catScrollLeft');
+    const rightBtn = document.getElementById('catScrollRight');
+    if (!el || !leftBtn || !rightBtn) return;
+    const hasOverflow = el.scrollWidth > el.clientWidth + 5;
+    leftBtn.style.display = hasOverflow ? '' : 'none';
+    rightBtn.style.display = hasOverflow ? '' : 'none';
+    leftBtn.disabled = el.scrollLeft <= 2;
+    rightBtn.disabled = el.scrollLeft >= el.scrollWidth - el.clientWidth - 2;
+}
+
+elCategoryCards = document.getElementById('categoryCards');
+if (elCategoryCards) {
+    elCategoryCards.addEventListener('scroll', updateScrollButtons);
+}
+
+setTimeout(updateScrollButtons, 500);
+window.addEventListener('resize', updateScrollButtons);
