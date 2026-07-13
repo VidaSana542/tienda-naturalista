@@ -2046,11 +2046,13 @@ function switchInvTab(tab) {
 }
 
 function filterInvMovProduct() {
-    const q = document.getElementById('invMovProductSearch').value.toLowerCase();
+    const q = document.getElementById('invMovProductSearch').value.toLowerCase().trim();
     const sel = document.getElementById('invMovProduct');
-    for (const opt of sel.options) {
-        opt.style.display = !q || opt.text.toLowerCase().includes(q) ? '' : 'none';
-    }
+    const prevVal = sel.value;
+    const products = Array.isArray(posProducts) ? posProducts : [];
+    const filtered = q ? products.filter(p => p.name.toLowerCase().includes(q)) : products;
+    sel.innerHTML = filtered.map(p => '<option value="' + p.id + '">' + p.name + ' (Stock: ' + p.stock + ')</option>').join('');
+    if (prevVal && filtered.some(p => String(p.id) === String(prevVal))) sel.value = prevVal;
 }
 function openInvMovModal(type) {
     const modal = document.getElementById('invMovModal');
