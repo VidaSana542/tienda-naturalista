@@ -590,7 +590,7 @@ async function syncFromApi() {
             posNextSaleId = Math.max(posNextSaleId, maxApiId + 1);
         }
         try {
-            const apiInvLog = await API.getInventoryLog(null, getPosScope());
+            const apiInvLog = await API.getInventoryLog();
             const apiIds = new Set((apiInvLog || []).map(al => al.id));
             if (apiInvLog && apiInvLog.length > 0) {
                 apiInvLog.forEach(al => {
