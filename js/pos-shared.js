@@ -49,7 +49,12 @@ function filterSalesByScope(sales) {
 function filterInvLogByScope(log) {
     const scope = getPosScope();
     if (!scope) return log.filter(l => l.synced);
-    return log.filter(l => l.synced && (scope === 'local' ? !l.ventaPorFuera : !!l.ventaPorFuera));
+    return log.filter(l => {
+        if (!l.synced) return false;
+        const isShared = l.reason && (l.reason.startsWith('Movimiento a Bastidas') || l.reason.startsWith('Movimiento a Curinca'));
+        if (isShared) return true;
+        return scope === 'local' ? !l.ventaPorFuera : !!l.ventaPorFuera;
+    });
 }
 function getDefaultCustomerTipo() {
     return getPosScope() === 'fuera' ? 'fuera' : 'local';
