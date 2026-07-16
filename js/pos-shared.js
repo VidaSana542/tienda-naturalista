@@ -51,7 +51,7 @@ function filterInvLogByScope(log) {
     if (!scope) return log.filter(l => l.synced);
     return log.filter(l => {
         if (!l.synced) return false;
-        const isShared = l.reason && (l.reason.startsWith('Movimiento a Bastidas') || l.reason.startsWith('Movimiento a Curinca'));
+        const isShared = l.reason && (l.reason.startsWith('Movimiento a Bastidas') || l.reason.startsWith('Movimiento a Curinca') || l.reason.startsWith('Movimiento a Liceth'));
         if (isShared) return true;
         return scope === 'local' ? !l.ventaPorFuera : !!l.ventaPorFuera;
     });
@@ -2102,12 +2102,14 @@ function openInvMovModal(type) {
             '<option value="Transferencia saliente">Transferencia saliente</option>' +
             '<option value="Movimiento a Bastidas">Movimiento a Bastidas</option>' +
             '<option value="Movimiento a Curinca">Movimiento a Curinca</option>' +
+            '<option value="Movimiento a Liceth">Movimiento a Liceth</option>' +
             '<option value="Ajuste por inventario final">Ajuste por inventario final</option>' +
             '<option value="Otro">Otro</option>';
         if (currentUser && currentUser.role === 'empleado') {
             reasonSel.innerHTML =
                 '<option value="Movimiento a Bastidas">Movimiento a Bastidas</option>' +
-                '<option value="Movimiento a Curinca">Movimiento a Curinca</option>';
+                '<option value="Movimiento a Curinca">Movimiento a Curinca</option>' +
+                '<option value="Movimiento a Liceth">Movimiento a Liceth</option>';
         }
     }
     modal.style.display = 'flex';
