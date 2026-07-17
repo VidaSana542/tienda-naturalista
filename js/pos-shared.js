@@ -1829,12 +1829,24 @@ function toggleInvLogReasonFilter() {
     const typeFilter = document.getElementById('invLogTypeFilter');
     const container = document.getElementById('invLogReasonChips');
     if (!typeFilter || !container) return;
-    if (typeFilter.value === 'salida') {
+    const type = typeFilter.value;
+    if (type === 'salida' || type === 'entrada') {
         container.style.display = '';
+        populateReasonDropdown(type);
     } else {
         container.style.display = 'none';
         resetReasonDropdown();
     }
+}
+function populateReasonDropdown(type) {
+    const reasons = type === 'entrada'
+        ? ['Registro de pedido','Compra a proveedor','Devolucion de cliente','Ajuste por inventario inicial','Otro']
+        : ['Movimiento a Bastidas','Movimiento a Curinca','Movimiento a Liceth','Venta directa','Merma / Deterioro','Vencimiento','Donacion','Transferencia saliente','Otro'];
+    const dd = document.getElementById('invLogReasonDropdown');
+    if (!dd) return;
+    dd.innerHTML = '<label style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-weight:600;font-size:13px;border-bottom:1px solid #eee;"><input type="checkbox" class="inv-dd-check" value="all" checked onchange="reasonDropdownAll(this)" style="margin:0;"> Todas</label>' +
+        reasons.map(r => '<label style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:13px;"><input type="checkbox" class="inv-dd-check" value="' + r + '" onchange="reasonDropdownChanged()" style="margin:0;"> ' + r + '</label>').join('');
+    resetReasonDropdown();
 }
 function toggleReasonDropdown() {
     const dd = document.getElementById('invLogReasonDropdown');
