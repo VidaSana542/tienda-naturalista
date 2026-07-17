@@ -1827,39 +1827,65 @@ function toggleInvLogSort() {
 }
 function toggleInvLogReasonFilter() {
     const typeFilter = document.getElementById('invLogTypeFilter');
-    const chipsContainer = document.getElementById('invLogReasonChips');
-    if (!typeFilter || !chipsContainer) return;
+    const container = document.getElementById('invLogReasonChips');
+    if (!typeFilter || !container) return;
     if (typeFilter.value === 'salida') {
-        chipsContainer.style.display = 'flex';
+        container.style.display = '';
     } else {
-        chipsContainer.style.display = 'none';
-        resetTableReasonChips();
+        container.style.display = 'none';
+        resetReasonDropdown();
     }
 }
-function resetTableReasonChips() {
-    document.querySelectorAll('#invLogReasonChips .inv-reason-chip').forEach(c => c.classList.remove('active'));
-    const todas = document.querySelector('#invLogReasonChips .inv-reason-chip:not([data-reason])');
-    if (todas) todas.classList.add('active');
+function toggleReasonDropdown() {
+    const dd = document.getElementById('invLogReasonDropdown');
+    if (!dd) return;
+    dd.style.display = dd.style.display === 'none' ? '' : 'none';
 }
-function toggleTableReasonChip(btn) {
-    const isTodas = !btn.dataset.reason;
-    if (isTodas) {
-        document.querySelectorAll('#invLogReasonChips .inv-reason-chip').forEach(c => c.classList.remove('active'));
-        btn.classList.add('active');
-    } else {
-        document.querySelector('#invLogReasonChips .inv-reason-chip:not([data-reason])').classList.remove('active');
-        btn.classList.toggle('active');
-        if (document.querySelectorAll('#invLogReasonChips .inv-reason-chip.active[data-reason]').length === 0) {
-            document.querySelector('#invLogReasonChips .inv-reason-chip:not([data-reason])').classList.add('active');
-        }
+function closeReasonDropdown(e) {
+    const dd = document.getElementById('invLogReasonDropdown');
+    const btn = document.getElementById('invLogReasonBtn');
+    if (dd && !dd.contains(e.target) && e.target !== btn) dd.style.display = 'none';
+}
+document.addEventListener('click', closeReasonDropdown);
+function reasonDropdownAll(allCb) {
+    if (allCb.checked) {
+        document.querySelectorAll('.inv-dd-check:not([value="all"])').forEach(cb => cb.checked = false);
     }
+    updateReasonDropdownLabel();
     renderInvLog();
 }
+function reasonDropdownChanged() {
+    const allCb = document.querySelector('.inv-dd-check[value="all"]');
+    if (allCb) allCb.checked = false;
+    if (document.querySelectorAll('.inv-dd-check:not([value="all"]):checked').length === 0) {
+        if (allCb) allCb.checked = true;
+    }
+    updateReasonDropdownLabel();
+    renderInvLog();
+}
+function updateReasonDropdownLabel() {
+    const btn = document.getElementById('invLogReasonBtn');
+    if (!btn) return;
+    const allCb = document.querySelector('.inv-dd-check[value="all"]');
+    if (allCb && allCb.checked) { btn.textContent = 'Razón ( Todas ) ▾'; return; }
+    const checked = document.querySelectorAll('.inv-dd-check:not([value="all"]):checked');
+    if (checked.length === 0) { btn.textContent = 'Razón ( Todas ) ▾'; return; }
+    if (checked.length === 1) { btn.textContent = 'Razón ( ' + checked[0].value.split(' ').pop() + ' ) ▾'; return; }
+    btn.textContent = 'Razón ( ' + checked.length + ' seleccionadas ) ▾';
+}
+function resetReasonDropdown() {
+    document.querySelectorAll('.inv-dd-check').forEach(cb => cb.checked = false);
+    const allCb = document.querySelector('.inv-dd-check[value="all"]');
+    if (allCb) allCb.checked = true;
+    updateReasonDropdownLabel();
+    const dd = document.getElementById('invLogReasonDropdown');
+    if (dd) dd.style.display = 'none';
+}
 function getSelectedTableReasons() {
-    const todas = document.querySelector('#invLogReasonChips .inv-reason-chip:not([data-reason])');
-    if (todas && todas.classList.contains('active')) return [];
+    const allCb = document.querySelector('.inv-dd-check[value="all"]');
+    if (allCb && allCb.checked) return [];
     const selected = [];
-    document.querySelectorAll('#invLogReasonChips .inv-reason-chip.active[data-reason]').forEach(c => selected.push(c.dataset.reason));
+    document.querySelectorAll('.inv-dd-check:not([value="all"]):checked').forEach(cb => selected.push(cb.value));
     return selected;
 }
 function renderInvLog() {
