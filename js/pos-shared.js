@@ -1896,8 +1896,10 @@ function openInvPrintModal() {
     document.getElementById('invPrintDateFrom').value = today();
     document.getElementById('invPrintDateTo').value = today();
     document.getElementById('invPrintType').value = 'all';
-    document.getElementById('invPrintReason').value = 'all';
     document.getElementById('invPrintReasonGroup').style.display = 'none';
+    const allCb = document.querySelector('#invPrintReasonChecks input[value="all"]');
+    if (allCb) allCb.checked = true;
+    document.querySelectorAll('.inv-reason-check').forEach(cb => cb.checked = false);
     modal.classList.add('open');
     modal.style.display = 'flex';
 }
@@ -1912,19 +1914,33 @@ function toggleInvPrintReason() {
     const group = document.getElementById('invPrintReasonGroup');
     if (!group) return;
     group.style.display = (type === 'salida') ? '' : 'none';
-    document.getElementById('invPrintReason').value = 'all';
+    const allCb = document.querySelector('#invPrintReasonChecks input[value="all"]');
+    if (allCb) allCb.checked = true;
+    document.querySelectorAll('.inv-reason-check').forEach(cb => cb.checked = false);
+}
+function toggleInvPrintReasonAll(allCb) {
+    if (allCb.checked) {
+        document.querySelectorAll('.inv-reason-check').forEach(cb => cb.checked = false);
+    }
+}
+function getSelectedReasons() {
+    const allCb = document.querySelector('#invPrintReasonChecks input[value="all"]');
+    if (allCb && allCb.checked) return [];
+    const selected = [];
+    document.querySelectorAll('.inv-reason-check:checked').forEach(cb => selected.push(cb.value));
+    return selected;
 }
 function confirmPrintInvMovements() {
     const dateFrom = document.getElementById('invPrintDateFrom').value;
     const dateTo = document.getElementById('invPrintDateTo').value;
     const typeFilter = document.getElementById('invPrintType').value;
-    const reasonFilter = document.getElementById('invPrintReason') ? document.getElementById('invPrintReason').value : 'all';
+    const selectedReasons = typeFilter === 'salida' ? getSelectedReasons() : [];
     if (!dateFrom || !dateTo) { showToast('Selecciona las fechas'); return; }
     let filtered = filterInvLogByScope(invLog);
     if (dateFrom) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) >= dateFrom);
     if (dateTo) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) <= dateTo);
     if (typeFilter !== 'all') filtered = filtered.filter(l => l.type === typeFilter);
-    if (reasonFilter !== 'all') filtered = filtered.filter(l => (l.reason || '').startsWith(reasonFilter));
+    if (selectedReasons.length > 0) filtered = filtered.filter(l => selectedReasons.some(r => (l.reason || '').startsWith(r)));
     filtered.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     if (filtered.length === 0) { showToast('No hay movimientos para esas fechas'); return; }
     closeInvPrintModal();
