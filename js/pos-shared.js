@@ -1934,11 +1934,14 @@ function confirmPrintInvMovements() {
         const isEntrada = l.type === 'entrada' || l.type === 'retorno';
         const absQty = Math.abs(l.quantity);
         const qtyStr = (isEntrada ? '+' : '-') + absQty;
-        return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px dashed #eee;">' +
-            '<span style="flex:1.2;">' + d + '</span>' +
-            '<span style="flex:2.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + l.productName + '</span>' +
-            '<span style="flex:1.2;text-align:center;">' + tLabel + '</span>' +
-            '<span style="flex:0.8;text-align:right;font-weight:600;color:' + (isEntrada ? 'var(--success)' : 'var(--danger)') + ';">' + qtyStr + '</span>' +
+        return '<div style="padding:3px 0;border-bottom:1px dashed #eee;">' +
+            '<div style="display:flex;justify-content:space-between;font-size:11px;">' +
+                '<span style="flex:1.2;">' + d + '</span>' +
+                '<span style="flex:2.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + l.productName + '</span>' +
+                '<span style="flex:1.2;text-align:center;">' + tLabel + '</span>' +
+                '<span style="flex:0.8;text-align:right;font-weight:600;color:' + (isEntrada ? 'var(--success)' : 'var(--danger)') + ';">' + qtyStr + '</span>' +
+            '</div>' +
+            (l.reason ? '<div style="font-size:9px;color:#888;padding-left:2px;">' + l.reason + '</div>' : '') +
         '</div>';
     }).join('');
     document.getElementById('receiptContent').innerHTML =
