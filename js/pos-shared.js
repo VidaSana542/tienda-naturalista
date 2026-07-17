@@ -2002,7 +2002,7 @@ function populatePrintReasonChips(type) {
     const container = document.getElementById('invPrintReasonChecks');
     if (!container) return;
     container.innerHTML = '<button type="button" class="inv-reason-chip active" onclick="toggleReasonChip(this)">Todas</button>' +
-        reasons.map(r => '<button type="button" class="inv-reason-chip" onclick="toggleReasonChip(this)" data-reason="' + r + '">' + r.split(' ').slice(-1)[0] + '</button>').join('');
+        reasons.map(r => '<button type="button" class="inv-reason-chip" onclick="toggleReasonChip(this)" data-reason="' + r + '">' + r + '</button>').join('');
 }
 function resetReasonChips() {
     document.querySelectorAll('.inv-reason-chip').forEach(c => c.classList.remove('active'));
