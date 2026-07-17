@@ -1827,14 +1827,40 @@ function toggleInvLogSort() {
 }
 function toggleInvLogReasonFilter() {
     const typeFilter = document.getElementById('invLogTypeFilter');
-    const reasonFilter = document.getElementById('invLogReasonFilter');
-    if (!typeFilter || !reasonFilter) return;
+    const chipsContainer = document.getElementById('invLogReasonChips');
+    if (!typeFilter || !chipsContainer) return;
     if (typeFilter.value === 'salida') {
-        reasonFilter.style.display = '';
+        chipsContainer.style.display = 'flex';
     } else {
-        reasonFilter.style.display = 'none';
-        reasonFilter.value = 'all';
+        chipsContainer.style.display = 'none';
+        resetTableReasonChips();
     }
+}
+function resetTableReasonChips() {
+    document.querySelectorAll('#invLogReasonChips .inv-reason-chip').forEach(c => c.classList.remove('active'));
+    const todas = document.querySelector('#invLogReasonChips .inv-reason-chip:not([data-reason])');
+    if (todas) todas.classList.add('active');
+}
+function toggleTableReasonChip(btn) {
+    const isTodas = !btn.dataset.reason;
+    if (isTodas) {
+        document.querySelectorAll('#invLogReasonChips .inv-reason-chip').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+    } else {
+        document.querySelector('#invLogReasonChips .inv-reason-chip:not([data-reason])').classList.remove('active');
+        btn.classList.toggle('active');
+        if (document.querySelectorAll('#invLogReasonChips .inv-reason-chip.active[data-reason]').length === 0) {
+            document.querySelector('#invLogReasonChips .inv-reason-chip:not([data-reason])').classList.add('active');
+        }
+    }
+    renderInvLog();
+}
+function getSelectedTableReasons() {
+    const todas = document.querySelector('#invLogReasonChips .inv-reason-chip:not([data-reason])');
+    if (todas && todas.classList.contains('active')) return [];
+    const selected = [];
+    document.querySelectorAll('#invLogReasonChips .inv-reason-chip.active[data-reason]').forEach(c => selected.push(c.dataset.reason));
+    return selected;
 }
 function renderInvLog() {
     const catFilter = document.getElementById('invLogCatFilter');
@@ -1859,9 +1885,8 @@ function renderInvLog() {
     if (q) filtered = filtered.filter(l => l.productName.toLowerCase().includes(q));
     if (cat !== 'all') filtered = filtered.filter(l => l.category === cat);
     if (type !== 'all') filtered = filtered.filter(l => l.type === type);
-    const reasonFilter = document.getElementById('invLogReasonFilter');
-    const reason = reasonFilter ? reasonFilter.value : 'all';
-    if (reason !== 'all') filtered = filtered.filter(l => (l.reason || '').startsWith(reason));
+    const selectedReasons = getSelectedTableReasons();
+    if (selectedReasons.length > 0) filtered = filtered.filter(l => selectedReasons.some(r => (l.reason || '').startsWith(r)));
     if (!getPosScope()) {
         if (ventaFilter === 'local') filtered = filtered.filter(l => (l.type === 'salida' || l.type === 'salida_temp' || l.type === 'venta_ruta') && !l.ventaPorFuera);
         else if (ventaFilter === 'fuera') filtered = filtered.filter(l => (l.type === 'salida' || l.type === 'salida_temp' || l.type === 'venta_ruta') && l.ventaPorFuera);

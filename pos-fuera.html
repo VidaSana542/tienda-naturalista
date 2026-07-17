@@ -535,17 +535,17 @@
                                 <option value="venta_ruta">Venta Ruta</option>
                                 <option value="retorno">Retorno</option>
                             </select>
-                            <select id="invLogReasonFilter" onchange="renderInvLog()" class="filter-select" style="display:none;">
-                                <option value="all">Todas las razones</option>
-                                <option value="Movimiento a Bastidas">Bastidas</option>
-                                <option value="Movimiento a Curinca">Curinca</option>
-                                <option value="Movimiento a Liceth">Liceth</option>
-                                <option value="Venta directa">Venta directa</option>
-                                <option value="Merma / Deterioro">Merma</option>
-                                <option value="Vencimiento">Vencimiento</option>
-                                <option value="Donacion">Donacion</option>
-                                <option value="Transferencia saliente">Transferencia</option>
-                            </select>
+                            <div id="invLogReasonChips" style="display:none;flex-wrap:wrap;gap:4px;">
+                                <button type="button" class="inv-reason-chip active" onclick="toggleTableReasonChip(this)">Todas</button>
+                                <button type="button" class="inv-reason-chip" onclick="toggleTableReasonChip(this)" data-reason="Movimiento a Bastidas">Bastidas</button>
+                                <button type="button" class="inv-reason-chip" onclick="toggleTableReasonChip(this)" data-reason="Movimiento a Curinca">Curinca</button>
+                                <button type="button" class="inv-reason-chip" onclick="toggleTableReasonChip(this)" data-reason="Movimiento a Liceth">Liceth</button>
+                                <button type="button" class="inv-reason-chip" onclick="toggleTableReasonChip(this)" data-reason="Venta directa">Venta directa</button>
+                                <button type="button" class="inv-reason-chip" onclick="toggleTableReasonChip(this)" data-reason="Merma / Deterioro">Merma</button>
+                                <button type="button" class="inv-reason-chip" onclick="toggleTableReasonChip(this)" data-reason="Vencimiento">Vencimiento</button>
+                                <button type="button" class="inv-reason-chip" onclick="toggleTableReasonChip(this)" data-reason="Donacion">Donacion</button>
+                                <button type="button" class="inv-reason-chip" onclick="toggleTableReasonChip(this)" data-reason="Transferencia saliente">Transferencia</button>
+                            </div>
                             <select id="invLogVentaFilter" onchange="renderInvLog()" class="filter-select">
                                 <option value="all">Todas</option>
                                 <option value="local">Local</option>
