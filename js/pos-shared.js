@@ -1974,7 +1974,7 @@ function openInvPrintModal() {
     document.getElementById('invPrintDateTo').value = today();
     document.getElementById('invPrintType').value = 'all';
     document.getElementById('invPrintReasonGroup').style.display = 'none';
-    resetReasonChips();
+    document.getElementById('invPrintReasonChecks').innerHTML = '';
     modal.classList.add('open');
     modal.style.display = 'flex';
 }
@@ -1988,8 +1988,21 @@ function toggleInvPrintReason() {
     const type = document.getElementById('invPrintType').value;
     const group = document.getElementById('invPrintReasonGroup');
     if (!group) return;
-    group.style.display = (type === 'salida') ? '' : 'none';
-    resetReasonChips();
+    if (type === 'salida' || type === 'entrada') {
+        group.style.display = '';
+        populatePrintReasonChips(type);
+    } else {
+        group.style.display = 'none';
+    }
+}
+function populatePrintReasonChips(type) {
+    const reasons = type === 'entrada'
+        ? ['Registro de pedido','Compra a proveedor','Devolucion de cliente','Ajuste por inventario inicial','Otro']
+        : ['Movimiento a Bastidas','Movimiento a Curinca','Movimiento a Liceth','Venta directa','Merma / Deterioro','Vencimiento','Donacion','Transferencia saliente','Otro'];
+    const container = document.getElementById('invPrintReasonChecks');
+    if (!container) return;
+    container.innerHTML = '<button type="button" class="inv-reason-chip active" onclick="toggleReasonChip(this)">Todas</button>' +
+        reasons.map(r => '<button type="button" class="inv-reason-chip" onclick="toggleReasonChip(this)" data-reason="' + r + '">' + r.split(' ').slice(-1)[0] + '</button>').join('');
 }
 function resetReasonChips() {
     document.querySelectorAll('.inv-reason-chip').forEach(c => c.classList.remove('active'));
@@ -2021,7 +2034,7 @@ function confirmPrintInvMovements() {
     const dateFrom = document.getElementById('invPrintDateFrom').value;
     const dateTo = document.getElementById('invPrintDateTo').value;
     const typeFilter = document.getElementById('invPrintType').value;
-    const selectedReasons = typeFilter === 'salida' ? getSelectedReasons() : [];
+    const selectedReasons = (typeFilter === 'salida' || typeFilter === 'entrada') ? getSelectedReasons() : [];
     if (!dateFrom || !dateTo) { showToast('Selecciona las fechas'); return; }
     let filtered = filterInvLogByScope(invLog);
     if (dateFrom) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) >= dateFrom);
