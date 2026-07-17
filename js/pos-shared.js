@@ -2361,7 +2361,7 @@ function toggleInvMovPrice() {
     const reason = document.getElementById('invMovReason').value;
     const priceGroup = document.getElementById('invMovPriceGroup');
     if (!priceGroup) return;
-    const showPrice = reason === 'Movimiento a Bastidas' || reason === 'Movimiento a Curinca' || reason === 'Movimiento a Liceth';
+    const showPrice = reason === 'Movimiento a Bastidas' || reason === 'Movimiento a Curinca';
     priceGroup.style.display = showPrice ? '' : 'none';
 }
 function confirmInvMov() {
