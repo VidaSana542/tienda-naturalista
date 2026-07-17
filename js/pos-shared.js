@@ -1889,6 +1889,85 @@ function clearInvLog() {
     showToast('Historial de inventario limpiado');
 }
 
+// ============ INVENTORY PRINT TICKET ============
+function openInvPrintModal() {
+    const modal = document.getElementById('invPrintModal');
+    if (!modal) return;
+    document.getElementById('invPrintDateFrom').value = today();
+    document.getElementById('invPrintDateTo').value = today();
+    document.getElementById('invPrintType').value = 'all';
+    modal.classList.add('open');
+    modal.style.display = 'flex';
+}
+function closeInvPrintModal() {
+    const modal = document.getElementById('invPrintModal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+}
+function confirmPrintInvMovements() {
+    const dateFrom = document.getElementById('invPrintDateFrom').value;
+    const dateTo = document.getElementById('invPrintDateTo').value;
+    const typeFilter = document.getElementById('invPrintType').value;
+    if (!dateFrom || !dateTo) { showToast('Selecciona las fechas'); return; }
+    let filtered = filterInvLogByScope(invLog);
+    if (dateFrom) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) >= dateFrom);
+    if (dateTo) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) <= dateTo);
+    if (typeFilter !== 'all') filtered = filtered.filter(l => l.type === typeFilter);
+    filtered.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    if (filtered.length === 0) { showToast('No hay movimientos para esas fechas'); return; }
+    closeInvPrintModal();
+    const typeLabels = { entrada: 'Entrada', salida: 'Salida', salida_temp: 'Salida Temp.', venta_ruta: 'Venta Ruta', ajuste: 'Ajuste', retorno: 'Retorno' };
+    const scope = getPosScope();
+    const scopeLabel = scope === 'fuera' ? 'Por Fuera' : scope === 'local' ? 'Local' : 'General';
+    let totalEntradas = 0, totalSalidas = 0;
+    filtered.forEach(l => {
+        if (l.quantity > 0) totalEntradas += l.quantity;
+        else totalSalidas += Math.abs(l.quantity);
+    });
+    const dateLabelFrom = new Date(dateFrom + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+    const dateLabelTo = new Date(dateTo + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+    let rowsHtml = filtered.slice(0, 80).map(l => {
+        const d = l.date ? new Date(l.date).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }) : '--';
+        const tLabel = typeLabels[l.type] || l.type;
+        const qtyStr = (l.quantity > 0 ? '+' : '') + l.quantity;
+        return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px dashed #eee;">' +
+            '<span style="flex:1.2;">' + d + '</span>' +
+            '<span style="flex:2.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + l.productName + '</span>' +
+            '<span style="flex:1.2;text-align:center;">' + tLabel + '</span>' +
+            '<span style="flex:0.8;text-align:right;font-weight:600;color:' + (l.quantity > 0 ? 'var(--success)' : 'var(--danger)') + ';">' + qtyStr + '</span>' +
+        '</div>';
+    }).join('');
+    document.getElementById('receiptContent').innerHTML =
+        '<div class="receipt">' +
+            '<div class="receipt-header">' +
+                '<img src="' + (typeof LOGO_DATA_URL !== 'undefined' && LOGO_DATA_URL ? LOGO_DATA_URL : (typeof LOGO_URL !== 'undefined' ? LOGO_URL : 'LOGO.jpeg')) + '" style="max-width:140px;height:auto;margin-bottom:6px;" alt="Logo">' +
+                '<h4 style="font-size:14px;margin:2px 0;">REPORTE DE INVENTARIO</h4>' +
+                '<p style="font-size:11px;margin:2px 0;color:var(--text-muted);">TPV ' + scopeLabel + '</p>' +
+            '</div>' +
+            '<div class="receipt-divider"></div>' +
+            '<div style="font-size:11px;margin-bottom:6px;">' +
+                '<span>Desde: <strong>' + dateLabelFrom + '</strong></span> &nbsp;|&nbsp; ' +
+                '<span>Hasta: <strong>' + dateLabelTo + '</strong></span>' +
+            '</div>' +
+            '<div class="receipt-row" style="font-size:12px;"><span>Total movimientos</span><span style="font-weight:700;">' + filtered.length + '</span></div>' +
+            '<div class="receipt-row" style="font-size:12px;"><span style="color:var(--success);">Entradas</span><span style="font-weight:700;color:var(--success);">+' + totalEntradas + '</span></div>' +
+            '<div class="receipt-row" style="font-size:12px;"><span style="color:var(--danger);">Salidas</span><span style="font-weight:700;color:var(--danger);">-' + totalSalidas + '</span></div>' +
+            '<div class="receipt-divider"></div>' +
+            '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Detalle</div>' +
+            rowsHtml +
+            (filtered.length > 80 ? '<div style="font-size:10px;color:var(--text-muted);text-align:center;margin-top:4px;">... y ' + (filtered.length - 80) + ' movimientos mas</div>' : '') +
+            '<div class="receipt-divider"></div>' +
+            '<div class="receipt-footer">' +
+                '<p>Impreso el ' + new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + '</p>' +
+            '</div>' +
+        '</div>';
+    document.getElementById('receiptModal').classList.add('open');
+    const btnInv = document.getElementById('btnDownloadInv');
+    if (btnInv) btnInv.style.display = 'none';
+    setTimeout(() => { window.print(); }, 400);
+}
+
 // ============ INVENTORY LOG EDIT ============
 function openInvLogEditModal(id) {
     const entry = invLog.find(l => l.id === id);

@@ -543,6 +543,10 @@
                             <input type="date" id="invLogDateFrom" onchange="renderInvLog()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;" title="Fecha desde">
                             <input type="date" id="invLogDateTo" onchange="renderInvLog()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;" title="Fecha hasta">
                             <button class="btn btn-sm" id="invLogSortBtn" onclick="toggleInvLogSort()" style="white-space:nowrap;" title="Ordenar por fecha">⬇ Más reciente</button>
+                            <button class="btn btn-sm" onclick="openInvPrintModal()" style="background:var(--primary);color:#fff;white-space:nowrap;font-size:12px;padding:6px 12px;border-radius:8px;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Imprimir movimientos">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="#fff"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
+                                Imprimir
+                            </button>
                         </div>
                         <div class="table-wrap">
                             <table>
@@ -1387,6 +1391,41 @@
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeInvLogEditModal()">Cancelar</button>
             <button class="btn btn-primary" onclick="saveInvLogEdit()">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="invPrintModal" onclick="if(event.target===this)closeInvPrintModal()">
+    <div class="modal" style="max-width:420px;">
+        <button class="modal-close" onclick="closeInvPrintModal()">&times;</button>
+        <h3 style="margin-bottom:14px;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="var(--primary)" style="vertical-align:middle;margin-right:6px;"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
+            Imprimir Movimientos
+        </h3>
+        <div class="form-group">
+            <label>Fecha desde</label>
+            <input type="date" id="invPrintDateFrom" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;">
+        </div>
+        <div class="form-group">
+            <label>Fecha hasta</label>
+            <input type="date" id="invPrintDateTo" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;">
+        </div>
+        <div class="form-group">
+            <label>Tipo de movimiento</label>
+            <select id="invPrintType" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+                <option value="all">Todos</option>
+                <option value="entrada">Entradas</option>
+                <option value="salida">Salidas</option>
+                <option value="ajuste">Ajustes</option>
+                <option value="retorno">Retornos</option>
+            </select>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeInvPrintModal()">Cancelar</button>
+            <button class="btn btn-primary" onclick="confirmPrintInvMovements()" style="display:flex;align-items:center;gap:6px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
+                Imprimir Ticket
+            </button>
         </div>
     </div>
 </div>
