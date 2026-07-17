@@ -1922,20 +1922,23 @@ function confirmPrintInvMovements() {
     const scopeLabel = scope === 'fuera' ? 'Por Fuera' : scope === 'local' ? 'Local' : 'General';
     let totalEntradas = 0, totalSalidas = 0;
     filtered.forEach(l => {
-        if (l.quantity > 0) totalEntradas += l.quantity;
-        else totalSalidas += Math.abs(l.quantity);
+        const absQty = Math.abs(l.quantity);
+        if (l.type === 'entrada' || l.type === 'retorno') totalEntradas += absQty;
+        else totalSalidas += absQty;
     });
     const dateLabelFrom = new Date(dateFrom + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
     const dateLabelTo = new Date(dateTo + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
     let rowsHtml = filtered.slice(0, 80).map(l => {
         const d = l.date ? new Date(l.date).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' }) : '--';
         const tLabel = typeLabels[l.type] || l.type;
-        const qtyStr = (l.quantity > 0 ? '+' : '') + l.quantity;
+        const isEntrada = l.type === 'entrada' || l.type === 'retorno';
+        const absQty = Math.abs(l.quantity);
+        const qtyStr = (isEntrada ? '+' : '-') + absQty;
         return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;border-bottom:1px dashed #eee;">' +
             '<span style="flex:1.2;">' + d + '</span>' +
             '<span style="flex:2.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + l.productName + '</span>' +
             '<span style="flex:1.2;text-align:center;">' + tLabel + '</span>' +
-            '<span style="flex:0.8;text-align:right;font-weight:600;color:' + (l.quantity > 0 ? 'var(--success)' : 'var(--danger)') + ';">' + qtyStr + '</span>' +
+            '<span style="flex:0.8;text-align:right;font-weight:600;color:' + (isEntrada ? 'var(--success)' : 'var(--danger)') + ';">' + qtyStr + '</span>' +
         '</div>';
     }).join('');
     document.getElementById('receiptContent').innerHTML =
