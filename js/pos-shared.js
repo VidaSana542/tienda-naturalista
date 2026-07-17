@@ -2119,7 +2119,7 @@ function openInvLogEditModal(id) {
     if (!entry) { showToast('Movimiento no encontrado', 'error'); return; }
     document.getElementById('invLogEditId').value = entry.id;
     document.getElementById('invLogEditType').value = entry.type === 'salida_temp' || entry.type === 'venta_ruta' ? 'salida' : entry.type;
-    document.getElementById('invLogEditQty').value = entry.quantity;
+    document.getElementById('invLogEditQty').value = Math.abs(entry.quantity);
     document.getElementById('invLogEditReason').value = entry.reason || '';
     const upEdit = document.getElementById('invLogEditUnitPrice');
     if (upEdit) upEdit.value = entry.unitPrice || 0;
@@ -2197,7 +2197,7 @@ function saveInvLogEdit() {
     entry.productName = product.name;
     entry.category = product.category || '';
     entry.type = newType;
-    entry.quantity = newQty;
+    entry.quantity = (newType === 'salida' || newType === 'salida_temp' || newType === 'venta_ruta') ? -newQty : newQty;
     entry.previousStock = newPrevStock;
     entry.newStock = newNewStock;
     entry.reason = newReason;
