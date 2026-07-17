@@ -1315,12 +1315,27 @@
         </div>
         <div class="form-group">
             <label>Tipo de movimiento</label>
-            <select id="invPrintType" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+            <select id="invPrintType" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;" onchange="toggleInvPrintReason()">
                 <option value="all">Todos</option>
                 <option value="entrada">Entradas</option>
                 <option value="salida">Salidas</option>
                 <option value="ajuste">Ajustes</option>
                 <option value="retorno">Retornos</option>
+            </select>
+        </div>
+        <div class="form-group" id="invPrintReasonGroup" style="display:none;">
+            <label>Razon</label>
+            <select id="invPrintReason" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+                <option value="all">Todas las razones</option>
+                <option value="Movimiento a Bastidas">Movimiento a Bastidas</option>
+                <option value="Movimiento a Curinca">Movimiento a Curinca</option>
+                <option value="Movimiento a Liceth">Movimiento a Liceth</option>
+                <option value="Venta directa">Venta directa</option>
+                <option value="Merma / Deterioro">Merma / Deterioro</option>
+                <option value="Vencimiento">Vencimiento</option>
+                <option value="Donacion">Donacion</option>
+                <option value="Transferencia saliente">Transferencia saliente</option>
+                <option value="Otro">Otro</option>
             </select>
         </div>
         <div class="modal-footer">

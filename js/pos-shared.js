@@ -1896,6 +1896,8 @@ function openInvPrintModal() {
     document.getElementById('invPrintDateFrom').value = today();
     document.getElementById('invPrintDateTo').value = today();
     document.getElementById('invPrintType').value = 'all';
+    document.getElementById('invPrintReason').value = 'all';
+    document.getElementById('invPrintReasonGroup').style.display = 'none';
     modal.classList.add('open');
     modal.style.display = 'flex';
 }
@@ -1905,15 +1907,24 @@ function closeInvPrintModal() {
     modal.classList.remove('open');
     modal.style.display = 'none';
 }
+function toggleInvPrintReason() {
+    const type = document.getElementById('invPrintType').value;
+    const group = document.getElementById('invPrintReasonGroup');
+    if (!group) return;
+    group.style.display = (type === 'salida') ? '' : 'none';
+    document.getElementById('invPrintReason').value = 'all';
+}
 function confirmPrintInvMovements() {
     const dateFrom = document.getElementById('invPrintDateFrom').value;
     const dateTo = document.getElementById('invPrintDateTo').value;
     const typeFilter = document.getElementById('invPrintType').value;
+    const reasonFilter = document.getElementById('invPrintReason') ? document.getElementById('invPrintReason').value : 'all';
     if (!dateFrom || !dateTo) { showToast('Selecciona las fechas'); return; }
     let filtered = filterInvLogByScope(invLog);
     if (dateFrom) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) >= dateFrom);
     if (dateTo) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) <= dateTo);
     if (typeFilter !== 'all') filtered = filtered.filter(l => l.type === typeFilter);
+    if (reasonFilter !== 'all') filtered = filtered.filter(l => (l.reason || '').startsWith(reasonFilter));
     filtered.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     if (filtered.length === 0) { showToast('No hay movimientos para esas fechas'); return; }
     closeInvPrintModal();
