@@ -2123,6 +2123,11 @@ function openInvLogEditModal(id) {
     document.getElementById('invLogEditReason').value = entry.reason || '';
     const upEdit = document.getElementById('invLogEditUnitPrice');
     if (upEdit) upEdit.value = entry.unitPrice || 0;
+    const priceGroup = document.getElementById('invLogEditPriceGroup');
+    if (priceGroup) {
+        const isBastCur = entry.reason && (entry.reason.includes('Bastidas') || entry.reason.includes('Curinca'));
+        priceGroup.style.display = isBastCur ? '' : 'none';
+    }
     const prodSelect = document.getElementById('invLogEditProduct');
     if (prodSelect) {
         prodSelect.innerHTML = posProducts.map(p => '<option value="' + p.id + '" ' + (String(p.id) === String(entry.productId) ? 'selected' : '') + '>' + p.name + '</option>').join('');
