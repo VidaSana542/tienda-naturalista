@@ -500,6 +500,8 @@
                                         <th>Categoria</th>
                                         <th>Tipo</th>
                                         <th>Cant.</th>
+                                        <th>Precio U.</th>
+                                        <th>Total</th>
                                         <th>Stock Antes</th>
                                         <th>Stock Despues</th>
                                         <th>Razon</th>
@@ -1150,6 +1152,10 @@
             <label>Nota adicional</label>
             <input type="text" id="invMovNote" placeholder="Opcional">
         </div>
+        <div class="form-group" id="invMovPriceGroup" style="display:none;">
+            <label>Precio unitario de venta</label>
+            <input type="number" id="invMovPrice" value="0" min="0" step="100" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;">
+        </div>
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeInvMovModal()">Cancelar</button>
             <button class="btn btn-primary" id="invMovConfirmBtn" onclick="confirmInvMov()">Guardar</button>
@@ -1183,6 +1189,10 @@
         <div class="form-group">
             <label>Razon</label>
             <input type="text" id="invLogEditReason" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;">
+        </div>
+        <div class="form-group">
+            <label>Precio Unitario (opcional, para movimientos a tienda)</label>
+            <input type="number" id="invLogEditUnitPrice" value="0" min="0" step="100" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;box-sizing:border-box;">
         </div>
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeInvLogEditModal()">Cancelar</button>

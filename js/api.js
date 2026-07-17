@@ -456,7 +456,8 @@ const API = {
         new_stock: entry.new_stock,
         reason: entry.reason || '',
         sale_id: entry.sale_id || null,
-        venta_por_fuera: entry.venta_por_fuera || false
+        venta_por_fuera: entry.venta_por_fuera || false,
+        unit_price: entry.unit_price || 0
       })
       .select()
       .single();
@@ -486,7 +487,8 @@ const API = {
         new_stock: data.new_stock,
         reason: data.reason || '',
         sale_id: data.sale_id || null,
-        venta_por_fuera: data.venta_por_fuera || false
+        venta_por_fuera: data.venta_por_fuera || false,
+        unit_price: data.unit_price || 0
       })
       .eq('id', id);
     if (error) {

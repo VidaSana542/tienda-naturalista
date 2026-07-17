@@ -621,6 +621,7 @@ async function syncFromApi() {
                             saleId: al.sale_id,
                             category: al.category || '',
                             ventaPorFuera: al.venta_por_fuera || false,
+                            unitPrice: al.unit_price || 0,
                             synced: true,
                             apiId: al.id
                         });
@@ -732,7 +733,8 @@ function saveInvLog() {
                     new_stock: l.newStock,
                     reason: l.reason || '',
                     sale_id: l.saleId || null,
-                    venta_por_fuera: l.ventaPorFuera || false
+                    venta_por_fuera: l.ventaPorFuera || false,
+                    unit_price: l.unitPrice || 0
                 }).then((resp) => {
                     l.synced = true;
                     l._sending = false;
@@ -753,11 +755,11 @@ function saveInvLog() {
     }
     return Promise.resolve();
 }
-function addInvLog(productId, productName, type, quantity, previousStock, newStock, reason, saleId, ventaPorFuera) {
+function addInvLog(productId, productName, type, quantity, previousStock, newStock, reason, saleId, ventaPorFuera, unitPrice) {
     const prod = posProducts.find(p => p.id === productId);
     const category = prod ? prod.category : '';
     const validSaleId = (saleId && posSales.some(s => s.id === saleId && (s.apiSynced || s._synced))) ? saleId : null;
-    invLog.push({ id: invNextLogId++, date: now(), productId, productName, type, quantity, previousStock, newStock, reason, saleId: validSaleId, category, ventaPorFuera: ventaPorFuera || false, synced: false });
+    invLog.push({ id: invNextLogId++, date: now(), productId, productName, type, quantity, previousStock, newStock, reason, saleId: validSaleId, category, ventaPorFuera: ventaPorFuera || false, unitPrice: unitPrice || 0, synced: false });
     saveInvLog();
 }
 
@@ -1933,7 +1935,7 @@ function renderInvLog() {
     if (dateTo) filtered = filtered.filter(l => l.date && l.date.substring(0, 10) <= dateTo);
     filtered.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px;">Sin movimientos registrados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:20px;">Sin movimientos registrados</td></tr>';
         return;
     }
     tbody.innerHTML = (_invLogSortDesc ? filtered.slice().reverse() : filtered).slice(0, 200).map(l => {
@@ -1941,12 +1943,16 @@ function renderInvLog() {
         const typeColors = { entrada: 'var(--success)', salida: 'var(--danger)', salida_temp: '#e65100', venta_ruta: '#1565c0', ajuste: 'var(--warning)', retorno: '#7b1fa2' };
         const typeLabel = '<span style="color:' + (typeColors[l.type] || 'var(--warning)') + ';font-weight:600;">' + (typeLabels[l.type] || l.type) + '</span>';
         const vpfTag = l.ventaPorFuera ? ' <span class="tag tag-warning" style="font-size:10px;">Por fuera</span>' : '';
+        const up = l.unitPrice || 0;
+        const total = up > 0 ? up * Math.abs(l.quantity) : 0;
         return '<tr>' +
             '<td>' + shortDate(l.date) + '</td>' +
             '<td><strong>' + l.productName + '</strong></td>' +
             '<td>' + getCatLabel(l.category) + '</td>' +
             '<td>' + typeLabel + '</td>' +
             '<td style="font-weight:600;' + ((l.type === 'entrada' || l.type === 'retorno') ? 'color:var(--success);' : 'color:var(--danger);') + '">' + ((l.type === 'entrada' || l.type === 'retorno') ? '+' : '-') + Math.abs(l.quantity) + '</td>' +
+            '<td>' + (up > 0 ? formatPrice(up) : '-') + '</td>' +
+            '<td>' + (total > 0 ? formatPrice(total) : '-') + '</td>' +
             '<td>' + l.previousStock + '</td>' +
             '<td>' + l.newStock + '</td>' +
             '<td style="font-size:12px;color:var(--text-muted);">' + (l.reason || '-') + vpfTag + '</td>' +
@@ -2047,11 +2053,13 @@ function confirmPrintInvMovements() {
     const typeLabels = { entrada: 'Entrada', salida: 'Salida', salida_temp: 'Salida Temp.', venta_ruta: 'Venta Ruta', ajuste: 'Ajuste', retorno: 'Retorno' };
     const scope = getPosScope();
     const scopeLabel = scope === 'fuera' ? 'Por Fuera' : scope === 'local' ? 'Local' : 'General';
-    let totalEntradas = 0, totalSalidas = 0;
+    let totalEntradas = 0, totalSalidas = 0, totalValor = 0;
     filtered.forEach(l => {
         const absQty = Math.abs(l.quantity);
         if (l.type === 'entrada' || l.type === 'retorno') totalEntradas += absQty;
         else totalSalidas += absQty;
+        const up = l.unitPrice || 0;
+        if (up > 0) totalValor += up * absQty;
     });
     const dateLabelFrom = new Date(dateFrom + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
     const dateLabelTo = new Date(dateTo + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -2061,12 +2069,15 @@ function confirmPrintInvMovements() {
         const isEntrada = l.type === 'entrada' || l.type === 'retorno';
         const absQty = Math.abs(l.quantity);
         const qtyStr = (isEntrada ? '+' : '-') + absQty;
+        const up = l.unitPrice || 0;
+        const total = up > 0 ? up * absQty : 0;
         return '<div style="padding:3px 0;border-bottom:1px dashed #eee;">' +
             '<div style="display:flex;justify-content:space-between;font-size:11px;">' +
                 '<span style="flex:1.2;">' + d + '</span>' +
-                '<span style="flex:2.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + l.productName + '</span>' +
-                '<span style="flex:1.2;text-align:center;">' + tLabel + '</span>' +
-                '<span style="flex:0.8;text-align:right;font-weight:600;color:' + (isEntrada ? 'var(--success)' : 'var(--danger)') + ';">' + qtyStr + '</span>' +
+                '<span style="flex:2.0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + l.productName + '</span>' +
+                '<span style="flex:1.0;text-align:center;">' + tLabel + '</span>' +
+                '<span style="flex:0.7;text-align:right;font-weight:600;color:' + (isEntrada ? 'var(--success)' : 'var(--danger)') + ';">' + qtyStr + '</span>' +
+                '<span style="flex:0.8;text-align:right;">' + (total > 0 ? '$' + total.toLocaleString('es-CO') : '') + '</span>' +
             '</div>' +
             (l.reason ? '<div style="font-size:9px;color:#888;padding-left:2px;">' + l.reason + '</div>' : '') +
         '</div>';
@@ -2086,6 +2097,7 @@ function confirmPrintInvMovements() {
             '<div class="receipt-row" style="font-size:12px;"><span>Total movimientos</span><span style="font-weight:700;">' + filtered.length + '</span></div>' +
             '<div class="receipt-row" style="font-size:12px;"><span style="color:var(--success);">Entradas</span><span style="font-weight:700;color:var(--success);">+' + totalEntradas + '</span></div>' +
             '<div class="receipt-row" style="font-size:12px;"><span style="color:var(--danger);">Salidas</span><span style="font-weight:700;color:var(--danger);">-' + totalSalidas + '</span></div>' +
+            (totalValor > 0 ? '<div class="receipt-row" style="font-size:12px;"><span>Total vendido local</span><span style="font-weight:700;">$' + totalValor.toLocaleString('es-CO') + '</span></div>' : '') +
             '<div class="receipt-divider"></div>' +
             '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Detalle</div>' +
             rowsHtml +
@@ -2109,6 +2121,8 @@ function openInvLogEditModal(id) {
     document.getElementById('invLogEditType').value = entry.type === 'salida_temp' || entry.type === 'venta_ruta' ? 'salida' : entry.type;
     document.getElementById('invLogEditQty').value = entry.quantity;
     document.getElementById('invLogEditReason').value = entry.reason || '';
+    const upEdit = document.getElementById('invLogEditUnitPrice');
+    if (upEdit) upEdit.value = entry.unitPrice || 0;
     const prodSelect = document.getElementById('invLogEditProduct');
     if (prodSelect) {
         prodSelect.innerHTML = posProducts.map(p => '<option value="' + p.id + '" ' + (String(p.id) === String(entry.productId) ? 'selected' : '') + '>' + p.name + '</option>').join('');
@@ -2133,6 +2147,7 @@ function saveInvLogEdit() {
     const newType = document.getElementById('invLogEditType').value;
     const newQty = parseInt(document.getElementById('invLogEditQty').value) || 0;
     const newReason = document.getElementById('invLogEditReason').value.trim();
+    const newUnitPrice = parseFloat(document.getElementById('invLogEditUnitPrice')?.value) || 0;
     const oldType = entry.type;
     const oldQty = entry.quantity;
     const oldProdId = entry.productId;
@@ -2181,6 +2196,7 @@ function saveInvLogEdit() {
     entry.previousStock = newPrevStock;
     entry.newStock = newNewStock;
     entry.reason = newReason;
+    entry.unitPrice = newUnitPrice;
     entry.synced = false;
 
     if (entry.apiId) {
@@ -2193,7 +2209,8 @@ function saveInvLogEdit() {
             new_stock: entry.newStock,
             reason: entry.reason,
             sale_id: entry.saleId || null,
-            venta_por_fuera: entry.ventaPorFuera || false
+            venta_por_fuera: entry.ventaPorFuera || false,
+            unit_price: entry.unitPrice || 0
         }).catch(e => console.error('[POS] updateInventoryLog error:', e));
     }
 
@@ -2288,6 +2305,11 @@ function openInvMovModal(type) {
     typeEl.value = type;
     if (qtyEl) qtyEl.value = '1';
     if (noteEl) noteEl.value = '';
+    const priceGroup = document.getElementById('invMovPriceGroup');
+    const priceEl = document.getElementById('invMovPrice');
+    if (priceGroup) priceGroup.style.display = 'none';
+    if (priceEl) priceEl.value = '0';
+    reasonSel.onchange = function() { toggleInvMovPrice(); };
     const iconPath = titleIcon && titleIcon.tagName === 'path' ? titleIcon : (titleIcon ? titleIcon.querySelector('path') : null);
     if (type === 'entrada') {
         if (iconPath) { iconPath.style.fill = 'var(--success)'; iconPath.setAttribute('d', 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'); }
@@ -2335,6 +2357,13 @@ function closeInvMovModal() {
     modal.style.display = 'none';
     document.body.style.overflow = '';
 }
+function toggleInvMovPrice() {
+    const reason = document.getElementById('invMovReason').value;
+    const priceGroup = document.getElementById('invMovPriceGroup');
+    if (!priceGroup) return;
+    const showPrice = reason === 'Movimiento a Bastidas' || reason === 'Movimiento a Curinca' || reason === 'Movimiento a Liceth';
+    priceGroup.style.display = showPrice ? '' : 'none';
+}
 function confirmInvMov() {
     const type = document.getElementById('invMovType').value;
     const pid = document.getElementById('invMovProduct').value;
@@ -2342,6 +2371,7 @@ function confirmInvMov() {
     const reason = document.getElementById('invMovReason').value;
     const note = document.getElementById('invMovNote').value.trim();
     const fullReason = note ? reason + ' - ' + note : reason;
+    const unitPrice = parseFloat(document.getElementById('invMovPrice').value) || 0;
     if (!pid || !qty || qty <= 0) { showToast('Selecciona un producto y cantidad valida'); return; }
     if (posProducts.length === 0) { showToast('No hay productos disponibles'); return; }
     const p = posProducts.find(pr => String(pr.id) === String(pid));
@@ -2349,7 +2379,7 @@ function confirmInvMov() {
     const prev = p.stock;
     if (type === 'entrada') {
         p.stock += qty;
-        addInvLog(pid, p.name, 'entrada', qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera');
+        addInvLog(pid, p.name, 'entrada', qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera', unitPrice);
         saveProducts();
         closeInvMovModal();
         renderInventory();
@@ -2358,7 +2388,7 @@ function confirmInvMov() {
     } else {
         if (p.stock < qty) { showToast('Stock insuficiente (disponible: ' + p.stock + ')'); return; }
         p.stock -= qty;
-        addInvLog(pid, p.name, 'salida', -qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera');
+        addInvLog(pid, p.name, 'salida', -qty, prev, p.stock, fullReason, null, getPosScope() === 'fuera', unitPrice);
         saveProducts();
         closeInvMovModal();
         renderInventory();
