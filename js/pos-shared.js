@@ -1825,6 +1825,17 @@ function toggleInvLogSort() {
     if (btn) btn.textContent = _invLogSortDesc ? '⬇ Más reciente' : '⬆ Más antiguo';
     renderInvLog();
 }
+function toggleInvLogReasonFilter() {
+    const typeFilter = document.getElementById('invLogTypeFilter');
+    const reasonFilter = document.getElementById('invLogReasonFilter');
+    if (!typeFilter || !reasonFilter) return;
+    if (typeFilter.value === 'salida') {
+        reasonFilter.style.display = '';
+    } else {
+        reasonFilter.style.display = 'none';
+        reasonFilter.value = 'all';
+    }
+}
 function renderInvLog() {
     const catFilter = document.getElementById('invLogCatFilter');
     const searchEl = document.getElementById('invLogSearch');
@@ -1848,6 +1859,9 @@ function renderInvLog() {
     if (q) filtered = filtered.filter(l => l.productName.toLowerCase().includes(q));
     if (cat !== 'all') filtered = filtered.filter(l => l.category === cat);
     if (type !== 'all') filtered = filtered.filter(l => l.type === type);
+    const reasonFilter = document.getElementById('invLogReasonFilter');
+    const reason = reasonFilter ? reasonFilter.value : 'all';
+    if (reason !== 'all') filtered = filtered.filter(l => (l.reason || '').startsWith(reason));
     if (!getPosScope()) {
         if (ventaFilter === 'local') filtered = filtered.filter(l => (l.type === 'salida' || l.type === 'salida_temp' || l.type === 'venta_ruta') && !l.ventaPorFuera);
         else if (ventaFilter === 'fuera') filtered = filtered.filter(l => (l.type === 'salida' || l.type === 'salida_temp' || l.type === 'venta_ruta') && l.ventaPorFuera);

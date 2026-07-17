@@ -460,10 +460,21 @@
                             <select id="invLogCatFilter" onchange="renderInvLog()" class="filter-select">
                                 <option value="all">Todas las categorias</option>
                             </select>
-                            <select id="invLogTypeFilter" onchange="renderInvLog()" class="filter-select">
+                            <select id="invLogTypeFilter" onchange="renderInvLog();toggleInvLogReasonFilter()" class="filter-select">
                                 <option value="all">Todos los tipos</option>
                                 <option value="entrada">Entrada</option>
                                 <option value="salida">Salida</option>
+                            </select>
+                            <select id="invLogReasonFilter" onchange="renderInvLog()" class="filter-select" style="display:none;">
+                                <option value="all">Todas las razones</option>
+                                <option value="Movimiento a Bastidas">Bastidas</option>
+                                <option value="Movimiento a Curinca">Curinca</option>
+                                <option value="Movimiento a Liceth">Liceth</option>
+                                <option value="Venta directa">Venta directa</option>
+                                <option value="Merma / Deterioro">Merma</option>
+                                <option value="Vencimiento">Vencimiento</option>
+                                <option value="Donacion">Donacion</option>
+                                <option value="Transferencia saliente">Transferencia</option>
                             </select>
                             <select id="invLogVentaFilter" onchange="renderInvLog()" class="filter-select">
                                 <option value="all">Todas las ventas</option>
