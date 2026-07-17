@@ -1897,9 +1897,7 @@ function openInvPrintModal() {
     document.getElementById('invPrintDateTo').value = today();
     document.getElementById('invPrintType').value = 'all';
     document.getElementById('invPrintReasonGroup').style.display = 'none';
-    const allCb = document.querySelector('#invPrintReasonChecks input[value="all"]');
-    if (allCb) allCb.checked = true;
-    document.querySelectorAll('.inv-reason-check').forEach(cb => cb.checked = false);
+    resetReasonChips();
     modal.classList.add('open');
     modal.style.display = 'flex';
 }
@@ -1914,20 +1912,32 @@ function toggleInvPrintReason() {
     const group = document.getElementById('invPrintReasonGroup');
     if (!group) return;
     group.style.display = (type === 'salida') ? '' : 'none';
-    const allCb = document.querySelector('#invPrintReasonChecks input[value="all"]');
-    if (allCb) allCb.checked = true;
-    document.querySelectorAll('.inv-reason-check').forEach(cb => cb.checked = false);
+    resetReasonChips();
 }
-function toggleInvPrintReasonAll(allCb) {
-    if (allCb.checked) {
-        document.querySelectorAll('.inv-reason-check').forEach(cb => cb.checked = false);
+function resetReasonChips() {
+    document.querySelectorAll('.inv-reason-chip').forEach(c => c.classList.remove('active'));
+    const todas = document.querySelector('.inv-reason-chip');
+    if (todas) todas.classList.add('active');
+}
+function toggleReasonChip(btn) {
+    const isTodas = !btn.dataset.reason;
+    if (isTodas) {
+        document.querySelectorAll('.inv-reason-chip').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+    } else {
+        document.querySelector('.inv-reason-chip:not([data-reason])').classList.remove('active');
+        btn.classList.toggle('active');
+        const anyActive = document.querySelectorAll('.inv-reason-chip.active:not([data-reason])').length > 0;
+        if (!anyActive && document.querySelectorAll('.inv-reason-chip.active[data-reason]').length === 0) {
+            document.querySelector('.inv-reason-chip:not([data-reason])').classList.add('active');
+        }
     }
 }
 function getSelectedReasons() {
-    const allCb = document.querySelector('#invPrintReasonChecks input[value="all"]');
-    if (allCb && allCb.checked) return [];
+    const todas = document.querySelector('.inv-reason-chip:not([data-reason])');
+    if (todas && todas.classList.contains('active')) return [];
     const selected = [];
-    document.querySelectorAll('.inv-reason-check:checked').forEach(cb => selected.push(cb.value));
+    document.querySelectorAll('.inv-reason-chip.active[data-reason]').forEach(c => selected.push(c.dataset.reason));
     return selected;
 }
 function confirmPrintInvMovements() {

@@ -1325,21 +1325,17 @@
         </div>
         <div class="form-group" id="invPrintReasonGroup" style="display:none;">
             <label>Razon</label>
-            <div id="invPrintReasonChecks" style="border:1px solid var(--border);border-radius:8px;padding:8px;max-height:180px;overflow-y:auto;font-size:13px;width:100%;box-sizing:border-box;">
-                <div style="padding:4px 0;border-bottom:1px solid #eee;margin-bottom:4px;">
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
-                        <input type="checkbox" value="all" checked onchange="toggleInvPrintReasonAll(this)" style="margin:0;"> Todas
-                    </label>
-                </div>
-                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Movimiento a Bastidas" style="margin:0;"> Movimiento a Bastidas</label></div>
-                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Movimiento a Curinca" style="margin:0;"> Movimiento a Curinca</label></div>
-                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Movimiento a Liceth" style="margin:0;"> Movimiento a Liceth</label></div>
-                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Venta directa" style="margin:0;"> Venta directa</label></div>
-                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Merma / Deterioro" style="margin:0;"> Merma / Deterioro</label></div>
-                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Vencimiento" style="margin:0;"> Vencimiento</label></div>
-                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Donacion" style="margin:0;"> Donacion</label></div>
-                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Transferencia saliente" style="margin:0;"> Transferencia saliente</label></div>
-                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Otro" style="margin:0;"> Otro</label></div>
+            <div id="invPrintReasonChecks" style="display:flex;flex-wrap:wrap;gap:6px;">
+                <button type="button" class="inv-reason-chip active" onclick="toggleReasonChip(this)">Todas</button>
+                <button type="button" class="inv-reason-chip" onclick="toggleReasonChip(this)" data-reason="Movimiento a Bastidas">Bastidas</button>
+                <button type="button" class="inv-reason-chip" onclick="toggleReasonChip(this)" data-reason="Movimiento a Curinca">Curinca</button>
+                <button type="button" class="inv-reason-chip" onclick="toggleReasonChip(this)" data-reason="Movimiento a Liceth">Liceth</button>
+                <button type="button" class="inv-reason-chip" onclick="toggleReasonChip(this)" data-reason="Venta directa">Venta directa</button>
+                <button type="button" class="inv-reason-chip" onclick="toggleReasonChip(this)" data-reason="Merma / Deterioro">Merma</button>
+                <button type="button" class="inv-reason-chip" onclick="toggleReasonChip(this)" data-reason="Vencimiento">Vencimiento</button>
+                <button type="button" class="inv-reason-chip" onclick="toggleReasonChip(this)" data-reason="Donacion">Donacion</button>
+                <button type="button" class="inv-reason-chip" onclick="toggleReasonChip(this)" data-reason="Transferencia saliente">Transferencia</button>
+                <button type="button" class="inv-reason-chip" onclick="toggleReasonChip(this)" data-reason="Otro">Otro</button>
             </div>
         </div>
         <div class="modal-footer">

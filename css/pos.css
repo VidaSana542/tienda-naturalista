@@ -1064,3 +1064,20 @@ table .actions button.del:hover svg { fill: var(--danger); }
 @media (min-width: 1600px) {
     .content { max-width: 1400px; margin: 0 auto; }
 }
+
+/* === Reason chips for print modal === */
+.inv-reason-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid #c8e6c9;
+    background: #f5fbf5;
+    color: #333;
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.inv-reason-chip:hover { background: #e8f5e9; border-color: #0b513b; }
+.inv-reason-chip.active { background: #0b513b; border-color: #0b513b; color: #fff; }
