@@ -1299,7 +1299,7 @@
 </div>
 
 <div class="modal-overlay" id="invPrintModal" onclick="if(event.target===this)closeInvPrintModal()">
-    <div class="modal" style="max-width:420px;">
+    <div class="modal" style="max-width:500px;width:95%;">
         <button class="modal-close" onclick="closeInvPrintModal()">&times;</button>
         <h3 style="margin-bottom:14px;">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="var(--primary)" style="vertical-align:middle;margin-right:6px;"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg>
@@ -1325,37 +1325,21 @@
         </div>
         <div class="form-group" id="invPrintReasonGroup" style="display:none;">
             <label>Razon</label>
-            <div id="invPrintReasonChecks" style="border:1px solid var(--border);border-radius:8px;padding:6px 10px;max-height:160px;overflow-y:auto;font-size:13px;">
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;font-weight:600;border-bottom:1px solid #eee;margin-bottom:2px;">
-                    <input type="checkbox" value="all" checked onchange="toggleInvPrintReasonAll(this)" style="flex-shrink:0;"> <span>Todas</span>
-                </label>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;">
-                    <input type="checkbox" class="inv-reason-check" value="Movimiento a Bastidas" style="flex-shrink:0;"> <span>Movimiento a Bastidas</span>
-                </label>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;">
-                    <input type="checkbox" class="inv-reason-check" value="Movimiento a Curinca" style="flex-shrink:0;"> <span>Movimiento a Curinca</span>
-                </label>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;">
-                    <input type="checkbox" class="inv-reason-check" value="Movimiento a Liceth" style="flex-shrink:0;"> <span>Movimiento a Liceth</span>
-                </label>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;">
-                    <input type="checkbox" class="inv-reason-check" value="Venta directa" style="flex-shrink:0;"> <span>Venta directa</span>
-                </label>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;">
-                    <input type="checkbox" class="inv-reason-check" value="Merma / Deterioro" style="flex-shrink:0;"> <span>Merma / Deterioro</span>
-                </label>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;">
-                    <input type="checkbox" class="inv-reason-check" value="Vencimiento" style="flex-shrink:0;"> <span>Vencimiento</span>
-                </label>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;">
-                    <input type="checkbox" class="inv-reason-check" value="Donacion" style="flex-shrink:0;"> <span>Donacion</span>
-                </label>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;">
-                    <input type="checkbox" class="inv-reason-check" value="Transferencia saliente" style="flex-shrink:0;"> <span>Transferencia saliente</span>
-                </label>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 0;">
-                    <input type="checkbox" class="inv-reason-check" value="Otro" style="flex-shrink:0;"> <span>Otro</span>
-                </label>
+            <div id="invPrintReasonChecks" style="border:1px solid var(--border);border-radius:8px;padding:8px;max-height:180px;overflow-y:auto;font-size:13px;width:100%;box-sizing:border-box;">
+                <div style="padding:4px 0;border-bottom:1px solid #eee;margin-bottom:4px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
+                        <input type="checkbox" value="all" checked onchange="toggleInvPrintReasonAll(this)" style="margin:0;"> Todas
+                    </label>
+                </div>
+                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Movimiento a Bastidas" style="margin:0;"> Movimiento a Bastidas</label></div>
+                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Movimiento a Curinca" style="margin:0;"> Movimiento a Curinca</label></div>
+                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Movimiento a Liceth" style="margin:0;"> Movimiento a Liceth</label></div>
+                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Venta directa" style="margin:0;"> Venta directa</label></div>
+                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Merma / Deterioro" style="margin:0;"> Merma / Deterioro</label></div>
+                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Vencimiento" style="margin:0;"> Vencimiento</label></div>
+                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Donacion" style="margin:0;"> Donacion</label></div>
+                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Transferencia saliente" style="margin:0;"> Transferencia saliente</label></div>
+                <div style="padding:3px 0;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="checkbox" class="inv-reason-check" value="Otro" style="margin:0;"> Otro</label></div>
             </div>
         </div>
         <div class="modal-footer">
