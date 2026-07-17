@@ -1869,7 +1869,7 @@ function renderInvLog() {
             '<td><strong>' + l.productName + '</strong></td>' +
             '<td>' + getCatLabel(l.category) + '</td>' +
             '<td>' + typeLabel + '</td>' +
-            '<td style="font-weight:600;' + (l.quantity > 0 ? 'color:var(--success);' : 'color:var(--danger);') + '">' + (l.quantity > 0 ? '+' : '') + l.quantity + '</td>' +
+            '<td style="font-weight:600;' + ((l.type === 'entrada' || l.type === 'retorno') ? 'color:var(--success);' : 'color:var(--danger);') + '">' + ((l.type === 'entrada' || l.type === 'retorno') ? '+' : '-') + Math.abs(l.quantity) + '</td>' +
             '<td>' + l.previousStock + '</td>' +
             '<td>' + l.newStock + '</td>' +
             '<td style="font-size:12px;color:var(--text-muted);">' + (l.reason || '-') + vpfTag + '</td>' +
