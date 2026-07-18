@@ -3209,7 +3209,8 @@ function confirmPrintClosing() {
     let itemsHtml = scopedSales.map(s => {
         const qty = (s.items || []).reduce((a, i) => a + i.qty, 0);
         const cli = s.customer || 'Mostrador';
-        return '<div class="receipt-row" style="font-size:12px;"><span>#' + s.id + ' ' + cli + ' (' + qty + 'p)</span><span style="font-weight:600;">' + formatPrice(s.total) + '</span></div>';
+        let detail = (s.items || []).map(i => '<div style="font-size:10px;color:var(--text-muted);padding-left:8px;">' + i.name + ' x' + i.qty + ' — ' + formatPrice(i.price * i.qty) + '</div>').join('');
+        return '<div class="receipt-row" style="font-size:12px;"><span>#' + s.id + ' ' + cli + ' (' + qty + 'p)</span><span style="font-weight:600;">' + formatPrice(s.total) + '</span></div>' + detail;
     }).join('');
     let methodsHtml = Object.entries(methodTotals).map(([k, v]) => {
         const labels = { cash: 'Efectivo', mixed: 'Mixto', bolt: 'BOLT', card: 'Tarjeta', nequi: 'Nequi', daviplata: 'Daviplata', otro: 'Otro' };
