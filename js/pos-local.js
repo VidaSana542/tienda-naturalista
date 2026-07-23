@@ -653,6 +653,7 @@ function confirmCheckout() {
     const sale = {
         id: posNextSaleId++,
         date: now(),
+        created_at: new Date().toISOString(),
         items: posCart.map(i => {
             const p = i.isTemp ? null : posProducts.find(pr => pr.id === i.id);
             return { id: i.id, name: i.isTemp ? i.tempName : (p ? p.name : 'Producto'), qty: i.qty, price: i.price, isTemp: i.isTemp || false };

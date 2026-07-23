@@ -388,8 +388,9 @@ function saveProducts() {
 function saveSales() {
     localStorage.setItem('posSales', JSON.stringify(posSales));
     if (API.isAvailable) {
-        const unsynced = posSales.filter(s => s.id && !s.apiSynced);
+        const unsynced = posSales.filter(s => s.id && !s.apiSynced && !s._syncPending);
         unsynced.forEach(s => {
+                s._syncPending = true;
                 API.saveSale({
                     customer_id: s.customerId ? parseInt(s.customerId.replace(/^c/i,'')) : null,
                     customer_name: s.customer,
@@ -402,7 +403,7 @@ function saveSales() {
                     venta_por_fuera: s.ventaPorFuera || false,
                     credit_info: s.creditInfo || null,
                     items: s.items || []
-                }).then(res => { if (res && res.id) { s.apiSynced = true; s.id = res.id; posNextSaleId = Math.max(posNextSaleId, res.id + 1); localStorage.setItem('posSales', JSON.stringify(posSales)); } }).catch(e => { console.error('[POS] saveSale error:', e); });
+                }).then(res => { if (res && res.id) { s.apiSynced = true; s._syncPending = false; s.id = res.id; posNextSaleId = Math.max(posNextSaleId, res.id + 1); localStorage.setItem('posSales', JSON.stringify(posSales)); } }).catch(e => { s._syncPending = false; console.error('[POS] saveSale error:', e); });
             });
     }
 }
