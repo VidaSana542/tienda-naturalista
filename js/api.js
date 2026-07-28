@@ -5,6 +5,10 @@
 const _SUPABASE_URL = 'https://jcksqhqopqhswwxskhls.supabase.co';
 const _SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja3NxaHFvcHFoc3d3eHNraGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTIzNjksImV4cCI6MjA5NjQ4ODM2OX0.1hnEgbk9--eedO1Tw9L0p6NKtHkz9h9NENEFiFJjbj0';
 
+const _CLOUDINARY_CLOUD = 'dhts3zzb';
+const _CLOUDINARY_UPLOAD_PRESET = 'vidasana';
+const _CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/' + _CLOUDINARY_CLOUD + '/image/upload';
+
 let _sb = null;
 try {
     if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
@@ -224,22 +228,20 @@ const API = {
     return { message: 'Proveedor eliminado' };
   },
 
-  // ---- Upload (Supabase Storage) ----
+  // ---- Upload (Cloudinary) ----
   async uploadImage(file) {
     const ext = file.name.split('.').pop();
-    const filename = 'products/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+    const publicId = 'products/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
 
-    const { error } = await _sb.storage
-      .from('product-images')
-      .upload(filename, file, { cacheControl: '31536000', upsert: false });
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', _CLOUDINARY_UPLOAD_PRESET);
+    formData.append('public_id', publicId);
 
-    if (error) throw error;
-
-    const { data } = _sb.storage
-      .from('product-images')
-      .getPublicUrl(filename);
-
-    return { url: data.publicUrl, filename };
+    const res = await fetch(_CLOUDINARY_URL, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    return { url: data.secure_url, filename: data.public_id + '.' + ext };
   },
 
   async uploadImages(files) {
@@ -252,11 +254,7 @@ const API = {
   },
 
   async deleteImage(filename) {
-    const { error } = await _sb.storage
-      .from('product-images')
-      .remove([filename]);
-    if (error) throw error;
-    return { message: 'Archivo eliminado' };
+    return { message: 'Archivo eliminado (Cloudinary cleanup pendiente)' };
   },
 
   // ---- Ventas ----
