@@ -2,8 +2,8 @@
 // SUPABASE CLIENT + API
 // ============================================
 
-const _SUPABASE_URL = 'https://jcksqhqopqhswwxskhls.supabase.co';
-const _SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja3NxaHFvcHFoc3d3eHNraGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTIzNjksImV4cCI6MjA5NjQ4ODM2OX0.1hnEgbk9--eedO1Tw9L0p6NKtHkz9h9NENEFiFJjbj0';
+const _SUPABASE_URL = 'https://vgamuwgrsagulhfgzusd.supabase.co';
+const _SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnYW11d2dyc2FndWxoZmd6dXNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyMDcxMzcsImV4cCI6MjEwMDc4MzEzN30.DIesbF2dbisFmJsfdLPUN-wMk4o-IaomN14CWs5ayeQ';
 
 const _CLOUDINARY_CLOUD = 'dhts3zzb';
 const _CLOUDINARY_UPLOAD_PRESET = 'vidasana';

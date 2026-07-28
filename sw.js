@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pos-naturalista-v4';
+const CACHE_NAME = 'pos-naturalista-v5';
 const URLS_TO_CACHE = [
     '/',
     '/pos',
