@@ -72,6 +72,11 @@ function applyPosScopeUI() {
 
 async function handleLogin(e) {
     e.preventDefault();
+    if (typeof MAINTENANCE_MODE !== 'undefined' && MAINTENANCE_MODE) {
+        document.getElementById('loginError').textContent = MAINTENANCE_MSG || 'Sistema en mantenimiento';
+        document.getElementById('loginError').style.display = 'block';
+        return false;
+    }
     const user = document.getElementById('loginUser').value.trim();
     const pass = document.getElementById('loginPass').value;
     const users = await getPOSUsers();

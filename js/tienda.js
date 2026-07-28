@@ -446,6 +446,10 @@ function showToast(msg) {
 }
 
 (async function init() {
+    if (typeof MAINTENANCE_MODE !== 'undefined' && MAINTENANCE_MODE) {
+        document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0a0a1a;color:#e0e0e0;font-family:Segoe UI,sans-serif;text-align:center;padding:20px;"><div><h1 style="color:#f59e0b;font-size:1.8rem;margin-bottom:10px;">⚠️ Tienda en Mantenimiento</h1><p style="color:#aaa;font-size:1rem;">Estamos restaurando la base de datos.<br>Vuelve en unos minutos.</p></div></div>';
+        return;
+    }
     let apiProducts = [], apiCategories = [];
     try {
         const results = await Promise.allSettled([API.getProducts(), API.getCategories()]);
