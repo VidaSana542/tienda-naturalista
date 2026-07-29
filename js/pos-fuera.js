@@ -1012,6 +1012,8 @@ function openCheckoutModal() {
     chkCreditType = 'fijo';
     document.getElementById('chkCustomerId').value = '';
     document.getElementById('chkCustomerInput').value = '';
+    const dateInput = document.getElementById('chkSaleDate');
+    if (dateInput && !dateInput.value) dateInput.value = today();
     const el = document.getElementById('chkQuickAdd');
     if (el) el.style.display = 'none';
     document.getElementById('chkCreditConfig').classList.remove('open');
@@ -1178,10 +1180,11 @@ function confirmCheckout() {
         pagaCon = parseFloat(document.getElementById('chkPagaCon').value) || total;
         cambio = Math.max(0, pagaCon - total);
     }
+    const saleDate = document.getElementById('chkSaleDate')?.value || today();
     const sale = {
         id: posNextSaleId++,
-        date: now(),
-        created_at: new Date().toISOString(),
+        date: saleDate + 'T12:00:00',
+        created_at: saleDate + 'T12:00:00',
         items: posCart.map(i => {
             const p = i.isTemp ? null : posProducts.find(pr => pr.id === i.id);
             return { id: i.id, name: i.isTemp ? i.tempName : (p ? p.name : 'Producto'), qty: i.qty, price: i.price, isTemp: i.isTemp || false };
