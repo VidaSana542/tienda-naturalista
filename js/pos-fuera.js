@@ -1181,10 +1181,14 @@ function confirmCheckout() {
         cambio = Math.max(0, pagaCon - total);
     }
     const saleDate = document.getElementById('chkSaleDate')?.value || today();
+    const nowCol = new Date();
+    const h = String(nowCol.getHours()).padStart(2,'0');
+    const m = String(nowCol.getMinutes()).padStart(2,'0');
+    const s = String(nowCol.getSeconds()).padStart(2,'0');
     const sale = {
         id: posNextSaleId++,
-        date: saleDate + 'T12:00:00',
-        created_at: saleDate + 'T12:00:00',
+        date: saleDate + 'T' + h + ':' + m + ':' + s,
+        created_at: saleDate + 'T' + h + ':' + m + ':' + s,
         items: posCart.map(i => {
             const p = i.isTemp ? null : posProducts.find(pr => pr.id === i.id);
             return { id: i.id, name: i.isTemp ? i.tempName : (p ? p.name : 'Producto'), qty: i.qty, price: i.price, isTemp: i.isTemp || false };
