@@ -1,15 +1,16 @@
-const CACHE_NAME = 'pos-naturalista-v9';
+const CACHE_NAME = 'pos-naturalista-v10';
 const URLS_TO_CACHE = [
     '/',
-    '/pos',
-    '/pos-local',
-    '/pos-fuera',
+    '/pos-local.html',
+    '/pos-fuera.html',
+    '/pos-global.html',
     '/css/pos.css',
     '/js/api.js',
     '/js/supabase.min.js',
     '/js/pos-shared.js',
     '/js/pos-local.js',
     '/js/pos-fuera.js',
+    '/js/cash-history.js',
     '/manifest.json',
     '/icon-192.png',
     '/icon-512.png'
@@ -18,7 +19,7 @@ const URLS_TO_CACHE = [
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then(cache => cache.addAll(URLS_TO_CACHE))
+            .then(cache => Promise.allSettled(URLS_TO_CACHE.map(url => cache.add(url).catch(() => {}))))
             .then(() => self.skipWaiting())
     );
 });
