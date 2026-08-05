@@ -1182,15 +1182,12 @@ function confirmCheckout() {
     }
     const saleDate = document.getElementById('chkSaleDate')?.value || today();
     const now = new Date();
-    const offsetMin = -now.getTimezoneOffset();
-    const tzSign = offsetMin >= 0 ? '+' : '-';
-    const tzH = String(Math.floor(Math.abs(offsetMin)/60)).padStart(2,'0');
-    const tzM = String(Math.abs(offsetMin)%60).padStart(2,'0');
-    const saleTimestamp = saleDate + 'T' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0') + tzSign + tzH + ':' + tzM;
+    const saleLocalTime = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+    const created_at = now.toISOString();
     const sale = {
         id: posNextSaleId++,
-        date: saleTimestamp,
-        created_at: saleTimestamp,
+        date: saleDate + 'T' + saleLocalTime,
+        created_at: created_at,
         items: posCart.map(i => {
             const p = i.isTemp ? null : posProducts.find(pr => pr.id === i.id);
             return { id: i.id, name: i.isTemp ? i.tempName : (p ? p.name : 'Producto'), qty: i.qty, price: i.price, isTemp: i.isTemp || false };
