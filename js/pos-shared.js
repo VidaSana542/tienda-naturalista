@@ -392,6 +392,7 @@ function saveProducts() {
 }
 function saveSales() {
     localStorage.setItem('posSales', JSON.stringify(posSales));
+    console.log('[POS] saveSales called, API.isAvailable:', API.isAvailable, 'posSales:', posSales.length);
     if (API.isAvailable) {
         const now = Date.now();
         const unsynced = posSales.filter(s => s.id && !s.apiSynced && !s._syncPending && (!s._syncFailedAt || now - s._syncFailedAt > 30000));
@@ -409,7 +410,7 @@ function saveSales() {
                     venta_por_fuera: s.ventaPorFuera || false,
                     credit_info: s.creditInfo || null,
                     items: s.items || []
-                }).then(res => { if (res && res.id) { s.apiSynced = true; s._syncPending = false; s._syncFailedAt = 0; s.id = res.id; posNextSaleId = Math.max(posNextSaleId, res.id + 1); localStorage.setItem('posSales', JSON.stringify(posSales)); } }).catch(e => { s._syncPending = false; s._syncFailedAt = Date.now(); console.error('[POS] saveSale error:', e); });
+                }).then(res => { console.log('[POS] saveSale OK, id:', res?.id); if (res && res.id) { s.apiSynced = true; s._syncPending = false; s._syncFailedAt = 0; s.id = res.id; posNextSaleId = Math.max(posNextSaleId, res.id + 1); localStorage.setItem('posSales', JSON.stringify(posSales)); } }).catch(e => { s._syncPending = false; s._syncFailedAt = Date.now(); console.error('[POS] saveSale error:', e); });
             });
     }
 }
