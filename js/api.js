@@ -311,23 +311,6 @@ const API = {
   },
 
   async saveSale(sale) {
-    // Dedup: verificar si ya existe una venta igual (mismo fecha + total + cliente)
-    if (sale.created_at && sale.total) {
-      const dateStr = sale.created_at.substring(0, 10);
-      const { data: existing } = await _sb
-        .from('sales')
-        .select('id')
-        .eq('total', sale.total)
-        .eq('customer_name', sale.customer_name || '')
-        .gte('created_at', dateStr + 'T00:00:00')
-        .lte('created_at', dateStr + 'T23:59:59')
-        .limit(1);
-      if (existing && existing.length > 0) {
-        console.warn('[API] Venta duplicada detectada, saltando insert. ID existente:', existing[0].id);
-        return existing[0];
-      }
-    }
-
     // Insertar venta
     const { data: saleData, error: saleError } = await _sb
       .from('sales')
