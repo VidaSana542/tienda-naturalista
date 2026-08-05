@@ -312,20 +312,22 @@ const API = {
 
   async saveSale(sale) {
     // Insertar venta
+    const payload = {
+      customer_id: sale.customer_id || null,
+      customer_name: sale.customer_name || '',
+      total: sale.total,
+      excedente: sale.excedente || 0,
+      method: sale.method || 'Efectivo',
+      method_key: sale.method_key || 'cash',
+      credit_info: sale.credit_info || null,
+      venta_por_fuera: sale.venta_por_fuera || false,
+      status: 'completada',
+      created_at: sale.created_at || undefined
+    };
+    if (sale.id) payload.id = sale.id;
     const { data: saleData, error: saleError } = await _sb
       .from('sales')
-      .insert({
-        customer_id: sale.customer_id || null,
-        customer_name: sale.customer_name || '',
-        total: sale.total,
-        excedente: sale.excedente || 0,
-        method: sale.method || 'Efectivo',
-        method_key: sale.method_key || 'cash',
-        credit_info: sale.credit_info || null,
-        venta_por_fuera: sale.venta_por_fuera || false,
-        status: 'completada',
-        created_at: sale.created_at || undefined
-      })
+      .insert(payload)
       .select()
       .single();
 
