@@ -1181,8 +1181,8 @@ function confirmCheckout() {
         cambio = Math.max(0, pagaCon - total);
     }
     const saleDate = document.getElementById('chkSaleDate')?.value || today();
-    const utcNow = new Date().toISOString();
-    const saleTimestamp = saleDate + utcNow.substring(10);
+    const now = new Date();
+    const saleTimestamp = saleDate + 'T' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
     const sale = {
         id: posNextSaleId++,
         date: saleTimestamp,
