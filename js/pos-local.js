@@ -1139,47 +1139,6 @@ function toggleSalesSort() {
     if (btn) btn.textContent = _salesSortDesc ? '⬇ Más reciente' : '⬆ Más antiguo';
     renderSalesTable();
 }
-function editSaleDate(saleId) {
-    const sale = posSales.find(s => String(s.id) === String(saleId));
-    if (!sale) { showToast('Venta no encontrada'); return; }
-    const currentDate = (sale.date || sale.created_at || '').substring(0, 10) || today();
-    const modal = document.createElement('div');
-    modal.id = 'editSaleDateModal';
-    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
-    modal.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;min-width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">' +
-        '<h3 style="margin:0 0 16px;font-size:16px;">Editar fecha de venta #' + sale.id + '</h3>' +
-        '<p style="margin:0 0 12px;font-size:13px;color:var(--text-muted);">Venta registrada: ' + formatDate(sale.date || sale.created_at) + '</p>' +
-        '<input type="date" id="editSaleDateInput" value="' + currentDate + '" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px;">' +
-        '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
-        '<button onclick="document.getElementById(\'editSaleDateModal\').remove()" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:13px;">Cancelar</button>' +
-        '<button onclick="saveEditSaleDate(' + sale.id + ')" style="padding:8px 16px;border:none;border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>' +
-        '</div></div>';
-    document.body.appendChild(modal);
-}
-function saveEditSaleDate(saleId) {
-    const newDate = document.getElementById('editSaleDateInput').value;
-    if (!newDate) { showToast('Selecciona una fecha'); return; }
-    const sale = posSales.find(s => String(s.id) === String(saleId));
-    if (!sale) return;
-    const oldDate = (sale.date || '').substring(0, 10);
-    const timePart = (sale.created_at || sale.date || '').substring(10) || 'T12:00:00';
-    sale.date = newDate + timePart;
-    sale.created_at = newDate + timePart;
-    sale.apiSynced = false;
-    localStorage.setItem('posSales', JSON.stringify(posSales));
-    if (API.isAvailable && sale.id) {
-        const apiId = typeof sale.id === 'number' ? sale.id : parseInt(String(sale.id).replace(/^\D/g, ''));
-        if (apiId) {
-            API.updateSale(apiId, { created_at: sale.created_at, date: sale.date }).then(() => {
-                sale.apiSynced = true;
-                localStorage.setItem('posSales', JSON.stringify(posSales));
-            }).catch(e => console.error('[POS] updateSale date error:', e));
-        }
-    }
-    document.getElementById('editSaleDateModal')?.remove();
-    renderSalesTable();
-    showToast('Fecha cambiada de ' + oldDate + ' a ' + newDate);
-}
 function renderSalesTable() {
     const q = document.getElementById('salesSearch').value.toLowerCase().trim();
     const dateFrom = document.getElementById('salesDateFrom').value;
