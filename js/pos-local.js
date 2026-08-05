@@ -1139,6 +1139,47 @@ function toggleSalesSort() {
     if (btn) btn.textContent = _salesSortDesc ? '⬇ Más reciente' : '⬆ Más antiguo';
     renderSalesTable();
 }
+function editSaleDate(saleId) {
+    const sale = posSales.find(s => String(s.id) === String(saleId));
+    if (!sale) { showToast('Venta no encontrada'); return; }
+    const currentDate = (sale.date || sale.created_at || '').substring(0, 10) || today();
+    const modal = document.createElement('div');
+    modal.id = 'editSaleDateModal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;min-width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">' +
+        '<h3 style="margin:0 0 16px;font-size:16px;">Editar fecha de venta #' + sale.id + '</h3>' +
+        '<p style="margin:0 0 12px;font-size:13px;color:var(--text-muted);">Venta registrada: ' + formatDate(s.date || sale.created_at) + '</p>' +
+        '<input type="date" id="editSaleDateInput" value="' + currentDate + '" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px;">' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+        '<button onclick="document.getElementById(\'editSaleDateModal\').remove()" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:13px;">Cancelar</button>' +
+        '<button onclick="saveEditSaleDate(' + sale.id + ')" style="padding:8px 16px;border:none;border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Guardar</button>' +
+        '</div></div>';
+    document.body.appendChild(modal);
+}
+function saveEditSaleDate(saleId) {
+    const newDate = document.getElementById('editSaleDateInput').value;
+    if (!newDate) { showToast('Selecciona una fecha'); return; }
+    const sale = posSales.find(s => String(s.id) === String(saleId));
+    if (!sale) return;
+    const oldDate = (sale.date || '').substring(0, 10);
+    const timePart = (sale.created_at || sale.date || '').substring(10) || 'T12:00:00';
+    sale.date = newDate + timePart;
+    sale.created_at = newDate + timePart;
+    sale.apiSynced = false;
+    localStorage.setItem('posSales', JSON.stringify(posSales));
+    if (API.isAvailable && sale.id) {
+        const apiId = typeof sale.id === 'number' ? sale.id : parseInt(String(sale.id).replace(/^\D/g, ''));
+        if (apiId) {
+            API.updateSale(apiId, { created_at: sale.created_at, date: sale.date }).then(() => {
+                sale.apiSynced = true;
+                localStorage.setItem('posSales', JSON.stringify(posSales));
+            }).catch(e => console.error('[POS] updateSale date error:', e));
+        }
+    }
+    document.getElementById('editSaleDateModal')?.remove();
+    renderSalesTable();
+    showToast('Fecha cambiada de ' + oldDate + ' a ' + newDate);
+}
 function renderSalesTable() {
     const q = document.getElementById('salesSearch').value.toLowerCase().trim();
     const dateFrom = document.getElementById('salesDateFrom').value;
@@ -1201,6 +1242,7 @@ function renderSalesTable() {
             <td class="actions">
                 ${s.items && s.items.length > 0 ? '<button class="edit" onclick="toggleSaleItems(this)" title="Ver productos" style="color:var(--text-muted);font-size:14px;">▾</button>' : ''}
                 ${s.creditInfo && (s.creditInfo.tipo === 'abono' ? (s.creditInfo.payments.reduce((a,p) => a + p.amount, 0) < s.creditInfo.balance) : (s.creditInfo.pagadas < s.creditInfo.totalCuotas)) ? '<button class="edit" onclick="openPaymentModal(' + s.id + ')" title="' + (s.creditInfo.tipo === 'abono' ? 'Registrar Abono' : 'Registrar Pago') + '" style="color:var(--success);"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></button>' : ''}
+                <button class="edit" onclick="editSaleDate(${s.id})" title="Editar fecha" style="color:var(--warning);"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg></button>
                 <button class="edit" onclick="openSaleEditModal(${s.id})" title="Editar venta" style="color:var(--primary);"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
                 <button class="edit" onclick="voidSale(${s.id})" title="Anular venta" style="color:var(--danger);"><svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg></button>
                 <button onclick="showReceipt(${JSON.stringify(s).replace(/"/g, '&quot;')})" title="Ver recibo"><svg viewBox="0 0 24 24"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg></button>
