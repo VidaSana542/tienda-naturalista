@@ -1148,7 +1148,7 @@ function editSaleDate(saleId) {
     modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
     modal.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;min-width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">' +
         '<h3 style="margin:0 0 16px;font-size:16px;">Editar fecha de venta #' + sale.id + '</h3>' +
-        '<p style="margin:0 0 12px;font-size:13px;color:var(--text-muted);">Venta registrada: ' + formatDate(s.date || sale.created_at) + '</p>' +
+        '<p style="margin:0 0 12px;font-size:13px;color:var(--text-muted);">Venta registrada: ' + formatDate(sale.date || sale.created_at) + '</p>' +
         '<input type="date" id="editSaleDateInput" value="' + currentDate + '" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:16px;">' +
         '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
         '<button onclick="document.getElementById(\'editSaleDateModal\').remove()" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:#fff;cursor:pointer;font-size:13px;">Cancelar</button>' +
