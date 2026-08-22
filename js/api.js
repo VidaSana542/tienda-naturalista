@@ -231,19 +231,19 @@ const API = {
     return { message: 'Proveedor eliminado' };
   },
 
-  // ---- Upload (Supabase Storage) ----
+  // ---- Upload (Cloudinary - no consume almacenamiento de Supabase) ----
   async uploadImage(file) {
-    const ext = file.name.split('.').pop();
-    const filename = 'products/' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.' + ext;
-
-    const { error } = await _sb.storage.from('product-images').upload(filename, file, {
-      contentType: file.type || 'image/jpeg',
-      upsert: false
-    });
-    if (error) throw error;
-
-    const { data: urlData } = _sb.storage.from('product-images').getPublicUrl(filename);
-    return { url: urlData.publicUrl, filename: filename };
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', _CLOUDINARY_UPLOAD_PRESET);
+    const resp = await fetch(_CLOUDINARY_URL, { method: 'POST', body: formData });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('[API] Cloudinary error:', resp.status, errText);
+      throw new Error('Error subiendo imagen a Cloudinary (' + resp.status + ')');
+    }
+    const data = await resp.json();
+    return { url: data.secure_url, filename: data.public_id };
   },
 
   async uploadImages(files) {
@@ -256,10 +256,8 @@ const API = {
   },
 
   async deleteImage(filename) {
-    if (!filename) return { message: 'Sin filename' };
-    const { error } = await _sb.storage.from('product-images').remove([filename]);
-    if (error) { console.warn('[API] deleteImage error:', error.message); return { message: 'Error: ' + error.message }; }
-    return { message: 'Imagen eliminada' };
+    console.info('[API] Las imágenes se almacenan en Cloudinary; no se eliminan individualmente.');
+    return { message: 'Imagen conservada en Cloudinary' };
   },
 
   // ---- Ventas ----
