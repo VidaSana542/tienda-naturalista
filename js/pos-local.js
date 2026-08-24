@@ -1937,6 +1937,7 @@ function initPOS() {
         renderCategoriesTable();
         renderSalesTable();
         buildMobileMenu();
+        startAutoSync(20000);
     })();
 }
 

@@ -450,7 +450,7 @@ function saveSuppliers() {
         });
     }
 }
-async function syncFromApi() {
+async function syncFromApi(opts) {
     try {
         loadData();
         const apiProducts = await API.getProducts();
@@ -666,18 +666,20 @@ async function syncFromApi() {
         } catch(e) { console.error('InvLog sync error:', e.message || e); }
         if (typeof loadCashLocal === 'function') loadCashLocal();
         if (typeof syncCashFromApi === 'function') await syncCashFromApi();
-        try {
-            if (typeof cashDateStr === 'function') {
-                await API.saveCashBase(cashDateStr(), cashBase);
-            }
-            for (const e of cashExpenses) {
-                if (!e._apiId) {
-                    const synced = await API.saveExpense({ date: typeof cashDateStr === 'function' ? cashDateStr() : today(), description: e.description, amount: e.amount, category: e.category });
-                    if (synced && synced.id) e._apiId = synced.id;
+        if (!(opts && opts.skipCashWrite)) {
+            try {
+                if (typeof cashDateStr === 'function') {
+                    await API.saveCashBase(cashDateStr(), cashBase);
                 }
-            }
-            if (typeof saveCashLocal === 'function') saveCashLocal();
-        } catch(e) {}
+                for (const e of cashExpenses) {
+                    if (!e._apiId) {
+                        const synced = await API.saveExpense({ date: typeof cashDateStr === 'function' ? cashDateStr() : today(), description: e.description, amount: e.amount, category: e.category });
+                        if (synced && synced.id) e._apiId = synced.id;
+                    }
+                }
+                if (typeof saveCashLocal === 'function') saveCashLocal();
+            } catch(e) {}
+        }
         // Sync lab orders from API - always replace with DB data
         try {
             const apiLabOrders = await API.getLabOrders();
@@ -723,6 +725,93 @@ async function syncFromApi() {
         console.log('API sync skipped, using local data');
     }
 }
+
+// ============ AUTO-SYNC: sincronizacion automatica entre pantallas y dispositivos ============
+let _autoSyncTimer = null;
+let _autoSyncRunning = false;
+let _probeInitialized = false;
+let _probeState = { saleId: 0, productAt: '', customerId: 0, paymentId: 0 };
+
+function _anyModalOpen() {
+    try {
+        const candidates = document.querySelectorAll('[id$="Modal"], .modal-overlay, .modal');
+        for (const el of candidates) {
+            if (el.classList.contains('open')) return true;
+            if (el.id && /modal/i.test(el.id)) {
+                const st = getComputedStyle(el);
+                if (st.display !== 'none' && st.visibility !== 'hidden') return true;
+            }
+        }
+    } catch (e) {}
+    return false;
+}
+
+async function _posProbe() {
+    const out = { ok: false, saleId: 0, productAt: '', customerId: 0, paymentId: 0 };
+    try {
+        const q = (table, col) => _sb.from(table).select(col).order(col, { ascending: false }).limit(1);
+        const [rSale, rProd, rCust, rPay] = await Promise.all([
+            q('sales', 'id'),
+            q('products', 'updated_at'),
+            q('customers', 'id'),
+            q('payments', 'id')
+        ]);
+        if (rSale.error || rProd.error || rCust.error || rPay.error) return out;
+        out.saleId = (rSale.data && rSale.data[0] && rSale.data[0].id) || 0;
+        out.productAt = (rProd.data && rProd.data[0] && rProd.data[0].updated_at) || '';
+        out.customerId = (rCust.data && rCust.data[0] && rCust.data[0].id) || 0;
+        out.paymentId = (rPay.data && rPay.data[0] && rPay.data[0].id) || 0;
+        out.ok = true;
+    } catch (e) { console.warn('[AUTO-SYNC] probe error:', e.message || e); }
+    return out;
+}
+
+function rerenderAllPanels() {
+    ['renderDashboard','renderTpv','renderProductTable','renderInventory','renderCustomerTable',
+     'renderSupplierTable','renderCategoriesTable','renderSalesTable','renderAccountStatus'].forEach(f => {
+        try { if (typeof window[f] === 'function') window[f](); } catch (e) {}
+    });
+}
+
+async function checkAndSync() {
+    if (_autoSyncRunning) return;
+    if (!API.isAvailable || !_sb) return;
+    if (typeof posCart !== 'undefined' && posCart.length > 0) return;
+    if (_anyModalOpen()) return;
+    _autoSyncRunning = true;
+    try {
+        const p = await _posProbe();
+        if (p.ok) {
+            if (_probeInitialized) {
+                const changed =
+                    p.saleId !== _probeState.saleId ||
+                    p.productAt !== _probeState.productAt ||
+                    p.customerId !== _probeState.customerId ||
+                    p.paymentId !== _probeState.paymentId;
+                if (changed) {
+                    console.log('[AUTO-SYNC] Cambios detectados en el servidor, sincronizando...');
+                    await syncFromApi({ skipCashWrite: true });
+                    rerenderAllPanels();
+                    console.log('[AUTO-SYNC] Pantallas actualizadas');
+                }
+            }
+            _probeState = { saleId: p.saleId, productAt: p.productAt, customerId: p.customerId, paymentId: p.paymentId };
+            _probeInitialized = true;
+        }
+    } catch (e) { console.warn('[AUTO-SYNC]', e); }
+    finally { _autoSyncRunning = false; }
+}
+
+function startAutoSync(intervalMs) {
+    if (_autoSyncTimer) return;
+    const ms = intervalMs || 20000;
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) checkAndSync(); });
+    window.addEventListener('focus', () => checkAndSync());
+    setTimeout(() => checkAndSync(), 4000);
+    _autoSyncTimer = setInterval(() => checkAndSync(), ms);
+    console.log('[AUTO-SYNC] Activado. Revision cada ' + (ms / 1000) + 's + al volver a la pestana.');
+}
+
 function saveCart() { localStorage.setItem('posCart_' + (typeof POS_SCOPE !== 'undefined' ? POS_SCOPE : 'local'), JSON.stringify(posCart)); }
 function saveInvLog() {
     const json = JSON.stringify(invLog);
