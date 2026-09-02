@@ -473,6 +473,8 @@ const API = {
 
     if (limit) {
       query = query.limit(limit);
+    } else {
+      query = query.limit(500);
     }
 
     const { data, error } = await query;

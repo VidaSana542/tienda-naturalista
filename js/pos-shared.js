@@ -542,7 +542,7 @@ async function syncFromApi(opts) {
             });
             localStorage.setItem('posCategories', JSON.stringify(POS_CATEGORIES));
         }
-        const apiSales = await API.getSales();
+        const apiSales = await API.getSalesByCursor(0);
         if (apiSales && Array.isArray(apiSales)) {
             const mergeFlags = {};
             posSales.forEach(ls => { if (ls.creditInfo?.merged) mergeFlags[ls.id] = { merged: true, mergedInto: ls.creditInfo.mergedInto }; });
@@ -719,8 +719,8 @@ async function syncFromApi(opts) {
                 localStorage.setItem('posLabs', JSON.stringify(posLabs));
             }
         } catch(e) {}
-        saveProducts();
-        saveCustomers();
+        // saveProducts();
+        // saveCustomers();
     } catch (e) {
         console.log('API sync skipped, using local data');
     }
