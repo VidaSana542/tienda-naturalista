@@ -773,6 +773,117 @@ function rerenderAllPanels() {
     });
 }
 
+// Cache local de ultimo estado conocido para la sincronizacion incremental
+let _syncCursor = { saleId: 0, customerId: 0, paymentId: 0, productAt: '' };
+function _loadSyncCursor() {
+    try {
+        const c = JSON.parse(localStorage.getItem('posSyncCursor') || 'null');
+        if (c) _syncCursor = c;
+    } catch (e) {}
+}
+function _saveSyncCursor() {
+    try { localStorage.setItem('posSyncCursor', JSON.stringify(_syncCursor)); } catch (e) {}
+}
+
+// Fusiona solos registros nuevos (ids > cursor) en las tablas locales. Ultraligero (~KB).
+function _mergeNew(rows, keyField, existing, mapper, idPrefix) {
+    const idSet = new Set(existing.map(r => r.id));
+    let added = 0;
+    (rows || []).forEach(r => {
+        const id = idPrefix + r[keyField];
+        if (!idSet.has(id)) {
+            existing.push(mapper(r));
+            added++;
+        }
+    });
+    return added;
+}
+
+async function _pullNewSales() {
+    const fresh = await API.getSalesByCursor(_syncCursor.saleId);
+    let added = 0;
+    (fresh || []).forEach(s => {
+        if (posSales.some(x => x.id === s.id || x.apiId === s.id)) return;
+        const ci = s.credit_info || null;
+        if (ci) {
+            if (!(ci.payments && ci.payments.length > 0) && s.payments && s.payments.length > 0) {
+                ci.payments = s.payments
+                    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                    .map(p => ({ date: p.created_at, amount: p.amount }));
+            } else if (!ci.payments) {
+                ci.payments = [];
+            }
+        }
+        const order = {
+            id: s.id,
+            apiId: s.id,
+            apiSynced: true,
+            date: utcToLocalDate(s.created_at),
+            created_at: s.created_at,
+            items: (s.sale_items || []).map(i => ({ id: i.product_id, name: i.product_name, qty: i.qty, price: parseFloat(i.price) })),
+            subtotal: parseFloat(s.total) - parseFloat(s.excedente || 0),
+            excedente: parseFloat(s.excedente || 0),
+            total: parseFloat(s.total) || 0,
+            method: s.method,
+            methodKey: s.method_key,
+            customer: s.customer_name,
+            customerId: s.customer_id ? 'c' + s.customer_id : '',
+            creditInfo: ci,
+            ventaPorFuera: s.venta_por_fuera || false
+        };
+        posSales.push(order);
+        added++;
+        _syncCursor.saleId = Math.max(_syncCursor.saleId, s.id || 0);
+    });
+    if (added) {
+        localStorage.setItem('posSales', JSON.stringify(posSales));
+        console.log('[AUTO-SYNC] ' + added + ' ventas nuevas');
+    }
+    return added;
+}
+
+async function _pullNewCustomers() {
+    const fresh = await API.getCustomersByCursor(_syncCursor.customerId);
+    const added = _mergeNew(fresh, 'id', posCustomers, c => ({
+        id: 'c' + c.id, name: c.name, phone: c.phone || '', email: c.email || '',
+        address: c.address || '', tipo: c.tipo || 'local', _synced: true
+    }), 'c');
+    (fresh || []).forEach(c => { _syncCursor.customerId = Math.max(_syncCursor.customerId, c.id || 0); });
+    if (added) saveCustomers();
+    return added;
+}
+
+async function _pullNewProducts() {
+    if (!_syncCursor.productAt) return 0;
+    const fresh = await API.getProductsByUpdatedAt(_syncCursor.productAt);
+    let added = 0;
+    (fresh || []).forEach(ap => {
+        const id = 'p' + ap.id;
+        const lp = posProducts.find(p => p.id === id);
+        if (lp) {
+            lp.price = parseFloat(ap.price) || lp.price;
+            lp.stock = parseInt(ap.stock) ?? lp.stock;
+            lp.name = ap.name; lp.brand = ap.brand || '';
+            if (ap.img && ap.img !== lp.img) lp.img = ap.img;
+        } else {
+            posProducts.push({
+                id: id, name: ap.name, catalogName: ap.catalog_name || '', barcode: ap.barcode || '',
+                brand: ap.brand || '', category: ap.category || 'suplementos', price: parseFloat(ap.price) || 0,
+                cost: parseFloat(ap.cost) || 0, stock: parseInt(ap.stock) || 0, img: ap.img || DEFAULT_IMG,
+                images: ap.images || [], desc: ap.description || '', featured: ap.featured || false,
+                visible: ap.visible !== false, subcategory: ap.subcategory || '', _synced: true
+            });
+            added++;
+        }
+    });
+    if (fresh && fresh.length) {
+        const lastAt = fresh[fresh.length - 1].updated_at;
+        if (lastAt) _syncCursor.productAt = lastAt;
+    }
+    if (added) saveProducts();
+    return added;
+}
+
 async function checkAndSync() {
     if (_autoSyncRunning) return;
     if (!API.isAvailable || !_sb) return;
@@ -789,13 +900,26 @@ async function checkAndSync() {
                     p.customerId !== _probeState.customerId ||
                     p.paymentId !== _probeState.paymentId;
                 if (changed) {
-                    console.log('[AUTO-SYNC] Cambios detectados en el servidor, sincronizando...');
-                    await syncFromApi({ skipCashWrite: true });
+                    console.log('[AUTO-SYNC] Cambios detectados, descargando SOLO lo nuevo...');
+                    _loadSyncCursor();
+                    try {
+                        await _pullNewSales();
+                        await _pullNewCustomers();
+                        await _pullNewProducts();
+                    } catch (e) { console.warn('[AUTO-SYNC] pull parcial:', e.message || e); }
+                    _saveSyncCursor();
                     rerenderAllPanels();
-                    console.log('[AUTO-SYNC] Pantallas actualizadas');
+                    console.log('[AUTO-SYNC] Pantallas actualizadas (ligero)');
                 }
             }
             _probeState = { saleId: p.saleId, productAt: p.productAt, customerId: p.customerId, paymentId: p.paymentId };
+            if (!_probeInitialized) {
+                _loadSyncCursor();
+                if (!_syncCursor.productAt && p.productAt) _syncCursor.productAt = p.productAt;
+                if (!_syncCursor.saleId && p.saleId) _syncCursor.saleId = p.saleId;
+                if (!_syncCursor.customerId && p.customerId) _syncCursor.customerId = p.customerId;
+                _saveSyncCursor();
+            }
             _probeInitialized = true;
         }
     } catch (e) { console.warn('[AUTO-SYNC]', e); }
@@ -804,12 +928,13 @@ async function checkAndSync() {
 
 function startAutoSync(intervalMs) {
     if (_autoSyncTimer) return;
+    _loadSyncCursor();
     const ms = intervalMs || 20000;
     document.addEventListener('visibilitychange', () => { if (!document.hidden) checkAndSync(); });
     window.addEventListener('focus', () => checkAndSync());
     setTimeout(() => checkAndSync(), 4000);
     _autoSyncTimer = setInterval(() => checkAndSync(), ms);
-    console.log('[AUTO-SYNC] Activado. Revision cada ' + (ms / 1000) + 's + al volver a la pestana.');
+    console.log('[AUTO-SYNC] Ultraligero activo. Solo descarga lo nuevo cada ' + (ms / 1000) + 's.');
 }
 
 function saveCart() { localStorage.setItem('posCart_' + (typeof POS_SCOPE !== 'undefined' ? POS_SCOPE : 'local'), JSON.stringify(posCart)); }

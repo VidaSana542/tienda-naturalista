@@ -308,6 +308,40 @@ const API = {
     };
   },
 
+  // Consultas ligeras e incrementales para auto-sync (solo trae lo nuevo, ~KB)
+  async getSalesByCursor(lastId) {
+    let q = _sb
+      .from('sales')
+      .select('id, customer_id, customer_name, date, created_at, total, excedente, method, method_key, venta_por_fuera, credit_info, sale_items (*), payments (*)')
+      .order('id', { ascending: true })
+      .limit(50);
+    if (lastId > 0) q = q.gt('id', lastId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  },
+  async getCustomersByCursor(lastId) {
+    let q = _sb
+      .from('customers')
+      .select('id, name, phone, email, address, tipo')
+      .order('id', { ascending: true })
+      .limit(50);
+    if (lastId > 0) q = q.gt('id', lastId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  },
+  async getProductsByUpdatedAt(since) {
+    const { data, error } = await _sb
+      .from('products')
+      .select('id, name, catalog_name, barcode, brand, category, price, cost, stock, img, images, description, featured, visible, subcategory, updated_at')
+      .gt('updated_at', since)
+      .order('updated_at', { ascending: true })
+      .limit(50);
+    if (error) throw error;
+    return data || [];
+  },
+
   async saveSale(sale) {
     // Insertar venta
     const payload = {
