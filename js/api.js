@@ -5,8 +5,8 @@
 const MAINTENANCE_MODE = false;
 const MAINTENANCE_MSG = 'Sistema en mantenimiento. Estamos restaurando la base de datos. Vuelve en unos minutos.';
 
-const _SUPABASE_URL = 'https://jcksqhqopqhswwxskhls.supabase.co';
-const _SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impja3NxaHFvcHFoc3d3eHNraGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MTIzNjksImV4cCI6MjA5NjQ4ODM2OX0.1hnEgbk9--eedO1Tw9L0p6NKtHkz9h9NENEFiFJjbj0';
+const _SUPABASE_URL = 'https://tldvemoxbobtuqsrkhhw.supabase.co';
+const _SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsZHZlbW94Ym9idHVxc3JraGh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzODkwOTgsImV4cCI6MjEwMzk2NTA5OH0.T-tWP6I6v9SnhaJxPFRdrjRZrF-m16ruSlCIrHLeeE8';
 
 const _CLOUDINARY_CLOUD = 'dhts3zzb';
 const _CLOUDINARY_UPLOAD_PRESET = 'vidasana';
