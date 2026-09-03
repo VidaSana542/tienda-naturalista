@@ -423,6 +423,6 @@ function initPOS() {
         renderSalesTable();
         renderInventory();
         buildMobileMenu();
-        startAutoSync(20000);
+        startAutoSync();
     })();
 }

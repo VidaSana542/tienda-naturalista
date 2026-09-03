@@ -2519,7 +2519,7 @@ function initPOS() {
         if (currentUser && currentUser.role === 'empleado') {
             switchPanel('salidas');
         }
-        startAutoSync(20000);
+        startAutoSync();
     })();
 }
 

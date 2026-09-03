@@ -1209,12 +1209,18 @@ function renderSalesTable() {
         </tr>
         <tr class="sale-items-row" style="display:none;"><td colspan="8" style="padding:4px 12px 8px;background:var(--bg);font-size:12px;color:var(--text-muted);">${s.items ? s.items.map(i => '<span style="display:inline-block;margin:2px 4px;padding:2px 8px;background:#fff;border:1px solid var(--border);border-radius:6px;">' + (i.name || 'Producto').substring(0, 22) + ' x' + i.qty + ' — ' + formatPrice(i.price * i.qty) + '</span>').join('') : ''}</td></tr>`;
     }).join('');
+    const dbg = document.createElement('div');
+    dbg.style.cssText = 'margin-top:8px;padding:8px;background:#fff3cd;border:1px solid #ffe08a;border-radius:6px;font-size:12px;color:#7a5c00;';
+    const firstSale = filtered[0];
+    dbg.innerHTML = 'DIAG v19 | ventas totales: ' + posSales.length + ' | primera venta id=' + (firstSale ? firstSale.id : 'N/A') + ' items=' + (firstSale ? (firstSale.items||[]).length : 0) + ' primerItem=' + (firstSale && firstSale.items && firstSale.items[0] ? (firstSale.items[0].name||'(sin nombre)') : 'N/A');
+    if (tbody && tbody.parentNode) tbody.parentNode.appendChild(dbg);
 }
 
 // ============ RECEIPT ============
 function showReceipt(sale) {
     if (typeof sale === 'string') sale = JSON.parse(sale);
     const content = document.getElementById('receiptContent');
+    console.log('[RECEIPT DIAG] id:', sale.id, 'items count:', (sale.items||[]).length, 'primer item:', sale.items && sale.items[0] ? sale.items[0].name : 'N/A');
     const itemsHtml = sale.items.map(i => `<div class="receipt-row"><span>${(i.name || 'Producto').substring(0,22)} x${i.qty}</span><span>${formatPrice(i.price * i.qty)}</span></div>`).join('');
     const breakdownHtml = sale.paymentBreakdown ? sale.paymentBreakdown.map(p =>
         '<div class="receipt-row" style="font-size:12px;"><span style="padding-left:8px;">' + p.method + '</span><span>' + formatPrice(p.amount) + '</span></div>'
@@ -1937,7 +1943,7 @@ function initPOS() {
         renderCategoriesTable();
         renderSalesTable();
         buildMobileMenu();
-        startAutoSync(20000);
+        startAutoSync();
     })();
 }
 
