@@ -566,12 +566,8 @@ async function syncFromApi(opts) {
                 }
                 let apiTotal = parseFloat(s.total);
                 let apiItems = (s.items || []).map(i => ({ id: i.product_id, name: i.product_name, qty: i.qty, price: parseFloat(i.price) }));
-                if (local && local.apiSynced && local.items && local.items.length > 0) {
-                    const localTotal = local.items.reduce((sum, it) => sum + ((parseFloat(it.price) || 0) * (parseInt(it.qty) || 0)), 0);
-                    if (Math.abs(localTotal - apiTotal) > 1 && localTotal > 0) {
-                        apiTotal = localTotal;
-                        apiItems = local.items;
-                    }
+                if (apiItems.length === 0 && local && local.apiSynced && local.items && local.items.length > 0) {
+                    apiItems = local.items;
                 }
                 return {
                     id: s.id,
