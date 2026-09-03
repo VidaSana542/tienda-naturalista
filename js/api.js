@@ -309,13 +309,13 @@ const API = {
   },
 
   // Consultas ligeras e incrementales para auto-sync (solo trae lo nuevo, ~KB)
-  async getSalesByCursor(lastId) {
+  async getSalesByCursor(lastId, limit = 50) {
     let q = _sb
       .from('sales')
       .select('id, customer_id, customer_name, date, created_at, total, excedente, method, method_key, venta_por_fuera, credit_info, sale_items (*), payments (*)')
-      .order('id', { ascending: true })
-      .limit(50);
-    if (lastId > 0) q = q.gt('id', lastId);
+      .order('id', { ascending: false })
+      .limit(limit);
+    if (lastId > 0) q = q.lt('id', lastId);
     const { data, error } = await q;
     if (error) throw error;
     return data || [];

@@ -542,7 +542,7 @@ async function syncFromApi(opts) {
             });
             localStorage.setItem('posCategories', JSON.stringify(POS_CATEGORIES));
         }
-        const apiSales = await API.getSalesByCursor(0);
+        const apiSales = await API.getSalesByCursor(0, 500);
         if (apiSales && Array.isArray(apiSales)) {
             const mergeFlags = {};
             posSales.forEach(ls => { if (ls.creditInfo?.merged) mergeFlags[ls.id] = { merged: true, mergedInto: ls.creditInfo.mergedInto }; });
