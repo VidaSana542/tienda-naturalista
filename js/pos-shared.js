@@ -929,7 +929,7 @@ async function checkAndSync() {
 function startAutoSync(intervalMs) {
     if (_autoSyncTimer) return;
     _loadSyncCursor();
-    const ms = intervalMs || 300000;
+    const ms = intervalMs || 3600000;
     document.addEventListener('visibilitychange', () => { if (!document.hidden) checkAndSync(); });
     window.addEventListener('focus', () => checkAndSync());
     setTimeout(() => checkAndSync(), 4000);
