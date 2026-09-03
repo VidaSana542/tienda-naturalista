@@ -1214,7 +1214,7 @@ function renderSalesTable() {
     const totalItemsAll = posSales.reduce((a,s) => a + (s.items||[]).length, 0);
     const withItems = posSales.filter(s => (s.items||[]).length > 0).length;
     const newest = posSales.reduce((mx, s) => (!mx || s.id > mx.id ? s : mx), null);
-    dbg.innerHTML = 'DIAG v19 | ventas totales: ' + posSales.length + ' | con items: ' + withItems + ' | total items: ' + totalItemsAll + '\nventa mas reciente id=' + (newest ? newest.id : 'N/A') + ' items=' + (newest ? (newest.items||[]).length : 0) + ' itemsRaw=' + JSON.stringify(newest && newest.items ? newest.items : '(vacio)');
+    dbg.innerHTML = 'DIAG v19 | ventas: ' + posSales.length + ' | con items: ' + withItems + ' | total items: ' + totalItemsAll + '\n[API dir] ventas=' + (window.__diagApiSales === undefined ? 'no-sync' : window.__diagApiSales) + ' itemsAPI=' + (window.__diagApiItems === undefined ? 'no-sync' : window.__diagApiItems) + '\nventa mas reciente id=' + (newest ? newest.id : 'N/A') + ' items=' + (newest ? (newest.items||[]).length : 0) + ' itemsRaw=' + JSON.stringify(newest && newest.items ? newest.items : '(vacio)');
     if (tbody && tbody.parentNode) tbody.parentNode.appendChild(dbg);
 }
 

@@ -544,6 +544,8 @@ async function syncFromApi(opts) {
         }
         const apiSales = await API.getSalesByCursor(0, 1000);
         if (apiSales && Array.isArray(apiSales)) {
+            window.__diagApiSales = apiSales.length;
+            window.__diagApiItems = apiSales.reduce((a,s) => a + (s.sale_items ? s.sale_items.length : 0), 0);
             const mergeFlags = {};
             posSales.forEach(ls => { if (ls.creditInfo?.merged) mergeFlags[ls.id] = { merged: true, mergedInto: ls.creditInfo.mergedInto }; });
             const apiSalesMap = {};
