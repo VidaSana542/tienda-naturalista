@@ -542,8 +542,17 @@ async function syncFromApi(opts) {
             });
             localStorage.setItem('posCategories', JSON.stringify(POS_CATEGORIES));
         }
-        const apiSales = await API.getSalesByCursor(0, 1000);
-        if (apiSales && Array.isArray(apiSales)) {
+        let allApiSales = [];
+        let cursor = 0;
+        while (true) {
+            const batch = await API.getSalesByCursor(cursor, 1000);
+            if (!batch || batch.length === 0) break;
+            allApiSales = allApiSales.concat(batch);
+            cursor = Math.max(...batch.map(s => s.id));
+            if (batch.length < 1000) break;
+        }
+        const apiSales = allApiSales;
+        if (apiSales && Array.isArray(apiSales) && apiSales.length > 0) {
             const mergeFlags = {};
             posSales.forEach(ls => { if (ls.creditInfo?.merged) mergeFlags[ls.id] = { merged: true, mergedInto: ls.creditInfo.mergedInto }; });
             const apiSalesMap = {};
