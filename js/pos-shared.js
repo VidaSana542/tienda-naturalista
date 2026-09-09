@@ -3312,22 +3312,36 @@ function deleteSalePayment(saleId, paymentIdx) {
 function reopenCreditSale(saleId) {
     const sale = posSales.find(s => String(s.id) === String(saleId));
     if (!sale || !sale.creditInfo) return;
-    const paymentCount = (sale.creditInfo.payments || []).length;
-    if (!confirm('Reabrir esta venta #' + saleId + '?\nSe eliminaran los ' + paymentCount + ' pagos registrados y volvera a estado pendiente.')) return;
-    sale.creditInfo.payments = [];
-    sale.creditInfo.pagadas = 0;
+    const payments = sale.creditInfo.payments || [];
+    if (payments.length === 0) { showToast('No hay pagos para deshacer'); return; }
+    const lastPayment = payments[payments.length - 1];
+    if (!confirm('Reabrir venta #' + saleId + '?\nSe eliminara el ultimo pago de ' + formatPrice(lastPayment.amount) + ' (' + shortDate(lastPayment.date) + '). Los pagos anteriores se conservan.')) return;
+    const deletedAmount = lastPayment.amount;
+    payments.splice(payments.length - 1, 1);
+    if (sale.creditInfo.tipo === 'abono') {
+        const totalPagado = payments.reduce((sp, p) => sp + p.amount, 0);
+        sale.creditInfo.pagadas = totalPagado >= sale.creditInfo.balance ? 1 : 0;
+    } else {
+        const totalPagadoFijo = payments.reduce((sp, p) => sp + p.amount, 0);
+        sale.creditInfo.pagadas = Math.min(sale.creditInfo.totalCuotas, Math.floor(totalPagadoFijo / sale.creditInfo.cuotaValor));
+    }
     saveSales();
     if (API.isAvailable) {
         const numericId = parseInt(String(sale.id).replace(/^p/i, ''));
         API.updateSale(numericId, { credit_info: sale.creditInfo }).catch(e => {
             console.error('[POS] reopenCreditSale API error:', e);
         });
+        API.deletePaymentBySaleAndAmount(numericId, deletedAmount).then(() => {
+            console.log('[POS] Reopened: last payment removed from payments table');
+        }).catch(e => {
+            console.error('[POS] reopenCreditSale deletePayment error:', e);
+        });
     }
     if (_custHistoryCustomerId) showCustomerHistory(_custHistoryCustomerId);
     renderAccountStatus();
     renderCustomerTable();
     renderSalesTable();
-    showToast('Venta #' + saleId + ' reabierta');
+    showToast('Venta #' + saleId + ' reabierta (ultimo pago eliminado)');
 }
 
 function openPaymentModalCust(saleId) {
