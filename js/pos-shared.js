@@ -544,7 +544,7 @@ async function syncFromApi(opts) {
         }
         let allApiSales = [];
         let cursor = 0;
-        while (true) {
+        for (let page = 0; page < 3; page++) {
             const batch = await API.getSalesByCursor(cursor, 1000);
             if (!batch || batch.length === 0) break;
             allApiSales = allApiSales.concat(batch);
