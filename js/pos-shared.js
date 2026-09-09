@@ -2945,7 +2945,7 @@ function renderCreditSaleHistory(s) {
     } else if (mergedInto) {
         h += '<div style="display:flex;gap:6px;align-items:center;"><span style="font-size:12px;color:var(--text-muted);font-weight:500;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:var(--text-muted);vertical-align:middle;margin-right:2px;"><path d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z"/></svg> Unida en #' + mergedInto + '</span>' + (typeof showFinalInvoice === 'function' ? '<button class="btn btn-sm btn-outline" onclick="showFinalInvoice(' + s.id + ')">Factura</button>' : '') + '</div>';
     } else {
-        h += '<div style="display:flex;gap:6px;align-items:center;"><span style="font-size:12px;color:var(--success);font-weight:600;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:var(--success);vertical-align:middle;margin-right:2px;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Pagado</span>' + (typeof showFinalInvoice === 'function' ? '<button class="btn btn-sm btn-primary" onclick="showFinalInvoice(' + s.id + ')">Factura</button>' : '') + '</div>';
+        h += '<div style="display:flex;gap:6px;align-items:center;"><span style="font-size:12px;color:var(--success);font-weight:600;"><svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:var(--success);vertical-align:middle;margin-right:2px;"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Pagado</span><button class="btn btn-sm btn-outline" onclick="reopenCreditSale(' + s.id + ')" title="Reabrir - eliminar pagos" style="color:var(--danger);border-color:var(--danger);">Reabrir</button>' + (typeof showFinalInvoice === 'function' ? '<button class="btn btn-sm btn-primary" onclick="showFinalInvoice(' + s.id + ')">Factura</button>' : '') + '</div>';
     }
     h += '</div></div>';
     return h;
@@ -3307,6 +3307,27 @@ function deleteSalePayment(saleId, paymentIdx) {
     renderAccountStatus();
     renderCustomerTable();
     showToast('Pago eliminado');
+}
+
+function reopenCreditSale(saleId) {
+    const sale = posSales.find(s => String(s.id) === String(saleId));
+    if (!sale || !sale.creditInfo) return;
+    const paymentCount = (sale.creditInfo.payments || []).length;
+    if (!confirm('Reabrir esta venta #' + saleId + '?\nSe eliminaran los ' + paymentCount + ' pagos registrados y volvera a estado pendiente.')) return;
+    sale.creditInfo.payments = [];
+    sale.creditInfo.pagadas = 0;
+    saveSales();
+    if (API.isAvailable) {
+        const numericId = parseInt(String(sale.id).replace(/^p/i, ''));
+        API.updateSale(numericId, { credit_info: sale.creditInfo }).catch(e => {
+            console.error('[POS] reopenCreditSale API error:', e);
+        });
+    }
+    if (_custHistoryCustomerId) showCustomerHistory(_custHistoryCustomerId);
+    renderAccountStatus();
+    renderCustomerTable();
+    renderSalesTable();
+    showToast('Venta #' + saleId + ' reabierta');
 }
 
 function openPaymentModalCust(saleId) {
