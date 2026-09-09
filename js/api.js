@@ -536,6 +536,14 @@ const API = {
     }
   },
 
+  async deleteInventoryLog(id) {
+    const { error } = await _sb.from('inventory_log').delete().eq('id', id);
+    if (error) {
+      console.error('[API] deleteInventoryLog:', error.message);
+      throw error;
+    }
+  },
+
   async getInventoryStats() {
     const { data: products, error } = await _sb
       .from('products')

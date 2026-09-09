@@ -2215,7 +2215,7 @@ function renderInvLog() {
             '<td>' + l.previousStock + '</td>' +
             '<td>' + l.newStock + '</td>' +
             '<td style="font-size:12px;color:var(--text-muted);">' + (l.reason || '-') + vpfTag + '</td>' +
-            '<td class="actions"><button class="edit" onclick="openInvLogEditModal(' + l.id + ')" title="Editar" style="color:var(--primary);"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button></td>' +
+            '<td class="actions"><button class="edit" onclick="openInvLogEditModal(' + l.id + ')" title="Editar" style="color:var(--primary);"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button> <button class="edit" onclick="deleteInvLogEntry(' + l.id + ')" title="Borrar" style="color:var(--danger);"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button></td>' +
             '</tr>';
     }).join('');
 }
@@ -2229,6 +2229,31 @@ function clearInvLog() {
     saveInvLog();
     renderInventory();
     showToast('Historial de inventario limpiado');
+}
+
+function deleteInvLogEntry(id) {
+    const entry = invLog.find(l => l.id === id);
+    if (!entry) return;
+    if (!confirm('Borrar este movimiento?\n' + entry.productName + ' | ' + entry.type + ' | cant: ' + Math.abs(entry.quantity))) return;
+    const prod = posProducts.find(p => p.id === entry.productId);
+    if (prod) {
+        const oldStock = parseInt(prod.stock) || 0;
+        if (entry.type === 'salida' || entry.type === 'salida_temp' || entry.type === 'venta_ruta') {
+            prod.stock = oldStock + Math.abs(entry.quantity);
+        } else if (entry.type === 'entrada' || entry.type === 'retorno') {
+            prod.stock = oldStock - Math.abs(entry.quantity);
+        }
+    }
+    invLog = invLog.filter(l => l.id !== id);
+    saveInvLog();
+    if (API.isAvailable && entry.apiId) {
+        API.deleteInventoryLog(entry.apiId).catch(e => console.error('[POS] deleteInvLog API error:', e));
+    }
+    if (prod) saveProducts();
+    renderInventory();
+    renderProductTable();
+    renderDashboard();
+    showToast('Movimiento eliminado');
 }
 
 // ============ INVENTORY PRINT TICKET ============
