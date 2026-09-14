@@ -2190,11 +2190,18 @@ async function saveOldPurchase() {
 }
 
 // ============ PAGOS DEL DIA ============
+function onDailyPayPeriodChange() {
+    const period = document.getElementById('dailyPayPeriod').value;
+    document.getElementById('dailyPayDateGroup').style.display = period === 'today' ? '' : 'none';
+    document.getElementById('dailyPayRangeGroup').style.display = period === 'range' ? '' : 'none';
+    document.getElementById('dailyPayMonthGroup').style.display = period === 'month' ? '' : 'none';
+    renderDailyPayments();
+}
+
 function renderDailyPayments() {
-    const dateInput = document.getElementById('dailyPayDate');
+    const period = document.getElementById('dailyPayPeriod') ? document.getElementById('dailyPayPeriod').value : 'today';
     const searchInput = document.getElementById('dailyPaySearch');
     const q = searchInput ? searchInput.value.toLowerCase().trim() : '';
-    const selectedDate = dateInput ? dateInput.value : today();
     
     const ventasFuera = posSales.filter(s => s.ventaPorFuera);
     
@@ -2203,11 +2210,25 @@ function renderDailyPayments() {
         if (!sale.creditInfo || !sale.creditInfo.payments) return;
         sale.creditInfo.payments.forEach(p => {
             const payDate = p.date ? p.date.substring(0, 10) : '';
-            if (payDate === selectedDate) {
-                paymentsData.push({
-                    sale: sale,
-                    payment: p
-                });
+            let include = false;
+            if (period === 'today') {
+                const selDate = document.getElementById('dailyPayDate') ? document.getElementById('dailyPayDate').value : today();
+                include = payDate === selDate;
+            } else if (period === 'range') {
+                const from = document.getElementById('dailyPayDateFrom') ? document.getElementById('dailyPayDateFrom').value : '';
+                const to = document.getElementById('dailyPayDateTo') ? document.getElementById('dailyPayDateTo').value : '';
+                if (from && to) include = payDate >= from && payDate <= to;
+                else if (from) include = payDate >= from;
+                else if (to) include = payDate <= to;
+                else include = true;
+            } else if (period === 'month') {
+                const month = document.getElementById('dailyPayMonth') ? document.getElementById('dailyPayMonth').value : '';
+                include = month && payDate.substring(0, 7) === month;
+            } else {
+                include = true;
+            }
+            if (include) {
+                paymentsData.push({ sale: sale, payment: p });
             }
         });
     });
@@ -2235,11 +2256,28 @@ function renderDailyPayments() {
     }, 0);
     
     const statsEl = document.getElementById('dailyPayStats');
-    const dateParts = selectedDate.split('-');
-    const dateFormatted = dateParts[2] + '/' + dateParts[1] + '/' + dateParts[0];
+    let periodLabel = 'Del dia';
+    if (period === 'today') {
+        const selDate = document.getElementById('dailyPayDate') ? document.getElementById('dailyPayDate').value : today();
+        const dp = selDate.split('-');
+        periodLabel = 'Del dia ' + dp[2] + '/' + dp[1] + '/' + dp[0];
+    } else if (period === 'range') {
+        const from = document.getElementById('dailyPayDateFrom') ? document.getElementById('dailyPayDateFrom').value : '';
+        const to = document.getElementById('dailyPayDateTo') ? document.getElementById('dailyPayDateTo').value : '';
+        if (from && to) periodLabel = 'Del ' + from.split('-')[2] + '/' + from.split('-')[1] + ' al ' + to.split('-')[2] + '/' + to.split('-')[1];
+        else if (from) periodLabel = 'Desde ' + from.split('-')[2] + '/' + from.split('-')[1];
+        else if (to) periodLabel = 'Hasta ' + to.split('-')[2] + '/' + to.split('-')[1];
+        else periodLabel = 'Rango completo';
+    } else if (period === 'month') {
+        const month = document.getElementById('dailyPayMonth') ? document.getElementById('dailyPayMonth').value : '';
+        const monthNames = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        if (month) { const mp = month.split('-'); periodLabel = monthNames[parseInt(mp[1])] + ' ' + mp[0]; }
+    } else {
+        periodLabel = 'Todos los pagos';
+    }
     if (statsEl) {
         statsEl.innerHTML = `
-            <div class="stat-card"><div class="stat-icon green"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div><div class="stat-info"><span class="stat-label">RECAUDO DEL DIA ${dateFormatted}</span><h3>${formatPrice(totalRecaudado)}</h3><p>${paymentsData.length} abono${paymentsData.length !== 1 ? 's' : ''}</p></div></div>
+            <div class="stat-card"><div class="stat-icon green"><svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div><div class="stat-info"><span class="stat-label">RECAUDO ${periodLabel.toUpperCase()}</span><h3>${formatPrice(totalRecaudado)}</h3><p>${paymentsData.length} abono${paymentsData.length !== 1 ? 's' : ''}</p></div></div>
             <div class="stat-card"><div class="stat-icon orange"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div class="stat-info"><span class="stat-label">Pendiente Total</span><h3>${formatPrice(totalPendiente)}</h3><p>Por cobrar</p></div></div>
         `;
     }
